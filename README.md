@@ -1,67 +1,129 @@
-# Fleet Trip Manager
+# KPS Technology - Truck Trip & Reminder System
 
-A no-backend, browser-only web app for tracking truck trips per customer:
-driver advances, loading/unloading, diesel fills, RTO expenses, other
-expenses, mileage, and a printable/emailable trip report. Data is stored in
-the browser's `localStorage` — there is no server and no database to host.
+A web app for tracking truck trips (diesel, KM, mileage, expenses) and sending
+document-expiry reminders. Runs as a normal Node.js web server so any number of
+customers/drivers can log in from their own phone or computer, from anywhere,
+once it's deployed on a live server.
 
-## Files
+## How the roles work
 
-| File | Purpose |
-|---|---|
-| `index.html` | The app shell (login, license, dashboard screens) |
-| `style.css` | Visual design |
-| `app.js` | All app logic: auth, trips, calculations, reports |
-| `config.js` | **Edit this per customer** — company ID, name, contact, dropdown lists |
-| `license.js` | Offline license key generation/validation |
-| `keygen.html` | Developer-only tool to generate renewal keys — do not give this file to customers |
+| Role | Created by | Access |
+|---|---|---|
+| **Super Admin** (KPS Technology staff) | seeded automatically on first run | Creates every customer account |
+| **Customer Admin** | Super Admin, when creating a customer | Full access to all of that customer's vehicles: add vehicles, create vehicle logins, set document expiry dates, view all trips/reports |
+| **Vehicle User** | Customer Admin, per vehicle | Can only see/enter data for the one vehicle they're assigned to (start loading fills, diesel entries, RTO, other expenses, unloading, view that vehicle's trip reports) |
 
-## Setting up a new customer
+## Trip logic implemented (as specified)
 
-1. Copy this whole folder.
-2. Open `config.js` and set:
-   - `COMPANY_ID` — a unique string for this customer (e.g. `"ACME-LOGISTICS-01"`). Keep it unique across all your customers — license keys are tied to it.
-   - `DEFAULT_COMPANY_NAME`, `DEFAULT_COMPANY_MOBILE`, `DEFAULT_COMPANY_EMAIL`
-   - `DEFAULT_ADMIN_USERNAME` / `DEFAULT_ADMIN_PASSWORD` — the first login you'll hand to the customer's admin. Tell them to change the password from Settings → Users after first login.
-3. Host the folder anywhere static files work (a plain web host, S3/Netlify/GitHub Pages, or even opened locally as `index.html` on the vehicle owner's/office computer). No build step, no server code.
-4. Open `keygen.html` yourself (not the customer), enter that customer's `COMPANY_ID`, and generate a 1-year key. Give the customer only the key string — never send them `keygen.html`.
-5. The customer opens the app, enters that key on the **Activate** screen, then signs in with the admin credentials from step 2.
+- A trip **opens** the moment a diesel fill is entered at a loading location.
+- That first fill's litres/value are **not** counted — it only records the
+  starting odometer reading.
+- Every later fill during the trip **is** counted.
+- The trip **closes automatically** the moment the *next* loading-point diesel
+  fill is entered — that closing fill's litres/value count toward the trip
+  that's ending, and its odometer reading becomes the trip's end odometer. The
+  same fill then becomes the *opening* (uncounted) fill of the new trip.
+- **KM** = end odometer − start odometer.
+- **Mileage** = KM ÷ total counted diesel litres.
+- **Total expenses** = loading expense + unloading expense + all RTO entries +
+  all other expenses (diesel is **not** included in this total).
+- **Net amount** = driver advance − total expenses.
+- The moment a trip closes, a printable report is generated automatically and
+  emailed to the customer's registered email address. It can also be re-sent
+  or opened/printed on demand from the vehicle/trip screens.
 
-## Renewing a license every year
+## Reminders
 
-1. Open `keygen.html`, enter the customer's `COMPANY_ID`, choose the renewal length, and generate a new key.
-2. Send the customer the new key.
-3. The customer's admin goes to **Settings → License** inside the app and pastes it into "Enter renewal key from developer".
+A daily job (runs at 08:00 server time):
+- Sends a **Q-Tax** reminder to every customer on the last calendar day of
+  each quarter (Mar/Jun/Sep/Dec).
+- Sends a reminder **15 days before expiry** for: Fitness, 1 Year Permit,
+  5 Year Permit, Purging, Explosive License, PLI, Vehicle Insurance, Hydro
+  Certificate.
 
-The app shows a reminder banner on the login screen starting 21 days before expiry so the admin knows to ask you for the next key.
+## Photos & GPS
 
-> **Note on security:** this license scheme is fully client-side (there's no server to phone home to), which is what makes the app free to host. It's enough to enforce a yearly renewal conversation with each customer, but anyone with programming knowledge who reads `license.js` could forge a key. If you need real protection against forged keys, move key validation to a small server endpoint you control instead of `license.js`.
+Diesel fills, RTO entries, and other expenses all accept an optional photo
+(taken with the phone camera or uploaded from the gallery — the `capture`
+attribute on file inputs opens the camera directly on mobile). RTO entries
+also automatically attach the browser's GPS coordinates when the user allows
+location access.
 
-## Roles
+---
 
-- **Admin** — sees every vehicle, manages vehicles and user accounts, edits company details, applies license renewals, and can open any vehicle's trips and reports.
-- **User** — signs in and sees only the one vehicle assigned to their account: its current trip and its trip history/reports. Create one user account per driver/vehicle from **Manage users** (admin only).
+## Running it locally (for testing)
 
-## How a trip works
+```bash
+cd kps-technology
+npm install
+cp .env.example .env
+# edit .env: set JWT_SECRET, SMTP_* mail settings, and the super-admin login
+npm start
+```
 
-1. **First trip on a vehicle**: enter the opening diesel fill (volume, rate, odometer, date, optional photo), the driver advance, and the loading location + loading (cleaner) expense.
-2. While the trip is open you can log: more diesel fills, RTO entries (amount, date, photo, GPS captured from the browser), the unloading location + expense, and other expenses (amount, date, photo).
-3. **Closing a trip**: this happens "once diesel is filled again at the loading location" for the next trip — enter that fill's volume, rate, odometer, and date. The app immediately:
-   - Excludes the trip's very first fill from the diesel/mileage math.
-   - Sums the trip's interim fills **plus this closing fill** as diesel used.
-   - Calculates KM as (closing odometer − opening odometer).
-   - Calculates mileage as KM ÷ diesel used.
-   - Adds up loading + unloading + RTO + other expenses (diesel excluded) and subtracts that from the driver advance to get the balance.
-   - Starts the next trip automatically, using this same fill as its opening fill — so you only enter the reading once.
-4. From any closed trip's **Report**, you can **Print / Save PDF**, or **Email to company address**, which opens the admin's mail app with a prefilled summary addressed to the company email from Settings. (Photos aren't attached automatically by the mailto link — print to PDF first if you need photos included in what you send.)
+The server starts on `http://localhost:4000` (or whatever `PORT` you set).
+The database (`db/kps.db`, SQLite) and its tables are created automatically
+the first time you run it, along with the super-admin login from your `.env`.
 
-## Data & photos
+Open `http://localhost:4000` → log in as the super admin → create your first
+customer → log out → log in as that customer admin → add a vehicle → create a
+vehicle login → hand that username/password to the driver/user.
 
-Everything — company info, vehicles, users, trips, and photos — is saved in
-the browser's `localStorage` on the device being used. Photos are
-compressed before saving to keep storage usage reasonable, but very heavy
-use of photos on one device over a long time can approach the browser's
-storage limit; there's no server-side backup. If a customer wants
-protection against losing data if the browser storage is cleared or the
-device is lost, add a small backup/export step or move storage to a real
-backend.
+## Deploying to a live server (so different systems can use it)
+
+Any small Linux VPS (DigitalOcean, AWS Lightsail, Hostinger VPS, etc.) works.
+Outline:
+
+1. Install Node.js (v18+) on the server.
+2. Upload this whole `kps-technology` folder to the server (e.g. via `git`,
+   `scp`, or an SFTP client).
+3. `cd kps-technology && npm install`
+4. Create `.env` on the server with real values:
+   - `JWT_SECRET` — any long random string.
+   - `SMTP_*` — your company's email account (Gmail with an "App Password",
+     or any SMTP provider) so reports and reminders actually get delivered.
+   - `SUPERADMIN_USERNAME` / `SUPERADMIN_PASSWORD` — your own login.
+5. Keep it running permanently with a process manager, e.g.:
+   ```bash
+   npm install -g pm2
+   pm2 start server.js --name kps-technology
+   pm2 save
+   pm2 startup
+   ```
+6. Put Nginx in front of it as a reverse proxy (so you can use a normal domain
+   name and free HTTPS via Let's Encrypt/certbot) forwarding port 80/443 to
+   the app's `PORT` (default 4000).
+7. Once that's done, anyone — on any computer or phone, anywhere — can go to
+   `https://your-domain.com` and log in with the username/password you gave
+   them. No installation needed on their side; it's just a website.
+
+### Backing up
+The entire database lives in one file: `db/kps.db` (plus `-wal`/`-shm`
+companion files while the server is running). Back that file up regularly.
+Uploaded photos live in the `uploads/` folder — back that up too.
+
+## Project structure
+
+```
+kps-technology/
+  server.js              - app entry point
+  db/                     - SQLite database + schema/seed script
+  middleware/             - auth (JWT) and file-upload handling
+  routes/                 - REST API: auth, customers, vehicles, trips, config
+  utils/                  - trip calculations, report builder, email, reminders
+  public/                 - the actual website (HTML/CSS/JS), served statically
+```
+
+## Notes / things you may want to extend later
+
+- Passwords are entered as plain text by the admin when creating a login
+  (there's no self-service "forgot password" flow yet) — an admin can reset
+  a user's password directly in the database if needed, or this can be added
+  as a small extra screen.
+- The printable report currently opens as an HTML page the user prints to
+  PDF from their browser (Ctrl/Cmd+P → Save as PDF); a one-click "download
+  as PDF" button can be added later using the `pdfkit` dependency already
+  included in `package.json`.
+- Multiple vehicle users per vehicle, or a customer having more than one
+  admin login, aren't in this first version but the schema supports adding
+  them easily.
