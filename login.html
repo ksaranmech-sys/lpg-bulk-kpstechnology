@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>KPS Technology - Login</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-box">
+      <div style="text-align:center;"><img src="/img/logo.jpg" alt="KPS Technology" style="width:90px;"></div>
+      <h1>KPS Technology</h1>
+      <p style="text-align:center;color:#666;font-size:13px;margin-top:-10px;">Truck Trip &amp; Reminder System</p>
+      <label>Username</label>
+      <input id="username" type="text" autocomplete="username">
+      <label>Password</label>
+      <input id="password" type="password" autocomplete="current-password">
+      <button class="primary" style="width:100%" onclick="doLogin()">Log In</button>
+      <div id="err" class="error"></div>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script>
+    async function doLogin() {
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+      const errBox = document.getElementById('err');
+      errBox.textContent = '';
+      try {
+        const data = await api('/auth/login', { method: 'POST', body: { username, password } });
+        localStorage.setItem('kps_token', data.token);
+        localStorage.setItem('kps_user', JSON.stringify(data.user));
+        if (data.user.role === 'super_admin') window.location.href = '/admin-dashboard.html';
+        else if (data.user.role === 'customer_admin') window.location.href = '/customer-dashboard.html';
+        else window.location.href = '/vehicle-dashboard.html';
+      } catch (e) {
+        errBox.textContent = e.message;
+      }
+    }
+    document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  </script>
+</body>
+</html>

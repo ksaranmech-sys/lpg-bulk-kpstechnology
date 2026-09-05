@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>KPS Technology - Customer Dashboard</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1><img src="/img/logo.jpg" alt="" style="height:28px;vertical-align:middle;border-radius:50%;margin-right:8px;">My Vehicles</h1>
+    <button onclick="logout()">Log Out</button>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <h2>Company Details</h2>
+      <div class="row">
+        <div><label>Mobile Number</label><input id="mobile"></div>
+        <div><label>Company Email Address (reports &amp; reminders go here)</label><input id="email" type="email"></div>
+      </div>
+      <button class="primary" onclick="saveCompany()">Save</button>
+      <div id="companyMsg" class="msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Add Vehicle</h2>
+      <div class="row">
+        <div><label>Vehicle Number</label><input id="vehicleNumber" placeholder="e.g. KA-19-AB-1234"></div>
+      </div>
+      <button class="primary" onclick="addVehicle()">Add Vehicle</button>
+      <div id="vehicleErr" class="error"></div>
+    </div>
+
+    <div class="card">
+      <h2>Vehicles</h2>
+      <table>
+        <thead><tr><th>Vehicle Number</th><th>Added</th><th></th></tr></thead>
+        <tbody id="vehicleRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/customer.js"></script>
+</body>
+</html>

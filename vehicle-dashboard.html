@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>KPS Technology - Trip Entry</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="topbar">
+    <h1><img src="/img/logo.jpg" alt="" style="height:28px;vertical-align:middle;border-radius:50%;margin-right:8px;"><span id="pageTitle">My Vehicle</span></h1>
+    <button onclick="logout()">Log Out</button>
+  </div>
+
+  <div class="container">
+
+    <div class="card" id="currentTripCard" style="display:none">
+      <h2>Current Open Trip <span id="currentTripPill"></span></h2>
+      <div id="currentTripInfo"></div>
+
+      <h3>Add Extra Diesel Fill (mid-trip)</h3>
+      <div class="row">
+        <div><label>Volume (L)</label><input id="d_volume" type="number" step="0.01"></div>
+        <div><label>Rate (Rs/L)</label><input id="d_rate" type="number" step="0.01"></div>
+        <div><label>Value (Rs)</label><input id="d_value" type="number" step="0.01"></div>
+        <div><label>Odometer (km, optional)</label><input id="d_odo" type="number" step="0.1"></div>
+        <div><label>Photo (optional)</label><input id="d_photo" type="file" accept="image/*" capture="environment"></div>
+      </div>
+      <button class="secondary" onclick="addDiesel()">Add Diesel Entry</button>
+      <div id="dieselMsg" class="msg"></div>
+
+      <h3>Unloading Details</h3>
+      <div class="row">
+        <div><label>Unloading Location</label><select id="unload_location"></select></div>
+        <div><label>Unloading / Cleaner Expense (Rs)</label><input id="unload_expense" type="number" step="0.01"></div>
+      </div>
+      <button class="secondary" onclick="saveUnloading()">Save Unloading Details</button>
+      <div id="unloadMsg" class="msg"></div>
+
+      <h3>RTO Entry</h3>
+      <div class="row">
+        <div><label>Amount (Rs)</label><input id="r_amount" type="number" step="0.01"></div>
+        <div><label>Date</label><input id="r_date" type="date"></div>
+        <div><label>Photo</label><input id="r_photo" type="file" accept="image/*" capture="environment"></div>
+      </div>
+      <button class="secondary" onclick="addRTO()">Add RTO Entry (auto GPS)</button>
+      <div id="rtoMsg" class="msg"></div>
+
+      <h3>Other Expense</h3>
+      <div class="row">
+        <div><label>Amount (Rs)</label><input id="e_amount" type="number" step="0.01"></div>
+        <div><label>Date</label><input id="e_date" type="date"></div>
+        <div><label>Description</label><input id="e_desc"></div>
+        <div><label>Photo</label><input id="e_photo" type="file" accept="image/*" capture="environment"></div>
+      </div>
+      <button class="secondary" onclick="addOtherExpense()">Add Expense</button>
+      <div id="expenseMsg" class="msg"></div>
+    </div>
+
+    <div class="card">
+      <h2>Loading Fill (starts a new trip / closes the current one)</h2>
+      <p style="color:#666;font-size:13px">
+        Entering a diesel fill here at a loading point closes the trip in progress (if any) and starts the next one,
+        exactly as described: the first fill of a trip is not counted, and the closing fill is counted in the
+        previous trip's diesel total.
+      </p>
+      <div class="row">
+        <div><label>Loading Location</label><select id="l_location"></select></div>
+        <div><label>Driver Advance (Rs)</label><input id="l_advance" type="number" step="0.01"></div>
+        <div><label>Advance Date</label><input id="l_advance_date" type="date"></div>
+        <div><label>Loading / Cleaner Expense (Rs)</label><input id="l_expense" type="number" step="0.01"></div>
+      </div>
+      <div class="row">
+        <div><label>Diesel Volume (L)</label><input id="l_volume" type="number" step="0.01"></div>
+        <div><label>Diesel Rate (Rs/L)</label><input id="l_rate" type="number" step="0.01"></div>
+        <div><label>Diesel Value (Rs)</label><input id="l_value" type="number" step="0.01"></div>
+        <div><label>Odometer Reading (km)</label><input id="l_odo" type="number" step="0.1"></div>
+        <div><label>Photo (optional)</label><input id="l_photo" type="file" accept="image/*" capture="environment"></div>
+      </div>
+      <button class="primary" onclick="submitLoadingFill()">Submit Loading Fill</button>
+      <div id="loadingMsg" class="msg"></div>
+      <div id="loadingErr" class="error"></div>
+    </div>
+
+    <div class="card">
+      <h2>Trip History</h2>
+      <table>
+        <thead><tr><th>Trip #</th><th>Status</th><th>Loading</th><th>Unloading</th><th>Advance</th><th>Net Amount</th><th></th></tr></thead>
+        <tbody id="tripRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/vehicle.js"></script>
+</body>
+</html>
