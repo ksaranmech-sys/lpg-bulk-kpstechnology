@@ -1,95 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>KPS Technology</title>
-
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, Helvetica, sans-serif;
-      line-height: 1.6;
-      color: #090;
-    }
-    header {
-      background: white;
-      
-      color: #090;
-      padding: 20px 20px;
-      text-align: center;
-    }
-
-    header h1 {
-      margin-bottom: 10px;
-      font-size: 40px;
-    }
-
-    section {
-      padding: 20px 20px;
-      max-width: 1100px;
-      margin: auto;
-    }
-    .about {
-      background: #FAFAFA;
-    }
-
-    .contact {
-      background: #FAFAFA;
-      color: #050;
-      text-align: center;
-    }
-
-    .contact p {
-      margin: 8px 0;
-    }
-
-    footer {
-      background:#FAFAFA;
-      color: #ccc;
-      text-align: center;
-      padding: 5px;
-      font-size: 14px;
-    }
-
-       button:hover {
-      background: #FAFAFA;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Fleet Trip Manager</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="style.css">
 </head>
-
 <body>
 
-  <!-- HERO SECTION -->
-  <header>
-    <h1>KPS Technology</h1>
-    <p>Import & Export of spices and scraps</p>
-    <img src="Images/KPS_logo.jpg" width="200px">
+<!-- ===================== LICENSE SCREEN ===================== -->
+<div id="screen-license" class="center-screen hidden">
+  <div class="auth-card">
+    <h1>Activate</h1>
+    <div class="tag">Enter the license key your developer issued for this company.</div>
+    <div id="licenseError" class="error-msg hidden"></div>
+    <div class="field">
+      <label for="licenseInput">License key</label>
+      <input id="licenseInput" placeholder="TRK-XXXX-YYYYMMDD-XXXXX" autocomplete="off">
+    </div>
+    <button class="full amber" onclick="App.submitLicense()">Activate</button>
+  </div>
+</div>
+
+<!-- ===================== LOGIN SCREEN ===================== -->
+<div id="screen-login" class="center-screen hidden">
+  <div class="auth-card">
+    <h1 id="loginCompanyName">Fleet Trip Manager</h1>
+    <div class="tag">Sign in to record and review trips.</div>
+    <div id="loginError" class="error-msg hidden"></div>
+    <div id="licenseWarning" class="info-msg hidden"></div>
+    <div class="field">
+      <label for="loginUser">Username</label>
+      <input id="loginUser" autocomplete="username">
+    </div>
+    <div class="field">
+      <label for="loginPass">Password</label>
+      <input id="loginPass" type="password" autocomplete="current-password">
+    </div>
+    <button class="full amber" onclick="App.submitLogin()">Sign in</button>
+  </div>
+</div>
+
+<!-- ===================== APP SHELL ===================== -->
+<div id="screen-app" class="hidden">
+  <header id="appHeader">
+    <div class="company">
+      <span id="hdrCompanyName">Company</span>
+      <small id="hdrLicenseNote"></small>
+    </div>
+    <div class="who">
+      <span id="hdrUserInfo"></span>
+      <span class="role-pill" id="hdrRolePill">ROLE</span>
+      <button class="secondary small" style="border-color:var(--paper);color:var(--paper)" onclick="App.logout()">Sign out</button>
+    </div>
   </header>
 
-  <!-- ABOUT -->
-  <section class="about">
-    <h2>About Us</h2>
-    <p>
-      KPS Technology was established in 2012, specializing in vehicle monitoring systems. In 2022, we expanded our operations to export fresh vegetables and spices to Japan. In 2025, we further diversified our business by importing aluminum and copper scrap.
-    </p>
-  </section>
+  <main id="mainContent">
+    <!-- Filled dynamically by app.js depending on screen/role -->
+  </main>
 
-  <!-- SERVICES -->
-  <section class="contact">
-    <h2>Our website is currently under construction. Updates will be available soon.</h2>
-    
-  <!-- CONTACT -->
-  <section class="contact">
-    <h2>Contact Us</h2>
-    <p>Email: saravanan.k@kpstechnology.in</p>
-      
-  </section>
+  <footer class="app-footer">Fleet Trip Manager — offline, single-company edition</footer>
+</div>
 
-  <!-- FOOTER -->
-  <footer>
-    © 2025 KPS Technology. All Rights Reserved.
-  </footer>
-
+<script src="config.js"></script>
+<script src="license.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
