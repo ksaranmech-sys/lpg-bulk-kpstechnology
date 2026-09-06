@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { dbConnect } from "./mongodb";
 import User from "../models/User";
+import Customer from "../models/Customer";
 
 export const authOptions = {
   session: { strategy: "jwt" },
@@ -38,10 +39,19 @@ export const authOptions = {
         token.role = user.role;
         token.customerId = user.customerId;
         token.assignedVehicle = user.assignedVehicle;
+        token.active = true;
+      } else if (token.sub) {
+        await dbConnect();
+        const currentUser = await User.findById(token.sub).select("active customerId").lean();
+        const customer = currentUser?.customerId
+          ? await Customer.findById(currentUser.customerId).select("blocked").lean()
+          : null;
+        token.active = Boolean(currentUser?.active && !customer?.blocked);
       }
       return token;
     },
     async session({ session, token }) {
+      if (token.active === false) return null;
       session.user.role = token.role;
       session.user.customerId = token.customerId;
       session.user.assignedVehicle = token.assignedVehicle;

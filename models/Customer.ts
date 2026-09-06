@@ -6,6 +6,7 @@ const CustomerSchema = new mongoose.Schema(
     name: { type: String, required: true },
     mobileNumber: { type: String, required: true },
     email: { type: String, required: true }, // receives the printable trip report
+    blocked: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
