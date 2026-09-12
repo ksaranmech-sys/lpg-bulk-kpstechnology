@@ -6,7 +6,10 @@ async function connectDB() {
     throw new Error('MONGO_URI is not set in .env');
   }
   mongoose.set('strictQuery', true);
-  await mongoose.connect(uri);
+  await mongoose.connect(uri, {
+    serverSelectionTimeoutMS: Number(process.env.MONGO_SERVER_SELECTION_TIMEOUT_MS || 8000),
+    connectTimeoutMS: Number(process.env.MONGO_CONNECT_TIMEOUT_MS || 8000),
+  });
   console.log(`[db] MongoDB connected -> ${mongoose.connection.host}/${mongoose.connection.name}`);
 
   mongoose.connection.on('error', (err) => {

@@ -115,7 +115,14 @@ MONGO_URI=<production MongoDB connection string>
 JWT_SECRET=<long random secret>
 JWT_EXPIRES_IN=7d
 API_BASE_URL=https://lpg-fleet.kpstechnology.in
+MONGO_SERVER_SELECTION_TIMEOUT_MS=8000
+MONGO_CONNECT_TIMEOUT_MS=8000
 ```
+
+MongoDB Atlas must allow connections from Vercel. For a deployment without a
+fixed egress IP, add `0.0.0.0/0` to Atlas Network Access and rely on a strong
+database user password, or route the API through a host with a fixed outbound
+IP.
 
 Add the `SMTP_*`, `COMPANY_*`, and storage variables as needed for reports and
 photo uploads. Redeploy after saving the variables.

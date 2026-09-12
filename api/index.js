@@ -7,6 +7,10 @@ let connectionPromise;
 const requiredEnvironment = ['MONGO_URI', 'JWT_SECRET'];
 
 async function handler(req, res) {
+  if (req.url === '/health' || req.url === '/api/health') {
+    return res.json({ status: 'ok', time: new Date().toISOString() });
+  }
+
   const missingEnvironment = requiredEnvironment.filter((name) => !process.env[name]);
 
   if (missingEnvironment.length) {
