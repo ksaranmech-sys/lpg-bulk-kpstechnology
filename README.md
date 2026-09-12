@@ -1,255 +1,176 @@
 # KPS Technology — Fleet Management System
 
-A starter, working codebase for the app you described: customer logins (admin +
-single-vehicle user), trip/diesel/expense tracking with photo+GPS capture, automatic
-mileage & settlement calculation, printable/emailable trip reports, and expiry
-reminders for 9 vehicle documents.
-
-**Stack**: Next.js (React, deploys natively on Vercel) + MongoDB Atlas + NextAuth +
-Vercel Blob (photo storage) + Resend (email) + Vercel Cron (reminders) + pdf-lib
-(printable reports).
-
-> Why Next.js instead of plain React? Vercel is built around it — you get API routes,
-> serverless functions, and cron jobs in the same project with zero extra config. A
-> plain React (Vite) app would need a *separate* backend hosted somewhere else.
+A MERN (MongoDB + Express + React + Node) application for KPS Technology's
+customers to manage their own truck fleets: trip logging, diesel/mileage
+tracking, expense capture with photo + GPS proof, and automatic settlement
+reports emailed as PDF. Built with a mobile app in mind — the backend is a
+plain versioned REST API (`/api/v1/...`) with JWT auth, so a React Native (or
+any other) mobile client can consume it unchanged.
 
 ---
 
-## 1. What's already built in this folder
+## 1. How the domain model works
+
+- **Customer** = a subgroup. Each customer has their own vehicles and users.
+  Multi-tenant via a `customer` field on every record (not separate
+  databases) — simplest to run and to extend to mobile.
+- **Users**
+  - `customer_admin` — full access to every vehicle under their customer.
+  - `vehicle_user` — access restricted to exactly one assigned vehicle.
+  - `super_admin` — KPS Technology staff; onboards new customers.
+  - Customers don't self-register — KPS (or the customer admin, for
+    vehicle_users) creates logins directly, matching "create username and
+    password for different customers."
+- **Vehicle** belongs to a customer; has a vehicle number and contact number.
+- **Trip** belongs to a vehicle. It holds driver advances, loading location
+  + expense, diesel fills, RTO entries, unloading location + expense, and
+  other expenses — matching every field in the spec.
+
+## 2. The tricky part: diesel, KM, and mileage across trip boundaries
+
+This is the part worth reading carefully before changing anything in
+`../LPG-FLEET-BACKEND/src/utils/tripCalculations.js`.
+
+A trip does **not** close when the driver finishes unloading — it closes the
+moment diesel is filled again at the loading location **for the next trip**.
+So two consecutive trips share a diesel-fill boundary event. Concretely:
+
+- Trip N's **first** diesel entry is really "topping off" what's left from
+  Trip N-1 — it does not represent Trip N's own consumption, so it's
+  excluded.
+- Trip N's diesel consumption = `sum(Trip N's diesel entries except the
+  first)` **+** `Trip N+1's first diesel entry volume`.
+- Trip N's KM run = `(Trip N+1's first fill odometer) - (Trip N's first fill
+  odometer)`.
+- Mileage = KM / diesel litres (as computed above).
+
+Because of this, **a trip can only be settled once the next trip exists and
+has recorded its own first diesel fill**. The API handles this automatically:
+every time a diesel entry is saved and it happens to be the first entry on
+its trip, the backend looks up that vehicle's previous open trip and tries to
+settle it (`tryCloseVehiclePreviousTrip` in `tripController.js`). If the
+previous trip's own first-fill odometer reading is missing, settlement is
+deferred until it's filled in — the trip simply stays "open."
+
+**Expense settlement** (separate from diesel):
 
 ```
-lib/
-  mongodb.js          MongoDB connection (cached for serverless)
-  auth.js              NextAuth config + role-based access guard
-  tripCalculations.js  The diesel/KM/mileage/expense/balance math
-  tripPdf.js           Printable settlement PDF generator
-  email.js             Sends trip reports + reminder emails (Resend)
-  reminders.js         Reminder-due logic (quarter-end / 15-days-before)
-models/
-  User.js              superadmin / admin / user roles
-  Customer.js           name, mobile, email
-  Vehicle.js            vehicle number + the 9 document expiry fields
-  Trip.js               advance, loading/unloading, diesel fills, RTO, expenses
-pages/
-  login.js             Login page
-  api/auth/[...nextauth].js
-  api/customers/index.js       superadmin-only: create customer + its admin login
-  api/vehicles/index.js       list vehicles (role-scoped) / register vehicle (superadmin only)
-  api/vehicles/[id].js         fetch one vehicle / edit its document expiry dates
-  api/trips/index.js          list/create trips
-  api/trips/[id]/diesel.js    add a diesel fill
-  api/trips/[id]/rto.js       add an RTO entry
-  api/trips/[id]/expense.js   add an "other expense"
-  api/trips/[id]/close.js     settle trip, generate PDF, email it
-  api/cron/reminders.js       daily reminder job
-  api/upload.js               photo upload endpoint (Vercel Blob)
-components/
-  DieselFillEntry.jsx  Example form: camera capture + GPS tagging + upload
-scripts/
-  seedSuperAdmin.js    Creates your very first login
-vercel.json            Registers the daily cron job
-.env.example           Every environment variable you need to set
+totalExpense = loadingExpense + unloadingExpense + sum(otherExpenses) + sum(rtoEntries)
+balance      = totalAdvance - totalExpense
 ```
 
-This is a **working backend + data model + one example form**, not a finished UI for
-every screen. Section 6 below tells you exactly how to build the remaining pages by
-copying the same pattern.
+Diesel cost is *not* subtracted from the advance (only physically-paid cash
+expenses are) — it's reported for information/mileage purposes only. If your
+actual accounting also nets off diesel cost against the advance, that's a
+one-line change in `computeTripSettlement()`.
 
----
+## 3. Project layout
 
-## 2. How the business rules map to code
-
-**Roles & access** (`lib/auth.js`)
-- `superadmin` — KPS staff **only**. The only role that can create a `Customer` record,
-  its `admin` login, and register vehicle numbers (`POST /api/customers`,
-  `POST /api/vehicles`). This matches "KPS creates username/password for customers."
-- `admin` — a customer's main login. Its feed is strictly scoped to its own
-  `customerId` — it can never see or touch another customer's vehicles or trips. It
-  *can* edit its own fleet's document expiry dates (`PATCH /api/vehicles/:id`), but
-  cannot register a new vehicle number itself — that stays with KPS staff.
-- `user` — restricted login tied to exactly one `assignedVehicle`. Can view that
-  vehicle's **current open trip and its full trip history** (`GET /api/trips` returns
-  all trips for the assigned vehicle unless a `status` filter is passed), start/update
-  trips, but cannot edit document expiry dates.
-- Every API route checks `canAccessVehicle()` before returning or mutating data, so
-  this scoping is enforced server-side, not just hidden in the UI.
-
-**Trip lifecycle** (`models/Trip.js`, `lib/tripCalculations.js`)
-1. Trip opens: driver advance, loading location, loading (cleaner) expense, and the
-   **first diesel fill** are recorded together. This first fill is the carry-over from
-   wherever the truck last filled up — it's stored, but excluded from this trip's diesel
-   total.
-2. While on the road: any number of extra diesel fills, RTO entries (amount + date +
-   GPS-tagged photo), and "other expenses" (amount + date + photo) can be added.
-3. Trip closes: when diesel is filled again **at the next loading location**, that fill
-   is added as normal via `/api/trips/:id/diesel`, then `/api/trips/:id/close` is called
-   with the unloading location + unloading expense. That single call:
-   - Sums diesel litres/value from the **second fill onward** (first fill excluded).
-   - KM = odometer at the closing fill − odometer at the first fill.
-   - Mileage = KM ÷ diesel litres.
-   - Total expenses = loading expense + unloading expense + all RTO entries + all other
-     expenses (**diesel is deliberately not included**, per your spec).
-   - Balance = advance − total expenses.
-   - Builds a one-page PDF and emails it to the customer's registered address.
-
-**Reminders** (`lib/reminders.js`, `pages/api/cron/reminders.js`)
-- Every document except Q-Tax uses a "15 days before `expiryDate`" rule.
-- Q-Tax ignores `expiryDate` and instead fires on the **last calendar day of every
-  quarter** (Mar 31 / Jun 30 / Sep 30 / Dec 31), matching "reminder at end of every
-  quarter."
-- A `lastReminderSentFor` key on each document prevents the same reminder firing twice.
-- `vercel.json` schedules this to run once a day; Vercel calls it with a bearer token
-  equal to `CRON_SECRET`, which the route checks.
-
----
-
-## 3. Step-by-step: get this running
-
-### Step 1 — Install prerequisites
-- Node.js 18+ installed
-- A free [MongoDB Atlas](https://www.mongodb.com/cloud/atlas/register) account
-- A free [Vercel](https://vercel.com/signup) account
-- A free [Resend](https://resend.com) account (email sending)
-- GitHub account (Vercel deploys from a Git repo)
-
-### Step 2 — Create the database
-1. In MongoDB Atlas, create a free (M0) cluster.
-2. Database Access → add a database user with a password.
-3. Network Access → allow access from `0.0.0.0/0` (Vercel's IPs are dynamic).
-4. Get your connection string (Connect → Drivers) — this is `MONGODB_URI`.
-
-### Step 3 — Set up email sending
-1. Sign up at resend.com, verify a sending domain (or use their test domain while
-   developing).
-2. Create an API key — this is `RESEND_API_KEY`.
-3. Update the `from:` address in `lib/email.js` to your verified domain.
-
-### Step 4 — Configure environment variables
-Copy `.env.example` to `.env.local` and fill in every value:
 ```
-MONGODB_URI=...
-NEXTAUTH_SECRET=...     # generate with: openssl rand -base64 32
-NEXTAUTH_URL=http://localhost:3000
-RESEND_API_KEY=...
-COMPANY_EMAIL=...
-BLOB_READ_WRITE_TOKEN=... # from Vercel dashboard, Storage tab, after Step 7
-CRON_SECRET=...          # generate with: openssl rand -base64 32
+kpstechnology-web/
+  package.json             # single deployment boundary
+  backend/
+    src/
+      config/         # db connection, shared enums (loading/unloading locations, roles)
+      models/         # Customer, User, Vehicle, Trip (Mongoose schemas)
+      middleware/     # JWT auth + role/vehicle scoping, file upload abstraction
+      controllers/    # request handlers
+      routes/         # /api/v1/* route wiring
+      utils/          # trip settlement math, PDF report builder, mailer, seed script
+  frontend/
+    src/
+      api/api.js      # single axios client - mirror this file for the mobile app
+      context/        # auth state
+      pages/          # Login, Dashboard, VehicleDetail, TripDetail, AdminOnboarding
+      components/     # shared layout
 ```
 
-### Step 5 — Install & run locally
+## 4. Running it locally
+
+From the `kpstechnology-web` root:
 ```bash
 npm install
-npm run dev
+copy backend\.env.example backend\.env
+npm run seed               # creates the first super_admin login (kpsadmin / ChangeMe@123)
+npm run dev                 # http://localhost:5001
 ```
-Visit `http://localhost:3000`.
 
-### Step 6 — Create your first login
+The backend serves the React application and the `/api/v1` API from the same
+origin. For a production-style build and run:
 ```bash
-node scripts/seedSuperAdmin.js
+npm run build
+npm start                    # http://localhost:5001
 ```
-This creates `kpsadmin / ChangeMe123!` with the `superadmin` role. Log in, then build a
-small internal page (or use MongoDB Compass/Atlas UI directly at first) to:
-1. Create a `Customer` document (name, mobile, email).
-2. Create that customer's `admin` User (`role: "admin"`, `customerId` set).
-3. Have the admin add vehicle numbers (`POST /api/vehicles`).
-4. Create `user` logins per vehicle (`role: "user"`, `assignedVehicle` set) for drivers
-   who should only see one truck.
 
-### Step 7 — Push to GitHub & deploy on Vercel
-```bash
-git init && git add . && git commit -m "Initial KPS fleet app"
-```
-Create a GitHub repo, push, then in Vercel: **New Project → Import** your repo.
-- Add all the same environment variables from `.env.local` in Vercel's Project
-  Settings → Environment Variables (set `NEXTAUTH_URL` to your real `https://...
-  vercel.app` domain).
-- Go to Storage tab → Create a Blob store → copy `BLOB_READ_WRITE_TOKEN` into env vars.
-- Deploy.
+The frontend API defaults to `/api/v1`; set
+`frontend/.env` only when intentionally using a separate development API.
 
-Vercel automatically registers the cron job from `vercel.json` once deployed — no extra
-step needed. (Cron jobs only run on deployed projects, not `localhost`.)
+### First-time setup flow
+1. Log in as `kpsadmin` (change the password immediately — there's no
+   "change password" endpoint stubbed yet; add one before going live, or
+   update it directly via the seed script/DB).
+2. Go to **Admin → Onboard New Customer** (`/admin/onboarding`) to create a
+   customer/subgroup and its first `customer_admin` login.
+3. Log in as that customer admin, add vehicles (currently via API —
+   `POST /api/v1/customers/:customerId/vehicles`; wire up a small UI form the
+   same way `AdminOnboarding.jsx` is built if you want this in the browser).
+4. Create `vehicle_user` logins the same way for drivers/staff who should
+   only see one vehicle.
+5. Start a trip, add diesel/RTO/other-expense entries (camera capture +
+   automatic GPS tagging on mobile browsers), close out unloading details.
+6. Start the *next* trip and record its first diesel fill — this
+   automatically settles the previous trip and makes "Print / Email Report"
+   available on it.
 
-### Step 8 — Verify the cron job
-In Vercel → your project → Cron Jobs tab, you can trigger `/api/cron/reminders`
-manually to test it before waiting for the schedule.
+## 5. API summary (all under `/api/v1`, JWT bearer auth except `/auth/login`)
 
----
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/auth/login` | username+password → JWT |
+| GET | `/auth/me` | current user profile |
+| GET | `/meta` | loading/unloading location dropdown values |
+| POST | `/customers` | (super_admin) onboard a customer + its admin login |
+| POST | `/customers/:id/vehicles` | add a vehicle under a customer |
+| POST | `/customers/:id/users` | create a vehicle-scoped login |
+| GET | `/vehicles` | list vehicles visible to the current user |
+| GET/POST | `/vehicles/:id/trips` | list / start trips for a vehicle |
+| GET | `/trips/:id` | trip detail incl. settlement once closed |
+| POST | `/trips/:id/advances` | add a driver advance |
+| POST | `/trips/:id/diesel` | multipart: volume, rate, odometer(optional), photo(optional) |
+| POST | `/trips/:id/rto` | multipart: amount, date, photo+GPS |
+| POST | `/trips/:id/other-expenses` | multipart: amount, date, description, photo |
+| PATCH | `/trips/:id/unloading` | set unloading location + cleaner expense |
+| GET | `/trips/:id/report` | streams the settlement PDF inline (for "Print") |
+| POST | `/trips/:id/send-report` | emails the PDF to the company (+ customer cc) |
 
-## 4. Data you enter, mapped to fields
+All photo uploads accept an optional `lat`/`lng` pair, which the frontend
+fills in automatically from the browser's Geolocation API — the same call
+works from a mobile app.
 
-| Your requirement | Field |
-|---|---|
-| Vehicle number | `Vehicle.vehicleNumber` |
-| Customer mobile number | `Customer.mobileNumber` |
-| Customer mail address | `Customer.email` |
-| Driver advance + date | `Trip.driverAdvance.{amount,date}` |
-| Loading location (dropdown) | `Trip.loadingLocation`, options in `models/Trip.js` |
-| Loading expense (cleaner) | `Trip.loadingExpense` |
-| Diesel fills (volume/rate/value/KM/photo) | `Trip.dieselFills[]` |
-| RTO entries (amount/date/photo+GPS) | `Trip.rtoEntries[]` |
-| Unloading location (dropdown) | `Trip.unloadingLocation` |
-| Unloading expense (cleaner) | `Trip.unloadingExpense` |
-| Other expenses (amount/date/photo) | `Trip.otherExpenses[]` |
-| Document expiry dates (9 types) | `Vehicle.documents.{qTax,fitness,permit1Year,permit5Year,purging,explosive,pli,insurance,hydroCertificate}` |
+## 6. Deployment
 
-To change the dropdown options later, edit the `LOADING_LOCATIONS` /
-`UNLOADING_LOCATIONS` arrays at the top of `models/Trip.js`.
+Deploy the `kpstechnology-web` directory as one Node application. Use
+`npm install` for the install command, `npm run build` for the build command,
+and `npm start` for the start command. Configure the backend environment
+variables on the hosting platform, including `MONGO_URI`, `JWT_SECRET`, and
+the SMTP settings. Locally stored uploads are written under `backend/uploads`;
+use S3 or another persistent volume in production.
 
----
+## 7. What's stubbed / what to do before production
 
-## 5. Photo + GPS capture pattern
-
-`components/DieselFillEntry.jsx` shows the full pattern used for every photo in the
-app (diesel, RTO, other expenses):
-1. `<input type="file" accept="image/*" capture="environment">` — opens the phone's
-   rear camera by default, but the user can still tap "choose from gallery" to upload
-   an existing photo (covers your "take photo OR upload" requirement).
-2. `navigator.geolocation.getCurrentPosition()` grabs GPS coordinates at the moment of
-   upload (used for RTO photos as required; harmless to also attach it everywhere else).
-3. The file uploads directly to Vercel Blob storage via `@vercel/blob/client`, so large
-   images never pass through your API function body.
-4. The resulting `{ url, gps }` object is saved on the relevant sub-document.
-
-Copy this component's shape for the RTO and "other expense" forms, pointing them at
-`/api/trips/:id/rto` and `/api/trips/:id/expense` respectively.
-
----
-
-## 6. What to build next (pages not yet included)
-
-The backend and data model are complete; build these pages using the fetch calls shown
-above as your API layer:
-
-1. **`/dashboard`** — After login, redirect by role: superadmin sees all customers;
-   admin sees their vehicle list; user is sent straight to their one vehicle's trip
-   screen.
-2. **`/vehicles/[id]`** — Vehicle detail: current open trip (if any) or a "Start Trip"
-   button; the 9 document expiry dates with date pickers (`PUT` to a new
-   `/api/vehicles/[id]` route you add, following the pattern in `api/vehicles/index.js`).
-3. **`/vehicles/[id]/trip`** — The active trip screen: shows running lists of diesel
-   fills / RTO entries / other expenses, each backed by a form like
-   `DieselFillEntry.jsx`, plus a "Close Trip" button that calls `/api/trips/:id/close`.
-4. **A printable view** — A simple page at `/trips/[id]/print` that fetches the closed
-   trip and renders it with `@media print` CSS, so staff can hit Ctrl+P as well as
-   receiving the emailed PDF.
-5. **Admin screens** for superadmin to create customers/admins, and for a customer
-   admin to create per-vehicle `user` logins (hash passwords with `bcryptjs`, same as
-   `seedSuperAdmin.js`).
-
-Each of these is a normal Next.js page using `useSession()` from `next-auth/react` to
-guard access, and the existing API routes for data — no new backend concepts needed.
-
----
-
-## 7. Notes & things to double check before going live
-
-- Trip closing assumes the closing diesel fill was already added via `/diesel` before
-  calling `/close` — build the UI so "Close Trip" is only enabled after that fill is
-  entered.
-- Mileage/KM are `null` if odometer readings weren't entered on both the first and
-  closing fill (odometer is optional per your spec) — display that gracefully in the UI.
-- Currency is assumed INR throughout (`Rs`) — change the label in `tripPdf.js` if needed.
-- Add indexes on `Vehicle.vehicleNumber` (already `unique: true`) and
-  `Trip.{vehicleId,status}` once you have real data volume.
-- Consider restricting who can edit a *closed* trip (currently nothing allows it, which
-  is intentional — treat closed trips as immutable financial records).
+- **Password reset / change-password** endpoint — not built yet.
+- **S3 storage** — `saveUploadedFile()` in `middleware/upload.js` has a
+  ready-to-fill S3 branch; local disk storage is fine for development only.
+- **Vehicle/customer-admin management UI** — the API exists
+  (`addVehicleToCustomer`, `createVehicleUser` in `api.js`); only the
+  customer-onboarding screen has a UI built. Add two more small forms mirrored
+  on `AdminOnboarding.jsx` when needed.
+- **Refresh tokens** — `.env` has placeholders; current implementation issues
+  a single long-lived JWT for simplicity. Add refresh-token rotation before
+  shipping the mobile app.
+- **Validation** — `express-validator` is included as a dependency but not
+  yet wired into every route; the controllers currently do minimal manual
+  checks.
+- **Tests** — none included yet; the settlement math in
+  `tripCalculations.js` is the highest-value thing to unit test first since
+  it's the part with the trickiest cross-trip logic.

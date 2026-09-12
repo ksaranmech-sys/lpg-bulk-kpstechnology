@@ -1,34 +1,15 @@
-# dependencies
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Dependencies
 node_modules/
 
-# Next.js build output
-.next/
-out/
+# Preserve nested repository metadata outside the parent Git history.
+backend/.git.nested-backup/
+frontend/.git.nested-backup/
 
-# local environment and credentials
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-atlas-credentials.env
-
-# logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
-# TypeScript build metadata
-*.tsbuildinfo
-
-# Vercel
-.vercel/
-
-# OS and editor files
-.DS_Store
-Thumbs.db
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
+# Runtime uploads
+backend/src/uploads/*
+!backend/src/uploads/.gitkeep
