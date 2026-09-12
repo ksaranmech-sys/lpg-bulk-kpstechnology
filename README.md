@@ -105,6 +105,21 @@ npm start                    # http://localhost:5001
 The frontend API defaults to `/api/v1`; set
 `frontend/.env` only when intentionally using a separate development API.
 
+### Vercel environment variables
+
+Add these variables in the Vercel project settings for the `Production`
+environment. The local `backend/.env` file is not deployed:
+
+```text
+MONGO_URI=<production MongoDB connection string>
+JWT_SECRET=<long random secret>
+JWT_EXPIRES_IN=7d
+API_BASE_URL=https://lpg-fleet.kpstechnology.in
+```
+
+Add the `SMTP_*`, `COMPANY_*`, and storage variables as needed for reports and
+photo uploads. Redeploy after saving the variables.
+
 ### First-time setup flow
 1. Log in as `kpsadmin` (change the password immediately — there's no
    "change password" endpoint stubbed yet; add one before going live, or
