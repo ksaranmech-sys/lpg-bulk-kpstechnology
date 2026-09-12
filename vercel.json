@@ -4,7 +4,6 @@
   "outputDirectory": "frontend/build",
   "functions": {
     "api/index.js": {
-      "runtime": "nodejs20.x",
       "maxDuration": 60
     }
   },
