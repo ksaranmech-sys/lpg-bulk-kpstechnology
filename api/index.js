@@ -4,18 +4,16 @@ const app = require('../backend/src/app');
 const connectDB = require('../backend/src/config/db');
 
 let connectionPromise;
-const requiredEnvironment = ['MONGO_URI', 'JWT_SECRET'];
 
 async function handler(req, res) {
   if (req.url === '/health' || req.url === '/api/health') {
     return res.json({ status: 'ok', time: new Date().toISOString() });
   }
 
-  const missingEnvironment = requiredEnvironment.filter((name) => !process.env[name]);
-
-  if (missingEnvironment.length) {
+  const mongoUri = process.env.MONGO_URI || process.env.MONGO_URL || process.env.MONGODB_URI;
+  if (!mongoUri && process.env.NODE_ENV === 'production') {
     return res.status(500).json({
-      error: `Missing Vercel environment variable(s): ${missingEnvironment.join(', ')}`,
+      error: 'Missing MongoDB connection string (MONGO_URI, MONGO_URL, or MONGODB_URI) in environment variables.',
     });
   }
 
@@ -28,10 +26,15 @@ async function handler(req, res) {
     }
 
     await connectionPromise;
+
+    if (req.url && !req.url.startsWith('/api/') && req.url !== '/api') {
+      req.url = '/api' + (req.url.startsWith('/') ? req.url : '/' + req.url);
+    }
+
     return app(req, res);
   } catch (error) {
     console.error('[vercel] API initialization failed:', error.message);
-    return res.status(503).json({ error: 'API temporarily unavailable' });
+    return res.status(503).json({ error: 'API temporarily unavailable: ' + error.message });
   }
 }
 
