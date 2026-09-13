@@ -3,13 +3,10 @@ const connectDB = require('../config/db');
 const User = require('../models/User');
 const { ROLES } = require('../config/constants');
 
-async function seed() {
-  await connectDB();
-
+async function ensureSeed() {
   const existing = await User.findOne({ role: ROLES.SUPER_ADMIN });
   if (existing) {
-    console.log(`Super admin already exists: ${existing.username}`);
-    process.exit(0);
+    return existing;
   }
 
   const admin = new User({
@@ -20,12 +17,22 @@ async function seed() {
   await admin.setPassword('ChangeMe@123'); // change immediately after first login
   await admin.save();
 
-  console.log('Created super_admin -> username: kpsadmin  password: ChangeMe@123');
+  console.log('[seed] Created super_admin -> username: kpsadmin | password: ChangeMe@123');
+  return admin;
+}
+
+async function seed() {
+  await connectDB();
+  await ensureSeed();
   console.log('IMPORTANT: log in and change this password immediately.');
   process.exit(0);
 }
 
-seed().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (require.main === module) {
+  seed().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
+
+module.exports = { ensureSeed, seed };

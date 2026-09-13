@@ -9,7 +9,8 @@ async function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'Missing bearer token' });
   }
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const secret = process.env.JWT_SECRET || 'KPS_Fleet_Local_2026_Super_Secret_Change_Me_!@#';
+    const payload = jwt.verify(token, secret);
     if (payload.customer && payload.role !== ROLES.SUPER_ADMIN) {
       const customer = await Customer.findOne({ _id: payload.customer, isActive: true }).select('_id');
       if (!customer) return res.status(403).json({ error: 'Customer account is blocked' });

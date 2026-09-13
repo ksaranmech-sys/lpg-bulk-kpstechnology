@@ -4,6 +4,7 @@ const Customer = require('../models/Customer');
 const { ROLES } = require('../config/constants');
 
 function signToken(user) {
+  const secret = process.env.JWT_SECRET || 'KPS_Fleet_Local_2026_Super_Secret_Change_Me_!@#';
   return jwt.sign(
     {
       id: user._id,
@@ -11,7 +12,7 @@ function signToken(user) {
       customer: user.customer,
       vehicle: user.vehicle,
     },
-    process.env.JWT_SECRET,
+    secret,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
 }

@@ -63,8 +63,10 @@ async function attemptConnect() {
         if (removedTrips > 0) {
           console.log(`[retention] Removed ${removedTrips} closed trip(s) older than one year`);
         }
+        const { ensureSeed } = require('../utils/seed');
+        await ensureSeed();
       } catch (retentionErr) {
-        console.error('[retention] Error during initial trip cleanup:', retentionErr.message);
+        console.error('[db] Error during post-connection setup:', retentionErr.message);
       }
 
       return true;
@@ -73,7 +75,7 @@ async function attemptConnect() {
     }
   }
 
-  const shouldUseMemoryFallback = !mongoConnectionString && process.env.NODE_ENV !== 'production';
+  const shouldUseMemoryFallback = process.env.NODE_ENV !== 'production';
   if (shouldUseMemoryFallback) {
     try {
       const fallbackUri = await startMemoryMongo();
@@ -88,6 +90,14 @@ async function attemptConnect() {
         retryInterval = null;
       }
       isConnecting = false;
+
+      try {
+        const { ensureSeed } = require('../utils/seed');
+        await ensureSeed();
+      } catch (seedErr) {
+        console.error('[db] Error during memory server seed:', seedErr.message);
+      }
+
       return true;
     } catch (memErr) {
       console.error('[db] MongoMemoryServer fallback failed:', memErr.message);
