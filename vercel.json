@@ -2,7 +2,7 @@
   "version": 2,
   "framework": null,
   "buildCommand": "npm run build",
-  "outputDirectory": "frontend/build",
+  "outputDirectory": "build",
   "functions": {
     "api/index.js": {
       "maxDuration": 60
