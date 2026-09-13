@@ -13,3 +13,8 @@ frontend/.git.nested-backup/
 # Runtime uploads
 backend/src/uploads/*
 !backend/src/uploads/.gitkeep
+
+# Local logs
+frontend-dev*.log
+logs/
+*.log
