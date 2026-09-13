@@ -31,7 +31,8 @@ async function attemptConnect() {
   }
 
   isConnecting = true;
-  const rawUri = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/kps-fleet';
+  const mongoConnectionString = process.env.MONGO_URI || process.env.MONGO_URL || process.env.MONGODB_URI;
+  const rawUri = mongoConnectionString || 'mongodb://127.0.0.1:27017/kps-fleet';
 
   const urisToTry = [rawUri];
   if (rawUri.includes('localhost')) {
@@ -72,7 +73,7 @@ async function attemptConnect() {
     }
   }
 
-  const shouldUseMemoryFallback = !process.env.MONGO_URI && process.env.NODE_ENV !== 'production';
+  const shouldUseMemoryFallback = !mongoConnectionString && process.env.NODE_ENV !== 'production';
   if (shouldUseMemoryFallback) {
     try {
       const fallbackUri = await startMemoryMongo();
@@ -91,8 +92,8 @@ async function attemptConnect() {
     } catch (memErr) {
       console.error('[db] MongoMemoryServer fallback failed:', memErr.message);
     }
-  } else if (process.env.NODE_ENV === 'production' && !process.env.MONGO_URI) {
-    console.warn('[db] Production deployment requires MONGO_URI. Refusing to fall back to MongoMemoryServer.');
+  } else if (process.env.NODE_ENV === 'production' && !mongoConnectionString) {
+    console.warn('[db] Production deployment requires MONGO_URI / MONGO_URL / MONGODB_URI. Refusing to fall back to MongoMemoryServer.');
   }
 
   isConnecting = false;
