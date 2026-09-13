@@ -17,10 +17,10 @@ async function seed() {
     name: 'KPS Technology Admin',
     role: ROLES.SUPER_ADMIN,
   });
-  await admin.setPassword('ChangeMe123'); // change immediately after first login
+  await admin.setPassword('ChangeMe@123'); // change immediately after first login
   await admin.save();
 
-  console.log('Created super_admin -> username: kpsadmin  password: ChangeMe123');
+  console.log('Created super_admin -> username: kpsadmin  password: ChangeMe@123');
   console.log('IMPORTANT: log in and change this password immediately.');
   process.exit(0);
 }
