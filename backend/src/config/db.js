@@ -72,7 +72,8 @@ async function attemptConnect() {
     }
   }
 
-  if (!process.env.MONGO_URI || /localhost|127\.0\.0\.1/.test(process.env.MONGO_URI) || process.env.NODE_ENV !== 'production') {
+  const shouldUseMemoryFallback = !process.env.MONGO_URI && process.env.NODE_ENV !== 'production';
+  if (shouldUseMemoryFallback) {
     try {
       const fallbackUri = await startMemoryMongo();
       await mongoose.connect(fallbackUri, {
@@ -90,6 +91,8 @@ async function attemptConnect() {
     } catch (memErr) {
       console.error('[db] MongoMemoryServer fallback failed:', memErr.message);
     }
+  } else if (process.env.NODE_ENV === 'production' && !process.env.MONGO_URI) {
+    console.warn('[db] Production deployment requires MONGO_URI. Refusing to fall back to MongoMemoryServer.');
   }
 
   isConnecting = false;

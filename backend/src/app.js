@@ -15,7 +15,7 @@ const leaveRoutes = require('./routes/leaveRoutes');
 
 const app = express();
 const uploadsPath = path.resolve(__dirname, '../', process.env.UPLOAD_DIR || 'uploads');
-const frontendBuildPath = path.resolve(__dirname, '../../frontend/build');
+const frontendBuildPath = path.resolve(__dirname, '../../build');
 
 app.use(helmet({ crossOriginResourcePolicy: false })); // allow serving uploaded photos cross-origin
 app.use(cors()); // tighten to specific origins in production
