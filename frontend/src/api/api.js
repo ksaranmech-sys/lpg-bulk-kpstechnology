@@ -3,8 +3,20 @@ import axios from 'axios';
 // This client is intentionally framework-agnostic in shape: a React Native
 // mobile app can reuse almost this exact file (swap localStorage for
 // AsyncStorage) since it just talks to the versioned JSON REST API.
+function getBaseURL() {
+  const envUrl = process.env.REACT_APP_API_BASE_URL;
+  // In a browser environment, if envUrl is missing, relative, or points to a vercel.app domain,
+  // prefer relative '/api/v1' to ensure same-origin requests on custom domains (e.g. lpg-bulk.kpstechnology.in).
+  if (typeof window !== 'undefined') {
+    if (!envUrl || envUrl.startsWith('/') || envUrl.includes('.vercel.app')) {
+      return '/api/v1';
+    }
+  }
+  return envUrl || '/api/v1';
+}
+
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_BASE_URL || '/api/v1',
+  baseURL: getBaseURL(),
 });
 
 api.interceptors.request.use((config) => {
