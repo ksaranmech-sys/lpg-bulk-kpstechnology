@@ -2,23 +2,14 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "build",
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 60
-    }
-  },
   "rewrites": [
     {
       "source": "/health",
-      "destination": "/api/index.js"
+      "destination": "https://lpg-bulk-kpstechnology-fleet.onrender.com/health"
     },
     {
-      "source": "/api/health",
-      "destination": "/api/index.js"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.js"
+      "source": "/api/:path*",
+      "destination": "https://lpg-bulk-kpstechnology-fleet.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",
