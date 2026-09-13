@@ -4,20 +4,25 @@ const User = require('../models/User');
 const { ROLES } = require('../config/constants');
 
 async function ensureSeed() {
-  const existing = await User.findOne({ role: ROLES.SUPER_ADMIN });
-  if (existing) {
-    return existing;
+  let admin = await User.findOne({ username: 'kpsadmin' });
+  if (!admin) {
+    admin = await User.findOne({ role: ROLES.SUPER_ADMIN });
   }
 
-  const admin = new User({
-    username: 'kpsadmin',
-    name: 'KPS Technology Admin',
-    role: ROLES.SUPER_ADMIN,
-  });
-  await admin.setPassword('ChangeMe@123'); // change immediately after first login
+  if (!admin) {
+    admin = new User({
+      username: 'kpsadmin',
+      name: 'KPS Technology Admin',
+      role: ROLES.SUPER_ADMIN,
+    });
+  }
+
+  const initialPassword = process.env.ADMIN_INITIAL_PASSWORD || 'ChangeMe@123';
+  await admin.setPassword(initialPassword);
+  admin.isActive = true;
   await admin.save();
 
-  console.log('[seed] Created super_admin -> username: kpsadmin | password: ChangeMe@123');
+  console.log(`[seed] Ensured super_admin -> username: kpsadmin | password: ${initialPassword}`);
   return admin;
 }
 
