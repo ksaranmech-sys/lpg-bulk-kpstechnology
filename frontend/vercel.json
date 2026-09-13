@@ -1,0 +1,18 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
+  "rewrites": [
+    {
+      "source": "/health",
+      "destination": "https://lpg-bulk-kpstechnology-fleet.onrender.com/health"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://lpg-bulk-kpstechnology-fleet.onrender.com/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
