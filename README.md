@@ -178,6 +178,10 @@ variables on the hosting platform, including `MONGO_URI`, `JWT_SECRET`, and
 the SMTP settings. Locally stored uploads are written under `backend/uploads`;
 use S3 or another persistent volume in production.
 
+The Vercel frontend project uses `frontend` as its Root Directory, so its
+API proxy and SPA fallback are configured in `frontend/vercel.json`. Keep
+those rewrites aligned with the backend deployment URL.
+
 ## 7. What's stubbed / what to do before production
 
 - **Password reset / change-password** endpoint — not built yet.
