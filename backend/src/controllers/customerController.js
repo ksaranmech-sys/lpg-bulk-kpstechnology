@@ -7,6 +7,7 @@ const path = require('path');
 const { ROLES } = require('../config/constants');
 const { buildDriverMonthlySummaryPdf } = require('../utils/pdfGenerator');
 const Leave = require('../models/Leave');
+const { loadRouteKmGroups, getCorporationKmDetails } = require('../utils/corporationKm');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -71,24 +72,24 @@ function isTripInSalaryMonth(trip, monthStart, monthEnd) {
   return closedDate && closedDate >= monthStart && closedDate < monthEnd;
 }
 
-function sumRouteTableKm(trips, routeKmTable, excludeShortTrips = false) {
+function sumRouteTableKm(trips, routeKmTable, excludeShortTrips = false, routeKmGroups = loadRouteKmGroups()) {
   return trips.reduce((total, trip) => {
-    const routeKm = getTripCorporationKm(trip, routeKmTable);
+    const routeKm = getTripCorporationKm(trip, routeKmTable, routeKmGroups);
     if (!Number.isFinite(routeKm) || (excludeShortTrips && routeKm < 200)) return total;
     return total + routeKm;
   }, 0);
 }
 
-function getTripCorporationKm(trip, routeKmTable) {
-  const manualKm = Number(trip.manualKm);
-  if (Number.isFinite(manualKm)) return manualKm;
-
+function findRouteKm(routeKmTable, loadingLocation, unloadingLocation) {
   const route = routeKmTable.find((row) => (
-    String(row.loadingLocation || '').trim() === String(trip.loadingLocation || '').trim() &&
-    String(row.unloadingLocation || '').trim() === String(trip.unloadingLocation || '').trim()
+    String(row.loadingLocation || '').trim() === String(loadingLocation || '').trim() &&
+    String(row.unloadingLocation || '').trim() === String(unloadingLocation || '').trim()
   ));
-  const routeKm = Number(route?.km);
-  return Number.isFinite(routeKm) ? routeKm : null;
+  return Number.isFinite(Number(route?.km)) ? Number(route.km) : null;
+}
+
+function getTripCorporationKm(trip, routeKmTable, routeKmGroups = loadRouteKmGroups()) {
+  return getCorporationKmDetails(trip, routeKmTable, routeKmGroups).value;
 }
 
 function calculateSpecialTripCharges(trips, routeKmTable) {
@@ -176,12 +177,14 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
     : [];
   const monthTrips = trips.filter((trip) => isTripInSalaryMonth(trip, monthStart, monthEnd));
   const routeKmTable = loadRouteKmTable();
+  const routeKmGroups = loadRouteKmGroups();
   const tripsWithBalances = monthTrips.map((trip) => ({
     ...trip.toObject(),
     balance: trip.settlement?.balance != null ? Number(trip.settlement.balance) : calculateTripBalance(trip),
-    corporationKm: getTripCorporationKm(trip, routeKmTable) || 0,
+    corporationKm: getCorporationKmDetails(trip, routeKmTable, routeKmGroups).value || 0,
+    corporationKmSource: getCorporationKmDetails(trip, routeKmTable, routeKmGroups).source,
   }));
-  const corporationKm = sumRouteTableKm(tripsWithBalances, routeKmTable, Number(driver.minKmCharges || 0) > 0);
+  const corporationKm = sumRouteTableKm(tripsWithBalances, routeKmTable, Number(driver.minKmCharges || 0) > 0, routeKmGroups);
   const { specialTripCount, specialTripCharges } = calculateSpecialTripCharges(tripsWithBalances, routeKmTable);
   const totalBalance = sumTripBalances(tripsWithBalances);
   const basicSalaryDetails = calculateBasicSalary(
@@ -542,6 +545,8 @@ module.exports = {
   getTripClosedDate,
   isTripInSalaryMonth,
   loadRouteKmTable,
+  loadRouteKmGroups,
+  getTripCorporationKm,
   sumRouteTableKm,
   calculateSpecialTripCharges,
   calculateBasicSalary,

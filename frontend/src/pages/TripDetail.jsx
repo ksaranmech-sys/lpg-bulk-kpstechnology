@@ -6,7 +6,7 @@ import Layout from '../components/Layout';
 export default function TripDetail() {
   const { tripId } = useParams();
   const [trip, setTrip] = useState(null);
-  const [meta, setMeta] = useState({ loadingLocations: [], unloadingLocations: [], routeKmTable: [] });
+  const [meta, setMeta] = useState({ loadingLocations: [], unloadingLocations: [], routeKmTable: [], routeKmGroups: { group1: [], group2: [] } });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [editingLoadingDetails, setEditingLoadingDetails] = useState(false);
@@ -126,46 +126,19 @@ export default function TripDetail() {
             onSaved={() => { setEditingUnloadingExpense(false); load(); }}
           />
         )}
+        <div className="card">
+          <OtherExpenseSummary trip={trip} tripId={tripId} onSaved={load} />
+          <OtherExpenseForm tripId={tripId} onSaved={load} />
+        </div>
         {hasTurnDetails && <TurnDetailsSummary trip={trip} onEdit={() => setEditingTurnDetails(true)} />}
         {(!hasTurnDetails || editingTurnDetails) && (
           <TurnDetailsForm
             tripId={tripId}
             trip={trip}
+            meta={meta}
             onSaved={() => { setEditingTurnDetails(false); load(); }}
           />
         )}
-        <div className="card">
-          <OtherExpenseSummary trip={trip} tripId={tripId} onSaved={load} />
-          <OtherExpenseForm tripId={tripId} onSaved={load} />
-        </div>
-        <div className="card">
-          <div style={{ display: 'grid', gap: 16 }}>
-            <TripClosingDieselSummary trip={trip} tripId={tripId} onSaved={load} />
-            {!isClosed && (
-              <div style={{ borderTop: '1px solid #e6efe7', paddingTop: 12 }}>
-                <DieselForm
-                  tripId={tripId}
-                  onSaved={async () => {
-                    setBusy(true);
-                    setMessage('');
-                    try {
-                      await api.closeTrip(tripId);
-                      await load();
-                      setMessage('Trip closed successfully.');
-                    } catch (err) {
-                      setMessage(err.response?.data?.error || 'Failed to close trip');
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                  title="Total Closing Diesel Value"
-                  submitLabel="Trip close"
-                  closeAfterSave
-                />
-              </div>
-            )}
-          </div>
-        </div>
         </>
 
       </fieldset>
@@ -309,14 +282,14 @@ function LoadingDetailsForm({ tripId, trip, meta, onSaved }) {
         <div className="field" style={{ marginBottom: 0 }}>
           <label>Loading Location</label>
           <select value={loadingLocation} onChange={(e) => setLocation(e.target.value)}>
-            <option value="">Select from KM table...</option>
+            <option value="">Select Loading location</option>
             {loadingOptions.map((location) => (
               <option key={location} value={location}>{location}</option>
             ))}
           </select>
         </div>
         <div className="field" style={{ marginBottom: 0 }}>
-          <label>Enter Loading Location Manually</label>
+          <label>Enter Loading Location (Optional)</label>
           <input
             value={loadingLocation}
             onChange={(e) => setLocation(e.target.value)}
@@ -415,19 +388,38 @@ function LoadingExpenseSummary({ trip, tripId, onSaved }) {
   );
 }
 
-function TurnDetailsForm({ tripId, trip, onSaved }) {
+function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
   const [turnNumber, setTurnNumber] = useState(trip.turnNumber != null ? String(trip.turnNumber) : '');
   const [turnDate, setTurnDate] = useState(trip.turnDate ? new Date(trip.turnDate).toISOString().slice(0, 10) : '');
+  const [fillingOrderLocation, setFillingOrderLocation] = useState(trip.fillingOrderLocation || '');
+  const [error, setError] = useState('');
+  const loadingLocations = Array.from(new Set((meta.routeKmTable || []).map((row) => row.loadingLocation).filter(Boolean)));
+  const corporationKmSourceLabel = trip.corporationKmSource === 'km_table_weighted'
+    ? 'Calculated automatically: 50/50 weighted KM table routes'
+    : trip.corporationKmSource === 'km_table_direct'
+      ? 'Calculated automatically from KM table'
+      : 'Automatic Corporation KM is unavailable';
 
   async function submit(e) {
     e.preventDefault();
-    await api.setTurnDetails(tripId, { turnNumber: Number(turnNumber), turnDate });
-    onSaved();
+    setError('');
+    try {
+      await api.setTurnDetails(tripId, {
+        turnNumber: Number(turnNumber),
+        turnDate,
+        fillingOrderLocation: fillingOrderLocation || undefined,
+      });
+      await api.closeTrip(tripId);
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save Turn details or close trip');
+    }
   }
 
   return (
     <form className="card" onSubmit={submit}>
       <h3 className="section-title">L Turn</h3>
+      {error && <div className="error-text">{error}</div>}
       <div className="grid-2">
         <div className="field">
           <label>Turn Number</label>
@@ -437,9 +429,32 @@ function TurnDetailsForm({ tripId, trip, onSaved }) {
           <label>Turn Date</label>
           <input type="date" value={turnDate} onChange={(e) => setTurnDate(e.target.value)} required />
         </div>
+        <div className="field">
+          <label>Corporation KM</label>
+          <small style={{ display: 'block', color: '#647777', marginBottom: 5 }}>
+            {corporationKmSourceLabel}
+          </small>
+        </div>
+      </div>
+      <div className="grid-2">
+        <div className="field">
+          <label>Filling Order Location</label>
+          <select value={fillingOrderLocation} onChange={(e) => setFillingOrderLocation(e.target.value)}>
+            <option value="">Select loading location...</option>
+            {loadingLocations.map((location) => <option key={location} value={location}>{location}</option>)}
+          </select>
+        </div>
+        <div className="field">
+          <label>Enter Filling Order Location Manually</label>
+          <input
+            value={fillingOrderLocation}
+            onChange={(e) => setFillingOrderLocation(e.target.value)}
+            placeholder="Enter filling order location"
+          />
+        </div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button className="btn">Save Turn Details</button>
+        <button className="btn">Trip close</button>
       </div>
     </form>
   );
@@ -452,6 +467,7 @@ function TurnDetailsSummary({ trip, onEdit }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
         <p style={{ margin: 0 }}>
           Turn {trip.turnNumber} • {new Date(trip.turnDate).toLocaleDateString('en-IN')}
+          {trip.fillingOrderLocation ? ` • Filling order: ${trip.fillingOrderLocation}` : ''}
         </p>
         <button type="button" className="btn secondary" onClick={onEdit}>Edit</button>
       </div>
@@ -867,104 +883,9 @@ function OtherExpenseSummary({ trip, tripId, onSaved }) {
   );
 }
 
-function TripClosingDieselSummary({ trip, tripId, onSaved }) {
-  const entries = trip.dieselEntries || [];
-  const closingIndex = entries.length - 1;
-  const closingEntry = entries[closingIndex];
-  const [editing, setEditing] = useState(false);
-  const [volume, setVolume] = useState('');
-  const [totalValue, setTotalValue] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('diesel_card');
-  const [tripKm, setTripKm] = useState('');
-  const [error, setError] = useState('');
-
-  async function saveEdit() {
-    setError('');
-    try {
-      await api.updateDieselEntry(tripId, closingIndex, {
-        volumeLitres: Number(volume),
-        totalValue: Number(totalValue),
-        paymentMethod,
-        odometerKm: tripKm === '' ? undefined : Number(tripKm),
-      });
-      setEditing(false);
-      onSaved();
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to update closing diesel');
-    }
-  }
-
-  if (!closingEntry) {
-    return (
-      <div>
-        <h3 className="section-title">Total Closing Diesel Value</h3>
-        <p style={{ margin: 0, color: '#666' }}>No closing diesel value entered yet.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <h3 className="section-title">Total Closing Diesel Value</h3>
-      {error && <div className="error-text">{error}</div>}
-      {editing ? (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: 12, alignItems: 'end' }}>
-          <div className="field">
-            <label>Volume (L)</label>
-            <input type="number" value={volume} onChange={(e) => setVolume(e.target.value)} min="0" />
-          </div>
-          <div className="field">
-            <label>Value (Rs)</label>
-            <input type="number" value={totalValue} onChange={(e) => setTotalValue(e.target.value)} min="0" />
-          </div>
-          <div className="field">
-            <label>Odometer Reading</label>
-            <input type="number" value={tripKm} onChange={(e) => setTripKm(e.target.value)} min="0" placeholder="Optional" />
-          </div>
-          <div className="field">
-            <label>Payment Method</label>
-            <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
-              <option value="diesel_card">Diesel Card</option>
-              <option value="cash">Cash</option>
-            </select>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="btn" onClick={saveEdit}>Submit for Close Trip</button>
-          </div>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 12, alignItems: 'stretch' }}>
-          {[
-            { label: 'Volume', value: `${closingEntry.volumeLitres} L` },
-            { label: 'Value', value: `Rs ${closingEntry.amount}` },
-            { label: 'Trip KM', value: closingEntry.odometerKm != null ? `${closingEntry.odometerKm} km` : '-' },
-            { label: 'Date', value: closingEntry.filledAt ? new Date(closingEntry.filledAt).toLocaleDateString('en-IN') : '-' },
-            { label: 'Payment', value: closingEntry.paymentMethod === 'cash' ? 'Cash' : 'Diesel Card' },
-          ].map((item) => (
-            <div key={item.label} style={{
-              background: '#f7faf7',
-              border: '1px solid #dfeade',
-              borderRadius: 10,
-              padding: '12px 14px',
-              minHeight: 84,
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-            }}>
-              <small style={{ display: 'block', color: '#4a5f52', marginBottom: 6, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{item.label}</small>
-              <strong style={{ fontSize: 15, color: '#1f2d1f', lineHeight: 1.4 }}>{item.value}</strong>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
   const [unloadingLocation, setLoc] = useState(trip.unloadingLocation || '');
   const [unloadingDate, setDate] = useState(trip.unloadingDate ? new Date(trip.unloadingDate).toISOString().slice(0, 10) : '');
-  const [manualKm, setManualKm] = useState(trip.manualKm != null ? String(trip.manualKm) : '');
   const [selectedCorporation, setSelectedCorporation] = useState(
     (() => {
       const currentLocation = trip.unloadingLocation || unloadingLocation;
@@ -987,7 +908,6 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
     await api.setUnloading(tripId, {
       unloadingLocation,
       unloadingDate,
-      manualKm: manualKm === '' ? undefined : Number(manualKm),
     });
     onSaved();
   }
@@ -1029,38 +949,24 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
           </select>
         </div>
       </div>
-      <div className="field" style={{ marginTop: 12 }}>
-        <label>Or Enter Unloading Location Manually</label>
-        <input
-          value={unloadingLocation}
-          onChange={(e) => setLoc(e.target.value)}
-          placeholder="Enter unloading location"
-        />
-      </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'end', marginTop: 12 }}>
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label>Or Enter Unloading Location Manually</label>
+          <input
+            value={unloadingLocation}
+            onChange={(e) => setLoc(e.target.value)}
+            placeholder="Enter unloading location"
+          />
+        </div>
         <div className="field" style={{ marginBottom: 0 }}>
           <label>Unloading Date</label>
           <input type="date" value={unloadingDate} onChange={(e) => setDate(e.target.value)} required />
-        </div>
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label>Manual KM</label>
-          <input
-            type="number"
-            min="0"
-            value={manualKm}
-            onChange={(e) => setManualKm(e.target.value)}
-            placeholder="Optional"
-          />
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginTop: 12 }}>
         <div />
         <button className="btn" style={{ marginBottom: 0 }}>Save Unloading Details</button>
       </div>
-      <p style={{ fontSize: 12, color: '#666', marginTop: 8 }}>
-        Note: this trip will automatically close and settle once diesel is filled again for the
-        next trip at the loading location.
-      </p>
     </form>
   );
 }
@@ -1072,7 +978,6 @@ function UnloadingDetailsSummary({ trip, onEdit }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
         <p style={{ margin: 0 }}>
           {trip.unloadingLocation || '-'} • {trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}
-          {trip.manualKm != null && trip.manualKm !== '' ? ` • Manual KM: ${trip.manualKm}` : ''}
         </p>
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button type="button" className="btn secondary" onClick={onEdit}>Edit</button>
@@ -1309,7 +1214,7 @@ function EntriesSummary({ trip, corporationKm }) {
                     <div className="trip-km-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
                       {[
                         { label: 'Odometer KM', value: trip.odometerKm != null ? `${trip.odometerKm} km` : 'NA', mileage: formatMileage(trip.odometerKm, totalDieselLitres) },
-                        { label: 'Corp. KM', value: corporationKm != null ? `${corporationKm} km` : 'NA', mileage: formatMileage(corporationKm, totalDieselLitres) },
+                        { label: 'Corporation KM', value: corporationKm != null ? `${corporationKm} km` : 'NA', mileage: formatMileage(corporationKm, totalDieselLitres) },
                         { label: 'Manual KM', value: trip.manualKm != null && trip.manualKm !== '' ? `${trip.manualKm} km` : 'NA', mileage: formatMileage(trip.manualKm, totalDieselLitres) },
                       ].map((item) => (
                         <div key={item.label} style={{ minWidth: 0, padding: '8px 10px', border: '1px solid #1f4d2b', borderRadius: 6, textAlign: 'center' }}>

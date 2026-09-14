@@ -6,6 +6,28 @@ const { LOADING_LOCATIONS, UNLOADING_LOCATIONS, ROUTE_KM_TABLE, ROLES } = requir
 const { requireRole } = require('../middleware/auth');
 
 const ROUTE_KM_TABLE_FILE = path.join(__dirname, '../config/routeKmTable.json');
+const ROUTE_KM_GROUPS_FILE = path.join(__dirname, '../config/routeKmGroups.json');
+
+function normalizeRouteKmGroups(groups) {
+  return {
+    group1: Array.from(new Set((groups?.group1 || []).map((value) => String(value).trim()).filter(Boolean))),
+    group2: Array.from(new Set((groups?.group2 || []).map((value) => String(value).trim()).filter(Boolean))),
+  };
+}
+
+function loadRouteKmGroups() {
+  try {
+    return normalizeRouteKmGroups(JSON.parse(fs.readFileSync(ROUTE_KM_GROUPS_FILE, 'utf8')));
+  } catch (err) {
+    return normalizeRouteKmGroups({ group1: [], group2: [] });
+  }
+}
+
+function persistRouteKmGroups(groups) {
+  const normalized = normalizeRouteKmGroups(groups);
+  fs.writeFileSync(ROUTE_KM_GROUPS_FILE, JSON.stringify(normalized, null, 2), 'utf8');
+  return normalized;
+}
 
 function normalizeRouteKmTable(rows) {
   if (!Array.isArray(rows)) throw new Error('routeKmTable must be an array');
@@ -90,17 +112,29 @@ router.updateRouteKmRowById = updateRouteKmRowById;
 router.loadRouteKmTable = loadRouteKmTable;
 router.persistRouteKmTable = persistRouteKmTable;
 router.buildLocationOptions = buildLocationOptions;
+router.loadRouteKmGroups = loadRouteKmGroups;
+router.persistRouteKmGroups = persistRouteKmGroups;
 
 // Public-ish (still requires login) so both the website and mobile app pull
 // dropdown options from one place instead of hardcoding them per-client.
 router.get('/', (req, res) => {
   routeKmTable = loadRouteKmTable();
   const { loadingLocations, unloadingLocations } = buildLocationOptions();
+  const groups = loadRouteKmGroups();
   res.json({
     loadingLocations,
     unloadingLocations,
     routeKmTable,
+    routeKmGroups: groups,
   });
+});
+
+router.put('/route-km-groups', requireRole(ROLES.SUPER_ADMIN), (req, res) => {
+  try {
+    res.json({ routeKmGroups: persistRouteKmGroups(req.body?.routeKmGroups || req.body) });
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Failed to update route KM groups' });
+  }
 });
 
 router.put('/route-km', requireRole(ROLES.SUPER_ADMIN), (req, res) => {

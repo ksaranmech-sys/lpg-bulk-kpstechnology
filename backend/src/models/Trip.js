@@ -78,6 +78,7 @@ const tripSchema = new mongoose.Schema(
 
     turnNumber: { type: Number, min: 0 },
     turnDate: { type: Date },
+    fillingOrderLocation: { type: String, trim: true },
     unTurnNumber: { type: Number, min: 0 },
     unTurnDate: { type: Date },
 

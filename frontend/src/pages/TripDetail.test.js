@@ -8,6 +8,7 @@ jest.mock('../api/api', () => ({
   getTrip: jest.fn(),
   getMeta: jest.fn(),
   setTurnDetails: jest.fn(),
+  closeTrip: jest.fn(),
   setUnloadingTurnDetails: jest.fn(),
   deleteUnloadingTurnDetails: jest.fn(),
 }));
@@ -80,7 +81,7 @@ test('shows editable manual loading details below driver advance', async () => {
   expect(turnHeadings.indexOf('L Turn Added')).toBeGreaterThan(
     turnHeadings.indexOf('Unloading Expenses Added')
   );
-  expect(turnHeadings.indexOf('L Turn Added')).toBeLessThan(
+  expect(turnHeadings.indexOf('L Turn Added')).toBeGreaterThan(
     turnHeadings.indexOf('Other Expenses Added')
   );
   const turnSummary = Array.from(container.querySelectorAll('.card')).find(
@@ -92,7 +93,16 @@ test('shows editable manual loading details below driver advance', async () => {
   );
   expect(turnForm.querySelector('input[type="number"]').value).toBe('7');
   expect(turnForm.querySelector('input[type="date"]').value).toBe('2026-09-13');
-  expect(turnForm.querySelector('button').textContent).toBe('Save Turn Details');
+  expect(turnForm.querySelector('button').textContent).toBe('Trip close');
+  api.setTurnDetails.mockResolvedValue({ data: { trip: {} } });
+  api.closeTrip.mockResolvedValue({ data: { trip: { status: 'closed' } } });
+  await act(async () => turnForm.requestSubmit());
+  expect(api.setTurnDetails).toHaveBeenCalledWith('trip-1', {
+    turnNumber: 7,
+    turnDate: '2026-09-13',
+    fillingOrderLocation: undefined,
+  });
+  expect(api.closeTrip).toHaveBeenCalledWith('trip-1');
 
   const unTurnHeadings = Array.from(container.querySelectorAll('h3')).map((heading) => heading.textContent);
   expect(unTurnHeadings.indexOf('UN Turn Added')).toBeLessThan(

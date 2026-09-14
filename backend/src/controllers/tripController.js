@@ -8,6 +8,8 @@ const { sendTripSettlementEmail } = require('../utils/mailer');
 const { TRIP_STATUS, ROLES } = require('../config/constants');
 const User = require('../models/User');
 const { removeExpiredClosedTrips } = require('../utils/tripRetention');
+const metaRoutes = require('../routes/metaRoutes');
+const { getCorporationKmDetails, loadRouteKmGroups } = require('../utils/corporationKm');
 
 function getClosingDieselDate(trip, fallback = null) {
   const closingEntry = trip.dieselEntries?.[trip.dieselEntries.length - 1];
@@ -121,6 +123,11 @@ async function getTrip(req, res) {
   result.odometerKm = trip.status === TRIP_STATUS.CLOSED && trip.settlement?.totalKm != null
     ? trip.settlement.totalKm
     : calculateClosingOdometerKm(trip, previousTrip);
+  result.corporationKmSource = getCorporationKmDetails(
+    result,
+    metaRoutes.loadRouteKmTable(),
+    loadRouteKmGroups()
+  ).source;
   result.driverName = driver?.name || null;
   res.json({ trip: result });
 }
@@ -405,12 +412,12 @@ async function setUnloading(req, res) {
   res.json({ trip });
 }
 
-// PATCH /api/v1/trips/:tripId/turn   body: { turnNumber, turnDate }
+// PATCH /api/v1/trips/:tripId/turn   body: { turnNumber, turnDate, fillingOrderLocation }
 async function setTurnDetails(req, res) {
   const trip = await getOpenTripOr404(req, res);
   if (!trip) return;
 
-  const { turnNumber, turnDate } = req.body;
+  const { turnNumber, turnDate, fillingOrderLocation } = req.body;
   if (turnNumber == null || turnNumber === '') {
     return res.status(400).json({ error: 'turnNumber is required' });
   }
@@ -424,6 +431,7 @@ async function setTurnDetails(req, res) {
 
   trip.turnNumber = number;
   trip.turnDate = date;
+  trip.fillingOrderLocation = fillingOrderLocation ? String(fillingOrderLocation).trim() : undefined;
   await trip.save();
   res.json({ trip });
 }

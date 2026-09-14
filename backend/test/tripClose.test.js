@@ -191,16 +191,16 @@ test('Corporation KM excludes routes below 200 KM when less than 200KM charges a
   assert.equal(customerController.sumRouteTableKm(trips, routes, true), 500);
 });
 
-test('Corporation KM falls back to manual KM when route is missing', () => {
+test('Corporation KM remains unavailable when route is missing', () => {
   const trips = [
     { loadingLocation: 'Unknown', unloadingLocation: 'Route', manualKm: 760 },
   ];
 
-  assert.equal(customerController.sumRouteTableKm(trips, [], false), 760);
-  assert.equal(customerController.sumRouteTableKm(trips, [], true), 760);
+  assert.equal(customerController.sumRouteTableKm(trips, [], false), 0);
+  assert.equal(customerController.sumRouteTableKm(trips, [], true), 0);
 });
 
-test('Corporation KM prioritizes manual KM over the route table', () => {
+test('Corporation KM uses the route table when automatic group calculation is available', () => {
   const trips = [
     { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', manualKm: 760 },
   ];
@@ -208,7 +208,51 @@ test('Corporation KM prioritizes manual KM over the route table', () => {
     { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', km: 748 },
   ];
 
-  assert.equal(customerController.sumRouteTableKm(trips, routes), 760);
+  assert.equal(customerController.sumRouteTableKm(trips, routes, false, {
+    group1: new Set(['MRPL, Mangalore']),
+    group2: new Set(),
+  }), 748);
+});
+
+test('Corporation KM uses the direct route for a filling location in the same group', () => {
+  const trip = {
+    loadingLocation: 'IPPL, Chennai',
+    unloadingLocation: 'Trichy',
+    fillingOrderLocation: 'CPCL, Chennai',
+  };
+  const routes = [
+    { loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Trichy', km: 700 },
+    { loadingLocation: 'Trichy', unloadingLocation: 'CPCL, Chennai', km: 900 },
+  ];
+  const groups = { group1: new Set(['IPPL, Chennai', 'CPCL, Chennai']), group2: new Set() };
+
+  assert.deepEqual(customerController.getTripCorporationKm(trip, routes, groups), 700);
+});
+
+test('Corporation KM uses the direct route for the same loading plant', () => {
+  const trip = {
+    loadingLocation: 'Custom Plant',
+    unloadingLocation: 'Trichy',
+    fillingOrderLocation: 'Custom Plant',
+  };
+  const routes = [{ loadingLocation: 'Custom Plant', unloadingLocation: 'Trichy', km: 610 }];
+
+  assert.deepEqual(customerController.getTripCorporationKm(trip, routes, { group1: new Set(), group2: new Set() }), 610);
+});
+
+test('Corporation KM uses weighted legs when filling order location is outside the loading group', () => {
+  const trip = {
+    loadingLocation: 'IPPL, Chennai',
+    unloadingLocation: 'Trichy',
+    fillingOrderLocation: 'MRPL, Mangalore',
+  };
+  const routes = [
+    { loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Trichy', km: 700 },
+    { loadingLocation: 'Trichy', unloadingLocation: 'MRPL, Mangalore', km: 900 },
+  ];
+  const groups = { group1: new Set(['IPPL, Chennai']), group2: new Set(['MRPL, Mangalore']) };
+
+  assert.equal(customerController.getTripCorporationKm(trip, routes, groups), 800);
 });
 
 test('customerController exposes deleteVehicleUser endpoint', () => {

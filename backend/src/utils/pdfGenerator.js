@@ -143,7 +143,7 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
     doc.x = doc.page.margins.left;
 
     styledSectionHeader(doc, 'Closed Trips');
-    renderSalaryTripsTable(doc, ['S.No', 'Loading Location', 'Loading Date', 'Unloading Location', 'Unloading Date', 'Corp. KM', 'Manual KM', 'Balance from Trips'],
+    renderSalaryTripsTable(doc, ['S.No', 'Loading Location', 'Loading Date', 'Unloading Location', 'Unloading Date', 'Corporation KM', 'Manual KM', 'Balance from Trips'],
       trips.length ? trips.map((trip, index) => [
         String(index + 1),
         trip.loadingLocation || '-',
@@ -256,7 +256,7 @@ function renderTripOverview(doc, trip, customer, driver, vehicle) {
   const cardHeight = 46;
   [
     ['Odometer KM', trip.odometerKm != null ? `${fmtMoney(trip.odometerKm)} km` : 'NA', 'Mil.: 0.00 km/L'],
-    ['Corp. KM', `${fmtMoney(trip.corporationKm || 0)} km`, ''],
+    ['Corporation KM', `${fmtMoney(trip.corporationKm || 0)} km`, ''],
     ['Manual KM', trip.manualKm != null ? `${fmtMoney(trip.manualKm)} km` : 'NA', ''],
   ].forEach(([label, value, mileage], index) => {
     const cardX = x + index * (cardWidth + gap);

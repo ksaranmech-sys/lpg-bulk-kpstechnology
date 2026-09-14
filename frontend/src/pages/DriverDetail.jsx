@@ -402,7 +402,7 @@ export default function DriverDetail() {
                         <th style={{ width: '16%', textAlign: 'left', padding: '8px 12px', border: '1px solid #d0d7de' }}>Loading Date</th>
                         <th style={{ width: '18%', textAlign: 'left', padding: '8px 12px', border: '1px solid #d0d7de' }}>Unloading Location</th>
                         <th style={{ width: '14%', textAlign: 'left', padding: '8px 12px', border: '1px solid #d0d7de' }}>Unloading Date</th>
-                        <th style={{ width: '9%', textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>Corp. KM</th>
+                        <th style={{ width: '9%', textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>Corporation KM</th>
                         <th style={{ width: '9%', textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>Manual KM</th>
                         <th style={{ width: '25%', textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>Balance from Trips</th>
                       </tr>
