@@ -124,6 +124,27 @@ label { font-size: 12px; font-weight: 700; color: var(--green-900); display: blo
 
 .field { margin-bottom: 12px; }
 
+.tank-fill-control {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  width: fit-content;
+  justify-self: end;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.tank-fill-control input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  padding: 0;
+  margin: 0;
+  accent-color: var(--green-500);
+}
+
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
 table { width: 100%; border: 1px solid var(--border); border-collapse: separate; border-spacing: 0; overflow: hidden; font-size: 13px; background: var(--surface); }
