@@ -542,6 +542,7 @@ function DieselForm({
   const [odometerKm, setOdo] = useState('');
   const [filledAt, setFilledAt] = useState('');
   const [photo, setPhoto] = useState(null);
+  const [dieselFilledConfirmed, setDieselFilledConfirmed] = useState(false);
 
   async function submit(e) {
     e.preventDefault();
@@ -551,7 +552,7 @@ function DieselForm({
       { volumeLitres, totalValue, paymentMethod, odometerKm: odometerKm || undefined, filledAt: filledAt || undefined, lat: gps?.lat, lng: gps?.lng },
       photo
     );
-    setVolume(''); setTotalValue(''); setPaymentMethod('diesel_card'); setOdo(''); setFilledAt(''); setPhoto(null);
+    setVolume(''); setTotalValue(''); setPaymentMethod('diesel_card'); setOdo(''); setFilledAt(''); setPhoto(null); setDieselFilledConfirmed(false);
     if (closeAfterSave) {
       await onSaved();
       return;
@@ -578,12 +579,21 @@ function DieselForm({
           <input type="date" value={filledAt} onChange={(e) => setFilledAt(e.target.value)} required />
         </div>
       </div>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontWeight: 600 }}>
+        <input
+          type="checkbox"
+          checked={dieselFilledConfirmed}
+          onChange={(e) => setDieselFilledConfirmed(e.target.checked)}
+          required
+        />
+        Confirm diesel was filled
+      </label>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginTop: 12 }}>
         <div className="field">
           <label>Photo (optional)</label>
           <input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files[0])} />
         </div>
-        <button className="btn" type="submit">{submitLabel}</button>
+        <button className="btn" type="submit" disabled={!dieselFilledConfirmed}>{submitLabel}</button>
       </div>
     </form>
   );
