@@ -79,6 +79,17 @@ export default function TripDetail() {
             <AdvanceForm tripId={tripId} onSaved={load} />
           </div>
         )}
+        {hasLoadingDetails && (
+          <LoadingDetailsSummary trip={trip} onEdit={() => setEditingLoadingDetails(true)} />
+        )}
+        {(!hasLoadingDetails || editingLoadingDetails) && (
+          <LoadingDetailsForm
+            tripId={tripId}
+            trip={trip}
+            meta={meta}
+            onSaved={() => { setEditingLoadingDetails(false); load(); }}
+          />
+        )}
         {hasLoadingExpense && <LoadingExpenseSummary trip={trip} tripId={tripId} onSaved={load} />}
         {!hasLoadingExpense && <LoadingExpenseForm tripId={tripId} trip={trip} onSaved={load} />}
         <div className="card">
@@ -105,16 +116,6 @@ export default function TripDetail() {
             tripId={tripId}
             trip={trip}
             onSaved={() => { setEditingUnloadingExpense(false); load(); }}
-          />
-        )}
-        {hasLoadingDetails && (
-          <LoadingDetailsSummary trip={trip} onEdit={() => setEditingLoadingDetails(true)} />
-        )}
-        {(!hasLoadingDetails || editingLoadingDetails) && (
-          <LoadingDetailsForm
-            tripId={tripId}
-            trip={trip}
-            onSaved={() => { setEditingLoadingDetails(false); load(); }}
           />
         )}
         <div className="card">
@@ -274,9 +275,10 @@ function AdvanceSummary({ trip, onSaved }) {
   );
 }
 
-function LoadingDetailsForm({ tripId, trip, onSaved }) {
+function LoadingDetailsForm({ tripId, trip, meta, onSaved }) {
   const [loadingLocation, setLocation] = useState(trip.loadingLocation || '');
   const [loadingDate, setDate] = useState(trip.loadingDate ? new Date(trip.loadingDate).toISOString().slice(0, 10) : '');
+  const loadingOptions = Array.from(new Set((meta.routeKmTable || []).map((row) => row.loadingLocation).filter(Boolean)));
 
   async function submit(e) {
     e.preventDefault();
@@ -287,22 +289,32 @@ function LoadingDetailsForm({ tripId, trip, onSaved }) {
   return (
     <form className="card" onSubmit={submit}>
       <h3 className="section-title">Loading Details</h3>
-      <div className="grid-2">
-        <div className="field">
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'end' }}>
+        <div className="field" style={{ marginBottom: 0 }}>
           <label>Loading Location</label>
+          <select value={loadingLocation} onChange={(e) => setLocation(e.target.value)}>
+            <option value="">Select from KM table...</option>
+            {loadingOptions.map((location) => (
+              <option key={location} value={location}>{location}</option>
+            ))}
+          </select>
+        </div>
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label>Enter Loading Location Manually</label>
           <input
             value={loadingLocation}
             onChange={(e) => setLocation(e.target.value)}
             placeholder="Enter loading location"
-            required
           />
         </div>
-        <div className="field">
-          <label>Loading Date</label>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginTop: 12 }}>
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label>Date of loading</label>
           <input type="date" value={loadingDate} onChange={(e) => setDate(e.target.value)} required />
         </div>
+        <button className="btn" style={{ marginBottom: 0 }}>Save loading details</button>
       </div>
-      <button className="btn">Save Loading Details</button>
     </form>
   );
 }

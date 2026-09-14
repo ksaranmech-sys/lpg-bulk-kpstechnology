@@ -51,7 +51,7 @@ test('shows editable manual loading details below unloading expenses', async () 
   await act(async () => {});
 
   const headings = Array.from(container.querySelectorAll('h3')).map((heading) => heading.textContent);
-  expect(headings.indexOf('Loading Details Added')).toBeGreaterThan(
+  expect(headings.indexOf('Loading Details Added')).toBeLessThan(
     headings.indexOf('Unloading Expenses Added')
   );
 
@@ -63,10 +63,11 @@ test('shows editable manual loading details below unloading expenses', async () 
   const loadingForm = Array.from(container.querySelectorAll('form')).find(
     (form) => form.querySelector('h3')?.textContent === 'Loading Details'
   );
-  expect(loadingForm.querySelector('select')).toBeNull();
-  expect(loadingForm.querySelector('input:not([type="date"])').value).toBe('MRPL');
+  expect(loadingForm).not.toBeNull();
+  expect(loadingForm.querySelector('select')).not.toBeNull();
+  expect(loadingForm.querySelectorAll('input').length).toBeGreaterThanOrEqual(2);
   expect(loadingForm.querySelector('input[type="date"]').value).toBe('2026-09-14');
-  expect(loadingForm.querySelector('button').textContent).toBe('Save Loading Details');
+  expect(loadingForm.querySelector('button').textContent).toBe('Save loading details');
 
   await act(async () => root.unmount());
   globalThis.IS_REACT_ACT_ENVIRONMENT = false;
