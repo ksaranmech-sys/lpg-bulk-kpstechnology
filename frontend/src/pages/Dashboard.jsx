@@ -176,12 +176,17 @@ export default function Dashboard() {
       .then((res) => {
         const nextVehicles = res.data.vehicles || [];
         setVehicles(nextVehicles);
-        if (selectedVehicleId && !nextVehicles.some((vehicle) => vehicle._id === selectedVehicleId)) {
-          setSelectedVehicleId('');
-        }
+        setSelectedVehicleId((currentVehicleId) => {
+          if (user?.role === 'vehicle_user') {
+            return nextVehicles[0]?._id || '';
+          }
+          return currentVehicleId && !nextVehicles.some((vehicle) => vehicle._id === currentVehicleId)
+            ? ''
+            : currentVehicleId;
+        });
       })
       .finally(() => setLoading(false));
-  }, [selectedCustomerId, user, selectedVehicleId]);
+  }, [selectedCustomerId, user]);
 
   useEffect(() => {
     if (!['vehicle_user', 'customer_admin'].includes(user?.role) || !vehicles.length) {
