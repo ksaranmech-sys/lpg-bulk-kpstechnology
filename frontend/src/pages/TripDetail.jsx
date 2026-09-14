@@ -12,6 +12,7 @@ export default function TripDetail() {
   const [editingLoadingDetails, setEditingLoadingDetails] = useState(false);
   const [editingUnloadingDetails, setEditingUnloadingDetails] = useState(false);
   const [editingUnloadingExpense, setEditingUnloadingExpense] = useState(false);
+  const [editingTurnDetails, setEditingTurnDetails] = useState(false);
 
   function load() {
     api.getTrip(tripId).then((res) => setTrip(res.data.trip));
@@ -26,6 +27,8 @@ export default function TripDetail() {
   const hasLoadingExpense = Number(trip.loadingExpense) > 0;
   const hasUnloadingDetails = Boolean(trip.unloadingLocation && trip.unloadingDate);
   const hasUnloadingExpense = Number(trip.unloadingExpense) > 0;
+  const hasTurnDetails = trip.turnNumber != null && trip.turnDate;
+  const hasUnloadingTurnDetails = trip.unTurnNumber != null && trip.unTurnDate;
   const formatDate = (value) => (value ? new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '');
   const loadingDateText = formatDate(trip.loadingDate);
   const unloadingDateText = formatDate(trip.unloadingDate);
@@ -100,6 +103,11 @@ export default function TripDetail() {
           <RtoSummary trip={trip} onSaved={load} />
           <RtoForm tripId={tripId} onSaved={load} />
         </div>
+        {hasUnloadingTurnDetails ? (
+          <UnloadingTurnSummary trip={trip} onDeleted={load} />
+        ) : (
+          <UnloadingTurnForm tripId={tripId} trip={trip} onSaved={load} />
+        )}
         {hasUnloadingDetails && <UnloadingDetailsSummary trip={trip} onEdit={() => setEditingUnloadingDetails(true)} />}
         {(!hasUnloadingDetails || editingUnloadingDetails) && (
           <UnloadingForm
@@ -116,6 +124,14 @@ export default function TripDetail() {
             tripId={tripId}
             trip={trip}
             onSaved={() => { setEditingUnloadingExpense(false); load(); }}
+          />
+        )}
+        {hasTurnDetails && <TurnDetailsSummary trip={trip} onEdit={() => setEditingTurnDetails(true)} />}
+        {(!hasTurnDetails || editingTurnDetails) && (
+          <TurnDetailsForm
+            tripId={tripId}
+            trip={trip}
+            onSaved={() => { setEditingTurnDetails(false); load(); }}
           />
         )}
         <div className="card">
@@ -395,6 +411,100 @@ function LoadingExpenseSummary({ trip, tripId, onSaved }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function TurnDetailsForm({ tripId, trip, onSaved }) {
+  const [turnNumber, setTurnNumber] = useState(trip.turnNumber != null ? String(trip.turnNumber) : '');
+  const [turnDate, setTurnDate] = useState(trip.turnDate ? new Date(trip.turnDate).toISOString().slice(0, 10) : '');
+
+  async function submit(e) {
+    e.preventDefault();
+    await api.setTurnDetails(tripId, { turnNumber: Number(turnNumber), turnDate });
+    onSaved();
+  }
+
+  return (
+    <form className="card" onSubmit={submit}>
+      <h3 className="section-title">L Turn</h3>
+      <div className="grid-2">
+        <div className="field">
+          <label>Turn Number</label>
+          <input type="number" min="0" step="1" value={turnNumber} onChange={(e) => setTurnNumber(e.target.value)} required />
+        </div>
+        <div className="field">
+          <label>Turn Date</label>
+          <input type="date" value={turnDate} onChange={(e) => setTurnDate(e.target.value)} required />
+        </div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button className="btn">Save Turn Details</button>
+      </div>
+    </form>
+  );
+}
+
+function TurnDetailsSummary({ trip, onEdit }) {
+  return (
+    <div className="card">
+      <h3 className="section-title">L Turn Added</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
+        <p style={{ margin: 0 }}>
+          Turn {trip.turnNumber} • {new Date(trip.turnDate).toLocaleDateString('en-IN')}
+        </p>
+        <button type="button" className="btn secondary" onClick={onEdit}>Edit</button>
+      </div>
+    </div>
+  );
+}
+
+function UnloadingTurnForm({ tripId, trip, onSaved }) {
+  const [turnNumber, setTurnNumber] = useState(trip.unTurnNumber != null ? String(trip.unTurnNumber) : '');
+  const [turnDate, setTurnDate] = useState(trip.unTurnDate ? new Date(trip.unTurnDate).toISOString().slice(0, 10) : '');
+
+  async function submit(e) {
+    e.preventDefault();
+    await api.setUnloadingTurnDetails(tripId, { turnNumber: Number(turnNumber), turnDate });
+    onSaved();
+  }
+
+  return (
+    <form className="card" onSubmit={submit}>
+      <h3 className="section-title">UN Turn</h3>
+      <div className="grid-2">
+        <div className="field">
+          <label>Turn Number</label>
+          <input type="number" min="0" step="1" value={turnNumber} onChange={(e) => setTurnNumber(e.target.value)} required />
+        </div>
+        <div className="field">
+          <label>Turn Date</label>
+          <input type="date" value={turnDate} onChange={(e) => setTurnDate(e.target.value)} required />
+        </div>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button className="btn">Add UN Turn</button>
+      </div>
+    </form>
+  );
+}
+
+function UnloadingTurnSummary({ trip, onDeleted }) {
+  async function deleteTurn() {
+    if (!window.confirm('Delete this UN Turn?')) return;
+    await api.deleteUnloadingTurnDetails(trip._id);
+    onDeleted();
+  }
+
+  return (
+    <div className="card">
+      <h3 className="section-title">UN Turn Added</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
+        <p style={{ margin: 0 }}>
+          Turn {trip.unTurnNumber} • {new Date(trip.unTurnDate).toLocaleDateString('en-IN')}
+        </p>
+        <button type="button" className="btn danger" onClick={deleteTurn}>Delete</button>
+      </div>
     </div>
   );
 }

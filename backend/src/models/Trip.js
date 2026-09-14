@@ -76,6 +76,11 @@ const tripSchema = new mongoose.Schema(
     unloadingExpense: { type: Number, default: 0, min: 0 },
     manualKm: { type: Number, default: null, min: 0 },
 
+    turnNumber: { type: Number, min: 0 },
+    turnDate: { type: Date },
+    unTurnNumber: { type: Number, min: 0 },
+    unTurnDate: { type: Date },
+
     otherExpenses: { type: [otherExpenseSchema], default: [] },
 
     status: { type: String, enum: Object.values(TRIP_STATUS), default: TRIP_STATUS.OPEN },

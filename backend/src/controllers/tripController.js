@@ -405,6 +405,63 @@ async function setUnloading(req, res) {
   res.json({ trip });
 }
 
+// PATCH /api/v1/trips/:tripId/turn   body: { turnNumber, turnDate }
+async function setTurnDetails(req, res) {
+  const trip = await getOpenTripOr404(req, res);
+  if (!trip) return;
+
+  const { turnNumber, turnDate } = req.body;
+  if (turnNumber == null || turnNumber === '') {
+    return res.status(400).json({ error: 'turnNumber is required' });
+  }
+  const number = Number(turnNumber);
+  if (!Number.isInteger(number) || number < 0) {
+    return res.status(400).json({ error: 'turnNumber must be a non-negative integer' });
+  }
+  if (!turnDate) return res.status(400).json({ error: 'turnDate is required' });
+  const date = new Date(turnDate);
+  if (Number.isNaN(date.getTime())) return res.status(400).json({ error: 'turnDate must be a valid date' });
+
+  trip.turnNumber = number;
+  trip.turnDate = date;
+  await trip.save();
+  res.json({ trip });
+}
+
+// PATCH /api/v1/trips/:tripId/unloading-turn   body: { turnNumber, turnDate }
+async function setUnloadingTurnDetails(req, res) {
+  const trip = await getOpenTripOr404(req, res);
+  if (!trip) return;
+
+  const { turnNumber, turnDate } = req.body;
+  if (turnNumber == null || turnNumber === '') {
+    return res.status(400).json({ error: 'turnNumber is required' });
+  }
+  const number = Number(turnNumber);
+  if (!Number.isInteger(number) || number < 0) {
+    return res.status(400).json({ error: 'turnNumber must be a non-negative integer' });
+  }
+  if (!turnDate) return res.status(400).json({ error: 'turnDate is required' });
+  const date = new Date(turnDate);
+  if (Number.isNaN(date.getTime())) return res.status(400).json({ error: 'turnDate must be a valid date' });
+
+  trip.unTurnNumber = number;
+  trip.unTurnDate = date;
+  await trip.save();
+  res.json({ trip });
+}
+
+// DELETE /api/v1/trips/:tripId/unloading-turn
+async function deleteUnloadingTurnDetails(req, res) {
+  const trip = await getOpenTripOr404(req, res);
+  if (!trip) return;
+
+  trip.unTurnNumber = undefined;
+  trip.unTurnDate = undefined;
+  await trip.save();
+  res.json({ trip });
+}
+
 /**
  * Shared logic: whenever a new trip's first diesel entry is saved, look up
  * the vehicle's previous OPEN trip and attempt to compute + finalize its
@@ -583,6 +640,9 @@ module.exports = {
   setLoadingDetails,
   deleteLoadingExpense,
   setUnloading,
+  setTurnDetails,
+  setUnloadingTurnDetails,
+  deleteUnloadingTurnDetails,
   closeTrip,
   sendReport,
   downloadReport,

@@ -48,6 +48,9 @@ router.delete('/:tripId/other-expenses/:expenseIndex', scopeToOpenTripForUser, c
 router.patch('/:tripId/loading', scopeToOpenTripForUser, ctrl.setLoadingDetails);
 router.delete('/:tripId/loading-expense', scopeToOpenTripForUser, ctrl.deleteLoadingExpense);
 router.patch('/:tripId/unloading', scopeToOpenTripForUser, ctrl.setUnloading);
+router.patch('/:tripId/turn', scopeToOpenTripForUser, ctrl.setTurnDetails);
+router.patch('/:tripId/unloading-turn', scopeToOpenTripForUser, ctrl.setUnloadingTurnDetails);
+router.delete('/:tripId/unloading-turn', scopeToOpenTripForUser, ctrl.deleteUnloadingTurnDetails);
 router.post('/:tripId/close', scopeToOpenTripForUser, ctrl.closeTrip);
 router.post('/:tripId/send-report', scopeToTrip, ctrl.sendReport);
 router.get('/:tripId/report', scopeToTrip, ctrl.downloadReport);

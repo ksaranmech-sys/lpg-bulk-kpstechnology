@@ -69,6 +69,9 @@ export const deleteAdvance = (tripId, index) => api.delete(`/trips/${tripId}/adv
 export const setLoadingDetails = (tripId, data) => api.patch(`/trips/${tripId}/loading`, data);
 export const deleteLoadingExpense = (tripId) => api.delete(`/trips/${tripId}/loading-expense`);
 export const setUnloading = (tripId, data) => api.patch(`/trips/${tripId}/unloading`, data);
+export const setTurnDetails = (tripId, data) => api.patch(`/trips/${tripId}/turn`, data);
+export const setUnloadingTurnDetails = (tripId, data) => api.patch(`/trips/${tripId}/unloading-turn`, data);
+export const deleteUnloadingTurnDetails = (tripId) => api.delete(`/trips/${tripId}/unloading-turn`);
 export const closeTrip = (tripId) => api.post(`/trips/${tripId}/close`);
 export const sendReport = (tripId) => api.post(`/trips/${tripId}/send-report`);
 export const reportDownloadUrl = (tripId) =>

@@ -7,6 +7,9 @@ import * as api from '../api/api';
 jest.mock('../api/api', () => ({
   getTrip: jest.fn(),
   getMeta: jest.fn(),
+  setTurnDetails: jest.fn(),
+  setUnloadingTurnDetails: jest.fn(),
+  deleteUnloadingTurnDetails: jest.fn(),
 }));
 
 jest.mock('../components/Layout', () => ({ children }) => <>{children}</>);
@@ -29,6 +32,10 @@ test('shows editable manual loading details below driver advance', async () => {
         unloadingLocation: 'Depot',
         unloadingDate: '2026-09-15T00:00:00.000Z',
         unloadingExpense: 50,
+        turnNumber: 7,
+        turnDate: '2026-09-13T00:00:00.000Z',
+        unTurnNumber: 8,
+        unTurnDate: '2026-09-14T00:00:00.000Z',
       },
     },
   });
@@ -68,6 +75,37 @@ test('shows editable manual loading details below driver advance', async () => {
   expect(loadingForm.querySelectorAll('input').length).toBeGreaterThanOrEqual(2);
   expect(loadingForm.querySelector('input[type="date"]').value).toBe('2026-09-14');
   expect(loadingForm.querySelector('button').textContent).toBe('Save loading details');
+
+  const turnHeadings = Array.from(container.querySelectorAll('h3')).map((heading) => heading.textContent);
+  expect(turnHeadings.indexOf('L Turn Added')).toBeGreaterThan(
+    turnHeadings.indexOf('Unloading Expenses Added')
+  );
+  expect(turnHeadings.indexOf('L Turn Added')).toBeLessThan(
+    turnHeadings.indexOf('Other Expenses Added')
+  );
+  const turnSummary = Array.from(container.querySelectorAll('.card')).find(
+    (card) => card.querySelector('h3')?.textContent === 'L Turn Added'
+  );
+  await act(async () => turnSummary.querySelector('button').click());
+  const turnForm = Array.from(container.querySelectorAll('form')).find(
+    (form) => form.querySelector('h3')?.textContent === 'L Turn'
+  );
+  expect(turnForm.querySelector('input[type="number"]').value).toBe('7');
+  expect(turnForm.querySelector('input[type="date"]').value).toBe('2026-09-13');
+  expect(turnForm.querySelector('button').textContent).toBe('Save Turn Details');
+
+  const unTurnHeadings = Array.from(container.querySelectorAll('h3')).map((heading) => heading.textContent);
+  expect(unTurnHeadings.indexOf('UN Turn Added')).toBeLessThan(
+    unTurnHeadings.indexOf('Unloading Details Added')
+  );
+  const unTurnSummary = Array.from(container.querySelectorAll('.card')).find(
+    (card) => card.querySelector('h3')?.textContent === 'UN Turn Added'
+  );
+  expect(unTurnSummary.textContent).toContain('Turn 8');
+  window.confirm = jest.fn(() => true);
+  api.deleteUnloadingTurnDetails.mockResolvedValue({ data: {} });
+  await act(async () => unTurnSummary.querySelector('button').click());
+  expect(api.deleteUnloadingTurnDetails).toHaveBeenCalledWith('trip-1');
 
   await act(async () => root.unmount());
   globalThis.IS_REACT_ACT_ENVIRONMENT = false;
