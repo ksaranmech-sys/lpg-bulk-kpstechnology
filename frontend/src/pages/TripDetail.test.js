@@ -11,7 +11,7 @@ jest.mock('../api/api', () => ({
 
 jest.mock('../components/Layout', () => ({ children }) => <>{children}</>);
 
-test('shows editable manual loading details below unloading expenses', async () => {
+test('shows editable manual loading details below driver advance', async () => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   api.getTrip.mockResolvedValue({
     data: {
@@ -51,8 +51,8 @@ test('shows editable manual loading details below unloading expenses', async () 
   await act(async () => {});
 
   const headings = Array.from(container.querySelectorAll('h3')).map((heading) => heading.textContent);
-  expect(headings.indexOf('Loading Details Added')).toBeLessThan(
-    headings.indexOf('Unloading Expenses Added')
+  expect(headings.indexOf('Loading Details Added')).toBeGreaterThan(
+    headings.indexOf('Add Driver Advance')
   );
 
   const loadingSummary = Array.from(container.querySelectorAll('.card')).find(
