@@ -130,7 +130,7 @@ label { font-size: 12px; font-weight: 700; color: var(--green-900); display: blo
   justify-content: flex-end;
   gap: 10px;
   width: fit-content;
-  justify-self: end;
+  justify-self: center;
   margin: 0;
   font-size: 14px;
   font-weight: 700;
