@@ -123,6 +123,7 @@ test('shows editable manual loading details below driver advance', async () => {
   );
   const dieselConfirmation = dieselForm.querySelector('input[type="checkbox"]');
   const addDieselButton = dieselForm.querySelector('button[type="submit"]');
+  expect(dieselConfirmation.parentElement.textContent).toContain('Tank Fill');
   expect(dieselConfirmation.checked).toBe(false);
   expect(addDieselButton.disabled).toBe(true);
   await act(async () => dieselConfirmation.click());
