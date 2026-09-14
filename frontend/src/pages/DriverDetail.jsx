@@ -110,6 +110,8 @@ export default function DriverDetail() {
   const [reminderSaving, setReminderSaving] = useState(false);
   const [salaryMonth, setSalaryMonth] = useState(previousMonth);
   const [salary, setSalary] = useState(null);
+  const [showArchivedSalary, setShowArchivedSalary] = useState(false);
+  const [archivedSalaryMonth, setArchivedSalaryMonth] = useState('');
   const [summaryPrinting, setSummaryPrinting] = useState(false);
   const [trips, setTrips] = useState([]);
   const [tripsLoading, setTripsLoading] = useState(false);
@@ -241,11 +243,11 @@ export default function DriverDetail() {
     }
   }
 
-  async function printMonthlySummary() {
+  async function printMonthlySummary(month = salaryMonth) {
     const printWindow = window.open('', '_blank');
     setSummaryPrinting(true);
     try {
-      const res = await api.downloadDriverMonthlySummary(customerId, driverId, salaryMonth);
+      const res = await api.downloadDriverMonthlySummary(customerId, driverId, month);
       const url = URL.createObjectURL(res.data);
       if (printWindow) printWindow.location.href = url;
       else window.location.href = url;
@@ -303,12 +305,23 @@ export default function DriverDetail() {
                         {formatMonthLabel(monthKey)}
                       </div>
                       {monthTrips.map(({ trip, closeDate }) => (
-                        <Link key={trip._id} to={`/trips/${trip._id}`} className="list-item" style={{ display: 'block' }}>
-                          <strong>{formatTripRoute(trip)}</strong>
-                          <div style={{ color: '#666', fontSize: 12, marginTop: 4 }}>
-                            Diesel close: {new Date(closeDate).toLocaleDateString('en-IN')}
-                          </div>
-                        </Link>
+                        <div key={trip._id} className="list-item" style={{ display: 'flex', gap: 12 }}>
+                          <Link to={`/trips/${trip._id}`} style={{ display: 'block', flex: 1, minWidth: 0 }}>
+                            <strong>{formatTripRoute(trip)}</strong>
+                            <div style={{ color: '#666', fontSize: 12, marginTop: 4 }}>
+                              Diesel close: {new Date(closeDate).toLocaleDateString('en-IN')}
+                            </div>
+                          </Link>
+                          <a
+                            className="btn secondary"
+                            href={api.reportDownloadUrl(trip._id)}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ alignSelf: 'center', whiteSpace: 'nowrap' }}
+                          >
+                            Single Trip
+                          </a>
+                        </div>
                       ))}
                     </div>
                   ))}
@@ -356,7 +369,8 @@ export default function DriverDetail() {
             )}
           </div>
           <div className="card" style={{ marginTop: 24 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+              <div><strong>Customer:</strong> {data.customer?.companyName || '-'}</div>
               <div><strong>Driver:</strong> {driver.name || driver.username || '-'}</div>
               <div style={{ textAlign: 'center' }}><strong>Vehicle:</strong> {vehicle?.vehicleNumber || '-'}</div>
               <div style={{ textAlign: 'right' }}><strong>Month:</strong> {formatMonthLabel(salaryMonth)}</div>
@@ -371,11 +385,6 @@ export default function DriverDetail() {
                   onChange={(event) => setSalaryMonth(event.target.value)}
                   style={{ maxWidth: 170 }}
                 />
-                {salary?.available && (
-                  <button type="button" className="btn secondary" onClick={printMonthlySummary} disabled={summaryPrinting}>
-                    {summaryPrinting ? 'Preparing...' : 'Print Summary'}
-                  </button>
-                )}
               </div>
             </div>
             {!salary ? <p style={{ margin: 0 }}>Loading salary calculation...</p> : !salary.available ? (
@@ -392,13 +401,15 @@ export default function DriverDetail() {
                         <th style={{ width: '18%', textAlign: 'left', padding: '8px 12px', border: '1px solid #d0d7de' }}>Loading Location</th>
                         <th style={{ width: '16%', textAlign: 'left', padding: '8px 12px', border: '1px solid #d0d7de' }}>Loading Date</th>
                         <th style={{ width: '18%', textAlign: 'left', padding: '8px 12px', border: '1px solid #d0d7de' }}>Unloading Location</th>
-                        <th style={{ width: '16%', textAlign: 'left', padding: '8px 12px', border: '1px solid #d0d7de' }}>Unloading Date</th>
+                        <th style={{ width: '14%', textAlign: 'left', padding: '8px 12px', border: '1px solid #d0d7de' }}>Unloading Date</th>
+                        <th style={{ width: '9%', textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>Corp. KM</th>
+                        <th style={{ width: '9%', textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>Manual KM</th>
                         <th style={{ width: '25%', textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>Balance from Trips</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(salary.trips || []).length === 0 ? (
-                        <tr><td colSpan="6" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No closed trips for this month.</td></tr>
+                        <tr><td colSpan="8" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No closed trips for this month.</td></tr>
                       ) : (salary.trips || []).map((trip, index) => (
                         <tr key={trip._id || index}>
                           <td style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>{index + 1}</td>
@@ -406,11 +417,13 @@ export default function DriverDetail() {
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingLocation || '-'}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{Math.round(trip.corporationKm || 0)} km</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.manualKm != null ? `${Math.round(trip.manualKm)} km` : '-'}</td>
                           <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.balance ?? 0}</td>
                         </tr>
                       ))}
                       <tr>
-                        <td colSpan="5" style={{ textAlign: 'right', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
+                        <td colSpan="7" style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
                         <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {salary.totalBalance}</td>
                       </tr>
                     </tbody>
@@ -418,16 +431,54 @@ export default function DriverDetail() {
                 </div>
                 <table className="salary-summary">
                   <tbody>
-                    <tr><td>Basic salary</td><td>Rs {Math.round(salary.basicSalary || 0)}</td></tr>
+                    <tr>
+                      <td>
+                        Basic salary (Payable days: {salary.payableDays}, Leaves taken: {salary.unpaidLeaveDays})
+                      </td>
+                      <td>Rs {Math.round(salary.basicSalary || 0)}</td>
+                    </tr>
                     <tr><td>Corporation KM ({salary.closedTrips} closed trips)</td><td>{Math.round(salary.corporationKm || 0)} km</td></tr>
                     <tr><td>KM Beta ({Math.round(salary.kmCharges || 0)} x {Math.round(salary.corporationKm || 0)})</td><td>Rs {Math.round(salary.kmBeta || 0)}</td></tr>
-                    <tr><td>Special Trip Charges ({salary.specialTripCount || 0} trips x Rs 1000)</td><td>Rs {Math.round(salary.specialTripCharges || 0)}</td></tr>
+                    {Number(salary.specialTripCharges || 0) > 0 && (
+                      <tr><td>Special Trip Charges ({salary.specialTripCount || 0} trips x Rs 1000)</td><td>Rs {Math.round(salary.specialTripCharges || 0)}</td></tr>
+                    )}
                     <tr><td><strong>Salary Balance</strong></td><td><strong>Rs {Math.round(salary.salaryBalance || 0)}</strong></td></tr>
                   </tbody>
                 </table>
               </>
             )}
           </div>
+          <div className="salary-archive-footer">
+            <button
+              type="button"
+              className="salary-archive-link"
+              onClick={() => {
+                setShowArchivedSalary((current) => {
+                  const next = !current;
+                  if (next && !archivedSalaryMonth) setArchivedSalaryMonth(salaryMonth);
+                  return next;
+                });
+              }}
+            >
+              {showArchivedSalary ? 'Hide archived Salary PDF' : 'View archived Salary PDF'}
+            </button>
+          </div>
+          {showArchivedSalary && (
+            <div className="card" style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+              <label htmlFor="archived-salary-month" style={{ margin: 0 }}>Archive month</label>
+              <input
+                id="archived-salary-month"
+                aria-label="Archived salary month"
+                type="month"
+                value={archivedSalaryMonth}
+                onChange={(event) => setArchivedSalaryMonth(event.target.value)}
+                style={{ maxWidth: 170 }}
+              />
+              <button type="button" className="btn" onClick={() => printMonthlySummary(archivedSalaryMonth)} disabled={!archivedSalaryMonth || summaryPrinting}>
+                {summaryPrinting ? 'Preparing...' : 'Print archived Salary PDF'}
+              </button>
+            </div>
+          )}
           {vehicle && (
             <div className="card" style={{ marginTop: 24 }}>
               <h3 className="section-title" style={{ marginTop: 0 }}>Reminder / Expiry Dates</h3>

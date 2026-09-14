@@ -1270,7 +1270,7 @@ function EntriesSummary({ trip, corporationKm }) {
       `}</style>
       <div className="card trip-details-print-area" style={{ border: '1px solid #1f4d2b' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-          <h3 className="section-title" style={{ margin: 0 }}>Trip details</h3>
+          <h3 className="section-title" style={{ margin: 0 }}>Single Trip</h3>
           <button
             type="button"
             className="btn secondary no-print"
@@ -1279,13 +1279,13 @@ function EntriesSummary({ trip, corporationKm }) {
             title="Print / View PDF"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
-            🖨️ Print
+            🖨️ Single Trip
           </button>
         </div>
 
         <div className="summary-grid" style={{ display: 'grid', gap: 16 }}>
           <div className="card-section" style={{ border: '1px solid #dfeade', borderRadius: 10, overflow: 'hidden' }}>
-            <h3 style={{ margin: 0, padding: '10px 12px', background: '#f7faf7', borderBottom: '1px solid #dfeade' }}>Trip Details</h3>
+            <h3 style={{ margin: 0, padding: '10px 12px', background: '#f7faf7', borderBottom: '1px solid #dfeade' }}>Single Trip</h3>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <tbody>
                 <tr>

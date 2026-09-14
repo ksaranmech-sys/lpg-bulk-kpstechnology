@@ -73,14 +73,22 @@ function isTripInSalaryMonth(trip, monthStart, monthEnd) {
 
 function sumRouteTableKm(trips, routeKmTable, excludeShortTrips = false) {
   return trips.reduce((total, trip) => {
-    const route = routeKmTable.find((row) => (
-      String(row.loadingLocation || '').trim() === String(trip.loadingLocation || '').trim() &&
-      String(row.unloadingLocation || '').trim() === String(trip.unloadingLocation || '').trim()
-    ));
-    const routeKm = Number(route?.km);
+    const routeKm = getTripCorporationKm(trip, routeKmTable);
     if (!Number.isFinite(routeKm) || (excludeShortTrips && routeKm < 200)) return total;
     return total + routeKm;
   }, 0);
+}
+
+function getTripCorporationKm(trip, routeKmTable) {
+  const manualKm = Number(trip.manualKm);
+  if (Number.isFinite(manualKm)) return manualKm;
+
+  const route = routeKmTable.find((row) => (
+    String(row.loadingLocation || '').trim() === String(trip.loadingLocation || '').trim() &&
+    String(row.unloadingLocation || '').trim() === String(trip.unloadingLocation || '').trim()
+  ));
+  const routeKm = Number(route?.km);
+  return Number.isFinite(routeKm) ? routeKm : null;
 }
 
 function calculateSpecialTripCharges(trips, routeKmTable) {
@@ -162,16 +170,17 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
       .select(
         'loadingLocation loadingDate unloadingLocation unloadingDate closedAt ' +
         'dieselEntries.filledAt settlement.balance settlement.totalKm ' +
-        'driverAdvances loadingExpense unloadingExpense rtoEntries otherExpenses'
+        'driverAdvances loadingExpense unloadingExpense rtoEntries otherExpenses manualKm'
       )
       .sort('closedAt loadingDate')
     : [];
   const monthTrips = trips.filter((trip) => isTripInSalaryMonth(trip, monthStart, monthEnd));
+  const routeKmTable = loadRouteKmTable();
   const tripsWithBalances = monthTrips.map((trip) => ({
     ...trip.toObject(),
     balance: trip.settlement?.balance != null ? Number(trip.settlement.balance) : calculateTripBalance(trip),
+    corporationKm: getTripCorporationKm(trip, routeKmTable) || 0,
   }));
-  const routeKmTable = loadRouteKmTable();
   const corporationKm = sumRouteTableKm(tripsWithBalances, routeKmTable, Number(driver.minKmCharges || 0) > 0);
   const { specialTripCount, specialTripCharges } = calculateSpecialTripCharges(tripsWithBalances, routeKmTable);
   const totalBalance = sumTripBalances(tripsWithBalances);
@@ -289,10 +298,14 @@ async function downloadDriverMonthlySummary(req, res) {
   if (!summary.available) {
     return res.status(400).json({ error: `Monthly summary is available on ${summary.availableOn.toLocaleDateString('en-IN')}` });
   }
-  const vehicle = summary.driver.vehicle ? await Vehicle.findById(summary.driver.vehicle).select('vehicleNumber') : null;
+  const [vehicle, customer] = await Promise.all([
+    summary.driver.vehicle ? Vehicle.findById(summary.driver.vehicle).select('vehicleNumber') : null,
+    Customer.findById(customerId).select('companyName'),
+  ]);
   const pdfBuffer = await buildDriverMonthlySummaryPdf({
     driver: summary.driver,
     vehicle,
+    customer,
     summary,
     trips: summary.trips,
   });

@@ -191,6 +191,26 @@ test('Corporation KM excludes routes below 200 KM when less than 200KM charges a
   assert.equal(customerController.sumRouteTableKm(trips, routes, true), 500);
 });
 
+test('Corporation KM falls back to manual KM when route is missing', () => {
+  const trips = [
+    { loadingLocation: 'Unknown', unloadingLocation: 'Route', manualKm: 760 },
+  ];
+
+  assert.equal(customerController.sumRouteTableKm(trips, [], false), 760);
+  assert.equal(customerController.sumRouteTableKm(trips, [], true), 760);
+});
+
+test('Corporation KM prioritizes manual KM over the route table', () => {
+  const trips = [
+    { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', manualKm: 760 },
+  ];
+  const routes = [
+    { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', km: 748 },
+  ];
+
+  assert.equal(customerController.sumRouteTableKm(trips, routes), 760);
+});
+
 test('customerController exposes deleteVehicleUser endpoint', () => {
   assert.equal(typeof customerController.deleteVehicleUser, 'function');
 });
