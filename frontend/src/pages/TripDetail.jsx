@@ -585,7 +585,7 @@ function DieselForm({
             onChange={(e) => setDieselFilledConfirmed(e.target.checked)}
             required
           />
-          Tank Fill
+          Loading Point Tank Fill
         </label>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginTop: 12 }}>
