@@ -578,7 +578,7 @@ function DieselForm({
           <label>Date</label>
           <input type="date" value={filledAt} onChange={(e) => setFilledAt(e.target.value)} required />
         </div>
-        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, fontWeight: 600 }}>
+        <label className="tank-fill-control">
           <input
             type="checkbox"
             checked={dieselFilledConfirmed}
