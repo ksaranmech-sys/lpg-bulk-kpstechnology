@@ -159,7 +159,7 @@ export default function TripDetail() {
                     }
                   }}
                   title="Total Closing Diesel Value"
-                  submitLabel="Submit"
+                  submitLabel="Trip close"
                   closeAfterSave
                 />
               </div>
@@ -168,14 +168,14 @@ export default function TripDetail() {
         </div>
         </>
 
-        <EntriesSummary
-          trip={trip}
-          corporationKm={(meta.routeKmTable || []).find((row) => (
-            String(row.loadingLocation || '').trim() === String(trip.loadingLocation || '').trim() &&
-            String(row.unloadingLocation || '').trim() === String(trip.unloadingLocation || '').trim()
-          ))?.km}
-        />
       </fieldset>
+      <EntriesSummary
+        trip={trip}
+        corporationKm={(meta.routeKmTable || []).find((row) => (
+          String(row.loadingLocation || '').trim() === String(trip.loadingLocation || '').trim() &&
+          String(row.unloadingLocation || '').trim() === String(trip.unloadingLocation || '').trim()
+        ))?.km}
+      />
     </Layout>
   );
 }
@@ -1148,6 +1148,27 @@ function EntriesSummary({ trip, corporationKm }) {
   const totalExpenses = loadingExpenseTotal + rtoExpenseTotal + unloadingExpenseTotal + otherExpenseTotal;
   const balance = totalAdvance - (dieselCashTotal + totalExpenses);
 
+  function printTripDetails() {
+    const printDate = trip.loadingDate || trip.unloadingDate || new Date();
+    const date = new Date(printDate);
+    const datePart = [date.getDate(), date.getMonth() + 1, date.getFullYear()]
+      .map((part) => String(part).padStart(2, '0'))
+      .join('-');
+    const cleanPart = (value) => String(value || 'NA').trim().replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, '-');
+    const filename = [
+      cleanPart(trip.vehicle?.vehicleNumber),
+      datePart,
+      cleanPart(trip.loadingLocation),
+      cleanPart(trip.unloadingLocation),
+    ].join('_');
+    const originalTitle = document.title;
+    document.title = filename;
+    window.addEventListener('afterprint', () => {
+      document.title = originalTitle;
+    }, { once: true });
+    window.print();
+  }
+
   return (
     <>
       <style>{`
@@ -1156,12 +1177,27 @@ function EntriesSummary({ trip, corporationKm }) {
           margin: 10mm 12mm 12mm 12mm;
         }
 
+        .trip-details-print-area .summary-grid {
+          padding-left: 4px;
+          padding-right: 4px;
+        }
+
+        .trip-details-print-area table th,
+        .trip-details-print-area table td {
+          padding-left: 12px !important;
+          padding-right: 12px !important;
+        }
+
         @media print {
           html, body {
             background: #fff !important;
             margin: 0 !important;
             padding: 0 !important;
             color: #000 !important;
+          }
+          .topbar,
+          .container > *:not(.trip-details-print-area) {
+            display: none !important;
           }
           body * {
             visibility: hidden !important;
@@ -1184,6 +1220,8 @@ function EntriesSummary({ trip, corporationKm }) {
             background: #fff !important;
             font-size: 9.5pt !important;
             line-height: 1.25 !important;
+            padding-left: 10px !important;
+            padding-right: 10px !important;
           }
           .trip-details-print-area > * {
             page-break-inside: avoid;
@@ -1207,6 +1245,8 @@ function EntriesSummary({ trip, corporationKm }) {
           .trip-details-print-area td {
             padding-top: 4pt !important;
             padding-bottom: 4pt !important;
+            padding-left: 6px !important;
+            padding-right: 6px !important;
             vertical-align: top !important;
             color: #000 !important;
           }
@@ -1223,6 +1263,8 @@ function EntriesSummary({ trip, corporationKm }) {
           .trip-details-print-area .summary-grid {
             display: block !important;
             gap: 0 !important;
+            padding-left: 4px !important;
+            padding-right: 4px !important;
           }
         }
       `}</style>
@@ -1232,7 +1274,7 @@ function EntriesSummary({ trip, corporationKm }) {
           <button
             type="button"
             className="btn secondary no-print"
-            onClick={() => window.print()}
+            onClick={printTripDetails}
             aria-label="Print trip details PDF"
             title="Print / View PDF"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
