@@ -37,7 +37,7 @@ function getCorporationKmDetails(trip, routeKmTable, routeKmGroups = loadRouteKm
   }
 
   if (directKm != null && fillingOrderLocation) {
-    const secondLegKm = findRouteKm(routeKmTable, unloadingLocation, fillingOrderLocation);
+    const secondLegKm = findRouteKm(routeKmTable, fillingOrderLocation, unloadingLocation);
     if (secondLegKm != null) {
       return { value: (directKm * 0.5) + (secondLegKm * 0.5), source: 'km_table_weighted' };
     }

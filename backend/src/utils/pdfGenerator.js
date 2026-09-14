@@ -143,27 +143,28 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
     doc.x = doc.page.margins.left;
 
     styledSectionHeader(doc, 'Closed Trips');
-    renderSalaryTripsTable(doc, ['S.No', 'Loading Location', 'Loading Date', 'Unloading Location', 'Unloading Date', 'Corporation KM', 'Manual KM', 'Balance from Trips'],
+    renderSalaryTripsTable(doc, ['S.No', 'Loading Location', 'Loading Date', 'Unloading Location', 'Unloading Date', 'Corp. KM', 'Manual KM', 'Driver KM', 'Balance'],
       trips.length ? trips.map((trip, index) => [
         String(index + 1),
         trip.loadingLocation || '-',
         fmtDate(trip.loadingDate),
         trip.unloadingLocation || '-',
         fmtDate(trip.unloadingDate),
-        `${fmtMoney(trip.corporationKm || 0)} km`,
+        trip.corpKm != null ? `${fmtMoney(trip.corpKm)} km` : '-',
         trip.manualKm != null ? `${fmtMoney(trip.manualKm)} km` : '-',
+        trip.corporationKm != null ? `${fmtMoney(trip.corporationKm)} km` : '-',
         `Rs ${fmtMoney(trip.balance || 0)}`,
-      ]) : [['-', 'No closed trips for this month', '-', '-', '-', '-', '-', '-']]);
+      ]) : [['-', 'No closed trips for this month', '-', '-', '-', '-', '-', '-', '-']]);
     doc.moveDown(0.12);
     doc.x = doc.page.margins.left;
 
     styledSectionHeader(doc, 'Salary Calculation');
     const salaryRows = [
-      ['Basic Salary Payable', `Rs ${fmtMoney(summary.basicSalary)}`],
-      ['Corporation KM', `${fmtMoney(summary.corporationKm)} km`],
-      [`KM Beta (Rs ${fmtMoney(summary.kmCharges)} x ${fmtMoney(summary.corporationKm)})`, `Rs ${fmtMoney(summary.kmBeta)}`],
+      [`Basic Salary Payable (Payable days: ${summary.payableDays || 0}, Leaves taken: ${summary.unpaidLeaveDays || 0})`, `Rs ${fmtMoney(summary.basicSalary)}`],
+      ['Total Driver KM = Driver KM + Manual KM', `${fmtMoney(Number(summary.corporationKm || 0) + Number(summary.manualKmTotal || 0))} km`],
+      [`KM Beta (Total Driver KM x Rs ${fmtMoney(summary.kmCharges)})`, `Rs ${fmtMoney(summary.kmBeta)}`],
       ['Sum of all balances for the month', `Rs ${fmtMoney(summary.totalBalance)}`],
-      ['Salary Balance', `Rs ${fmtMoney(summary.salaryBalance)}`],
+      ['Balance', `Rs ${fmtMoney(summary.salaryBalance)}`],
     ];
     if (Number(summary.specialTripCharges || 0) > 0) {
       salaryRows.splice(3, 0, [
@@ -221,7 +222,7 @@ function renderMonthlyTripDetailsPage(doc, trip, driver, vehicle, customer) {
   styledSectionHeader(doc, 'Expenses');
   renderTable(doc, ['Item', 'Amount'], [['Loading Expenses', `Rs ${fmtMoney(loadingExpense)}`], ['RTO Expenses', `Rs ${fmtMoney(rtoExpense)}`], ['Unloading Expenses', `Rs ${fmtMoney(unloadingExpense)}`], ['Other Expenses', `Rs ${fmtMoney(otherExpense)}`]], { totalLabel: 'Total', totalValue: `Rs ${fmtMoney(totalExpenses)}` }, { styled: true });
   styledSectionHeader(doc, 'Balance');
-  renderSalaryRows(doc, [['Balance (Driver Advance - Cash Diesel - Expenses)', `Rs ${fmtMoney(balance)}`]]);
+  renderSalaryRows(doc, [['Trip balance', `Rs ${fmtMoney(balance)}`]]);
   doc.roundedRect(x - 8, startY, width + 16, doc.y - startY + 8, 8).lineWidth(1).strokeColor('#1f4d2b').stroke();
 }
 
@@ -256,7 +257,8 @@ function renderTripOverview(doc, trip, customer, driver, vehicle) {
   const cardHeight = 46;
   [
     ['Odometer KM', trip.odometerKm != null ? `${fmtMoney(trip.odometerKm)} km` : 'NA', 'Mil.: 0.00 km/L'],
-    ['Corporation KM', `${fmtMoney(trip.corporationKm || 0)} km`, ''],
+    ['Corp. KM', trip.corpKm != null ? `${fmtMoney(trip.corpKm)} km` : 'NA', ''],
+    ['Driver KM', trip.corporationKm != null ? `${fmtMoney(trip.corporationKm)} km` : 'NA', ''],
     ['Manual KM', trip.manualKm != null ? `${fmtMoney(trip.manualKm)} km` : 'NA', ''],
   ].forEach(([label, value, mileage], index) => {
     const cardX = x + index * (cardWidth + gap);
@@ -280,7 +282,7 @@ function styledSectionHeader(doc, text) {
 function renderSalaryTripsTable(doc, headers, rows) {
   const x = doc.page.margins.left;
   const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const columnRatios = [0.06, 0.16, 0.13, 0.16, 0.13, 0.09, 0.09, 0.18];
+  const columnRatios = [0.05, 0.15, 0.12, 0.15, 0.12, 0.08, 0.08, 0.09, 0.16];
   const rowHeight = 18;
   const headerHeight = 20;
   const columnWidths = columnRatios.map((ratio) => width * ratio);
@@ -314,7 +316,7 @@ function renderSalaryTripsTable(doc, headers, rows) {
   doc.moveTo(x, totalY).lineTo(x + width, totalY).lineWidth(0.8).strokeColor('#1f4d2b').stroke();
   doc.fillColor('#102f52').font('Helvetica-Bold').fontSize(7.5).text('Total', x + 8, totalY + 5, { width: width * 0.20 - 16, align: 'left' });
   const totalBalance = rows.reduce((sum, row) => sum + (Number(String(row[row.length - 1]).replace(/[^0-9.-]/g, '')) || 0), 0);
-  doc.text(`Rs ${fmtMoney(totalBalance)}`, x + width * 0.82, totalY + 5, { width: width * 0.18 - 12, align: 'right' });
+  doc.text(`Rs ${fmtMoney(totalBalance)}`, x + width * 0.84, totalY + 5, { width: width * 0.16 - 12, align: 'right' });
   doc.y = y + totalHeight + 4;
 }
 

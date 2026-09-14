@@ -7,7 +7,7 @@ const path = require('path');
 const { ROLES } = require('../config/constants');
 const { buildDriverMonthlySummaryPdf } = require('../utils/pdfGenerator');
 const Leave = require('../models/Leave');
-const { loadRouteKmGroups, getCorporationKmDetails } = require('../utils/corporationKm');
+const { loadRouteKmGroups, findRouteKm, getCorporationKmDetails } = require('../utils/corporationKm');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -59,6 +59,9 @@ function getClosedTripsMonthFilter(monthStart, monthEnd) {
 }
 
 function getTripClosedDate(trip) {
+  const turnDate = trip.turnDate ? new Date(trip.turnDate) : null;
+  if (turnDate && !Number.isNaN(turnDate.getTime())) return turnDate;
+
   const entries = trip.dieselEntries || [];
   const filledAt = entries[entries.length - 1]?.filledAt ? new Date(entries[entries.length - 1].filledAt) : null;
   if (filledAt && !Number.isNaN(filledAt.getTime())) return filledAt;
@@ -78,14 +81,6 @@ function sumRouteTableKm(trips, routeKmTable, excludeShortTrips = false, routeKm
     if (!Number.isFinite(routeKm) || (excludeShortTrips && routeKm < 200)) return total;
     return total + routeKm;
   }, 0);
-}
-
-function findRouteKm(routeKmTable, loadingLocation, unloadingLocation) {
-  const route = routeKmTable.find((row) => (
-    String(row.loadingLocation || '').trim() === String(loadingLocation || '').trim() &&
-    String(row.unloadingLocation || '').trim() === String(unloadingLocation || '').trim()
-  ));
-  return Number.isFinite(Number(route?.km)) ? Number(route.km) : null;
 }
 
 function getTripCorporationKm(trip, routeKmTable, routeKmGroups = loadRouteKmGroups()) {
@@ -169,7 +164,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
       ...getClosedTripsMonthFilter(monthStart, monthEnd),
     })
       .select(
-        'loadingLocation loadingDate unloadingLocation unloadingDate closedAt ' +
+        'loadingLocation loadingDate unloadingLocation unloadingDate fillingOrderLocation turnDate closedAt ' +
         'dieselEntries.filledAt settlement.balance settlement.totalKm ' +
         'driverAdvances loadingExpense unloadingExpense rtoEntries otherExpenses manualKm'
       )
@@ -178,13 +173,19 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   const monthTrips = trips.filter((trip) => isTripInSalaryMonth(trip, monthStart, monthEnd));
   const routeKmTable = loadRouteKmTable();
   const routeKmGroups = loadRouteKmGroups();
-  const tripsWithBalances = monthTrips.map((trip) => ({
-    ...trip.toObject(),
-    balance: trip.settlement?.balance != null ? Number(trip.settlement.balance) : calculateTripBalance(trip),
-    corporationKm: getCorporationKmDetails(trip, routeKmTable, routeKmGroups).value || 0,
-    corporationKmSource: getCorporationKmDetails(trip, routeKmTable, routeKmGroups).source,
-  }));
+  const tripsWithBalances = monthTrips.map((trip) => {
+    const corporationKmDetails = getCorporationKmDetails(trip, routeKmTable, routeKmGroups);
+    return {
+      ...trip.toObject(),
+      balance: trip.settlement?.balance != null ? Number(trip.settlement.balance) : calculateTripBalance(trip),
+      corpKm: findRouteKm(routeKmTable, trip.loadingLocation, trip.unloadingLocation),
+      corporationKm: corporationKmDetails.value || 0,
+      corporationKmSource: corporationKmDetails.source,
+    };
+  });
   const corporationKm = sumRouteTableKm(tripsWithBalances, routeKmTable, Number(driver.minKmCharges || 0) > 0, routeKmGroups);
+  const manualKmTotal = tripsWithBalances.reduce((total, trip) => total + Number(trip.manualKm || 0), 0);
+  const totalDriverKm = corporationKm + manualKmTotal;
   const { specialTripCount, specialTripCharges } = calculateSpecialTripCharges(tripsWithBalances, routeKmTable);
   const totalBalance = sumTripBalances(tripsWithBalances);
   const basicSalaryDetails = calculateBasicSalary(
@@ -196,7 +197,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   );
   const basicSalary = basicSalaryDetails.basicSalary;
   const kmCharges = Number(driver.kmCharges || 0);
-  const kmBeta = round0(kmCharges * corporationKm);
+  const kmBeta = round0(kmCharges * totalDriverKm);
   return {
     month,
     available: true,
@@ -209,6 +210,8 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
     ...basicSalaryDetails,
     kmCharges,
     corporationKm: round0(corporationKm),
+    manualKmTotal: round0(manualKmTotal),
+    totalDriverKm: round0(totalDriverKm),
     kmBeta,
     specialTripCount,
     specialTripCharges: round0(specialTripCharges),

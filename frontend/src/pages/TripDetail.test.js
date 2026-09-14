@@ -101,6 +101,7 @@ test('shows editable manual loading details below driver advance', async () => {
     turnNumber: 7,
     turnDate: '2026-09-13',
     fillingOrderLocation: undefined,
+    manualKm: undefined,
   });
   expect(api.closeTrip).toHaveBeenCalledWith('trip-1');
 

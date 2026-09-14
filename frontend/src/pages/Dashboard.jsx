@@ -74,9 +74,7 @@ function formatMonthLabel(month) {
 function groupTripsByMonth(trips) {
   const groups = new Map();
   trips.forEach((trip) => {
-    const dieselEntries = trip.dieselEntries || [];
-    const closingDieselDate = dieselEntries[dieselEntries.length - 1]?.filledAt;
-    const date = new Date(closingDieselDate || trip.closedAt || trip.loadingDate || trip.createdAt);
+    const date = new Date(trip.turnDate || trip.closedAt || trip.loadingDate || trip.createdAt);
     if (Number.isNaN(date.getTime())) return;
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     if (!groups.has(monthKey)) groups.set(monthKey, []);
@@ -88,8 +86,7 @@ function groupTripsByMonth(trips) {
 }
 
 function tripHistoryDate(trip) {
-  const dieselEntries = trip.dieselEntries || [];
-  return new Date(dieselEntries[dieselEntries.length - 1]?.filledAt || trip.closedAt || trip.loadingDate || trip.createdAt);
+  return new Date(trip.turnDate || trip.closedAt || trip.loadingDate || trip.createdAt);
 }
 
 function tripHistoryMonthKey(trip) {

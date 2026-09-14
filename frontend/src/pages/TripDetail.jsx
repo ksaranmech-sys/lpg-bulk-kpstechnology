@@ -148,6 +148,7 @@ export default function TripDetail() {
           String(row.loadingLocation || '').trim() === String(trip.loadingLocation || '').trim() &&
           String(row.unloadingLocation || '').trim() === String(trip.unloadingLocation || '').trim()
         ))?.km}
+        calculatedCorporationKm={trip.corporationKm}
       />
     </Layout>
   );
@@ -392,13 +393,10 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
   const [turnNumber, setTurnNumber] = useState(trip.turnNumber != null ? String(trip.turnNumber) : '');
   const [turnDate, setTurnDate] = useState(trip.turnDate ? new Date(trip.turnDate).toISOString().slice(0, 10) : '');
   const [fillingOrderLocation, setFillingOrderLocation] = useState(trip.fillingOrderLocation || '');
+  const [manualKm, setManualKm] = useState(trip.manualKm != null ? String(trip.manualKm) : '');
   const [error, setError] = useState('');
   const loadingLocations = Array.from(new Set((meta.routeKmTable || []).map((row) => row.loadingLocation).filter(Boolean)));
-  const corporationKmSourceLabel = trip.corporationKmSource === 'km_table_weighted'
-    ? 'Calculated automatically: 50/50 weighted KM table routes'
-    : trip.corporationKmSource === 'km_table_direct'
-      ? 'Calculated automatically from KM table'
-      : 'Automatic Corporation KM is unavailable';
+  const manualKmRequired = trip.corporationKmSource === 'manual_required';
 
   async function submit(e) {
     e.preventDefault();
@@ -408,6 +406,7 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
         turnNumber: Number(turnNumber),
         turnDate,
         fillingOrderLocation: fillingOrderLocation || undefined,
+        manualKm: manualKm === '' ? undefined : Number(manualKm),
       });
       await api.closeTrip(tripId);
       onSaved();
@@ -429,12 +428,6 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
           <label>Turn Date</label>
           <input type="date" value={turnDate} onChange={(e) => setTurnDate(e.target.value)} required />
         </div>
-        <div className="field">
-          <label>Corporation KM</label>
-          <small style={{ display: 'block', color: '#647777', marginBottom: 5 }}>
-            {corporationKmSourceLabel}
-          </small>
-        </div>
       </div>
       <div className="grid-2">
         <div className="field">
@@ -453,7 +446,18 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
           />
         </div>
       </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginTop: 12 }}>
+        <div className="field" style={{ marginBottom: 0 }}>
+          <label>Manual KM{manualKmRequired ? ' (required)' : ' (optional)'}</label>
+          <input
+            type="number"
+            min="0"
+            value={manualKm}
+            onChange={(e) => setManualKm(e.target.value)}
+            placeholder="Enter Corporation KM manually"
+            required={manualKmRequired}
+          />
+        </div>
         <button className="btn">Trip close</button>
       </div>
     </form>
@@ -1032,7 +1036,7 @@ function formatMileage(km, totalDieselLitres) {
   return `${(distance / litres).toFixed(2)} km/L`;
 }
 
-function EntriesSummary({ trip, corporationKm }) {
+function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
   const advances = trip.driverAdvances || [];
   const totalAdvance = advances.reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
   const dieselEntries = trip.dieselEntries || [];
@@ -1211,11 +1215,12 @@ function EntriesSummary({ trip, corporationKm }) {
                 </tr>
                 <tr>
                   <td colSpan="4" style={{ padding: '10px 0 8px' }}>
-                    <div className="trip-km-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+                    <div className="trip-km-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
                       {[
                         { label: 'Odometer KM', value: trip.odometerKm != null ? `${trip.odometerKm} km` : 'NA', mileage: formatMileage(trip.odometerKm, totalDieselLitres) },
-                        { label: 'Corporation KM', value: corporationKm != null ? `${corporationKm} km` : 'NA', mileage: formatMileage(corporationKm, totalDieselLitres) },
+                        { label: 'Corp. KM', value: corporationKm != null ? `${corporationKm} km` : 'NA', mileage: formatMileage(corporationKm, totalDieselLitres) },
                         { label: 'Manual KM', value: trip.manualKm != null && trip.manualKm !== '' ? `${trip.manualKm} km` : 'NA', mileage: formatMileage(trip.manualKm, totalDieselLitres) },
+                        { label: 'Driver KM', value: calculatedCorporationKm != null ? `${calculatedCorporationKm} km` : 'NA', mileage: formatMileage(calculatedCorporationKm, totalDieselLitres) },
                       ].map((item) => (
                         <div key={item.label} style={{ minWidth: 0, padding: '8px 10px', border: '1px solid #1f4d2b', borderRadius: 6, textAlign: 'center' }}>
                           <strong style={{ display: 'block', marginBottom: 4 }}>{item.label}</strong>

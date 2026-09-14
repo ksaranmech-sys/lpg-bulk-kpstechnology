@@ -151,6 +151,18 @@ test('final closing diesel date takes precedence over stale closedAt', () => {
   assert.equal(customerController.isTripInSalaryMonth(trip, start, end), true);
 });
 
+test('L Turn date takes precedence as the salary close date', () => {
+  const { start, end } = customerController.getSalaryMonthBounds('2026-08');
+  const trip = {
+    turnDate: new Date('2026-08-31T00:00:00.000Z'),
+    closedAt: new Date('2026-09-02T00:00:00.000Z'),
+    dieselEntries: [{ filledAt: new Date('2026-09-03T00:00:00.000Z') }],
+  };
+
+  assert.equal(customerController.isTripInSalaryMonth(trip, start, end), true);
+  assert.equal(customerController.getTripClosedDate(trip).toISOString(), '2026-08-31T00:00:00.000Z');
+});
+
 test('COP KM is the sum of matching route KM table entries for closed trips', () => {
   const total = customerController.sumRouteTableKm([
     { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', settlement: { totalKm: 999 } },
@@ -248,7 +260,7 @@ test('Corporation KM uses weighted legs when filling order location is outside t
   };
   const routes = [
     { loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Trichy', km: 700 },
-    { loadingLocation: 'Trichy', unloadingLocation: 'MRPL, Mangalore', km: 900 },
+    { loadingLocation: 'MRPL, Mangalore', unloadingLocation: 'Trichy', km: 900 },
   ];
   const groups = { group1: new Set(['IPPL, Chennai']), group2: new Set(['MRPL, Mangalore']) };
 

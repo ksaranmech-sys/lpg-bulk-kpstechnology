@@ -9,12 +9,18 @@ const { TRIP_STATUS, ROLES } = require('../config/constants');
 const User = require('../models/User');
 const { removeExpiredClosedTrips } = require('../utils/tripRetention');
 const metaRoutes = require('../routes/metaRoutes');
-const { getCorporationKmDetails, loadRouteKmGroups } = require('../utils/corporationKm');
+const { getCorporationKmDetails, findRouteKm, loadRouteKmGroups } = require('../utils/corporationKm');
 
 function getClosingDieselDate(trip, fallback = null) {
   const closingEntry = trip.dieselEntries?.[trip.dieselEntries.length - 1];
   const filledAt = closingEntry?.filledAt ? new Date(closingEntry.filledAt) : null;
   return filledAt && !Number.isNaN(filledAt.getTime()) ? filledAt : fallback;
+}
+
+function getTripCloseDate(trip) {
+  const turnDate = trip.turnDate ? new Date(trip.turnDate) : null;
+  if (turnDate && !Number.isNaN(turnDate.getTime())) return turnDate;
+  return getClosingDieselDate(trip);
 }
 
 // POST /api/v1/vehicles/:vehicleId/trips
@@ -128,6 +134,12 @@ async function getTrip(req, res) {
     metaRoutes.loadRouteKmTable(),
     loadRouteKmGroups()
   ).source;
+  result.corpKm = findRouteKm(metaRoutes.loadRouteKmTable(), result.loadingLocation, result.unloadingLocation);
+  result.corporationKm = getCorporationKmDetails(
+    result,
+    metaRoutes.loadRouteKmTable(),
+    loadRouteKmGroups()
+  ).value;
   result.driverName = driver?.name || null;
   res.json({ trip: result });
 }
@@ -412,12 +424,12 @@ async function setUnloading(req, res) {
   res.json({ trip });
 }
 
-// PATCH /api/v1/trips/:tripId/turn   body: { turnNumber, turnDate, fillingOrderLocation }
+// PATCH /api/v1/trips/:tripId/turn   body: { turnNumber, turnDate, fillingOrderLocation, manualKm }
 async function setTurnDetails(req, res) {
   const trip = await getOpenTripOr404(req, res);
   if (!trip) return;
 
-  const { turnNumber, turnDate, fillingOrderLocation } = req.body;
+  const { turnNumber, turnDate, fillingOrderLocation, manualKm } = req.body;
   if (turnNumber == null || turnNumber === '') {
     return res.status(400).json({ error: 'turnNumber is required' });
   }
@@ -432,6 +444,17 @@ async function setTurnDetails(req, res) {
   trip.turnNumber = number;
   trip.turnDate = date;
   trip.fillingOrderLocation = fillingOrderLocation ? String(fillingOrderLocation).trim() : undefined;
+  if (manualKm !== undefined && manualKm !== '') {
+    const km = Number(manualKm);
+    if (!Number.isFinite(km) || km < 0) {
+      return res.status(400).json({ error: 'manualKm must be a non-negative number' });
+    }
+    trip.manualKm = km;
+  }
+  const corporationKmDetails = getCorporationKmDetails(trip, metaRoutes.loadRouteKmTable(), loadRouteKmGroups());
+  if (corporationKmDetails.source === 'manual_required' && !Number.isFinite(Number(trip.manualKm))) {
+    return res.status(400).json({ error: 'Manual Corporation KM is required because automatic calculation is unavailable' });
+  }
   await trip.save();
   res.json({ trip });
 }
@@ -514,7 +537,7 @@ async function closeTrip(req, res) {
   }
 
   trip.status = TRIP_STATUS.CLOSED;
-  trip.closedAt = getClosingDieselDate(trip);
+  trip.closedAt = getTripCloseDate(trip);
   await trip.save();
 
   res.json({
