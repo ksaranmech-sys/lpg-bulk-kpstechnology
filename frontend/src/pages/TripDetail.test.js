@@ -118,6 +118,17 @@ test('shows editable manual loading details below driver advance', async () => {
   await act(async () => unTurnSummary.querySelector('button').click());
   expect(api.deleteUnloadingTurnDetails).toHaveBeenCalledWith('trip-1');
 
+  const dieselForm = Array.from(container.querySelectorAll('form')).find(
+    (form) => form.querySelector('h3')?.textContent === 'Diesel Filling Entry'
+  );
+  const dieselConfirmation = dieselForm.querySelector('input[type="checkbox"]');
+  const addDieselButton = dieselForm.querySelector('button[type="submit"]');
+  expect(dieselConfirmation.checked).toBe(false);
+  expect(addDieselButton.disabled).toBe(true);
+  await act(async () => dieselConfirmation.click());
+  expect(dieselConfirmation.checked).toBe(true);
+  expect(addDieselButton.disabled).toBe(false);
+
   await act(async () => root.unmount());
   globalThis.IS_REACT_ACT_ENVIRONMENT = false;
 });
