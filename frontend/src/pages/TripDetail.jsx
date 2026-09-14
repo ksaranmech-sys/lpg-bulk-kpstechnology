@@ -1007,7 +1007,7 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
             </select>
           </div>
           <div className="field">
-            <label>Date</label>
+            <label>Unloading Date</label>
             <input type="date" value={divertDate} onChange={(e) => setDivertDate(e.target.value)} required />
           </div>
           <div className="field">
