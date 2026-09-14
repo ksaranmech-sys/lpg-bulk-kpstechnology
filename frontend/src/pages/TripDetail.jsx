@@ -30,7 +30,6 @@ export default function TripDetail() {
   const loadingDateText = formatDate(trip.loadingDate);
   const unloadingDateText = formatDate(trip.unloadingDate);
 
-  const routeLoadingOptions = Array.from(new Set((meta.routeKmTable || []).map((row) => row.loadingLocation).filter(Boolean)));
   const routeUnloadingOptions = Array.from(new Set((meta.routeKmTable || []).map((row) => row.unloadingLocation).filter(Boolean)));
 
   return (
@@ -80,18 +79,6 @@ export default function TripDetail() {
             <AdvanceForm tripId={tripId} onSaved={load} />
           </div>
         )}
-        {hasLoadingDetails && (
-          <LoadingDetailsSummary trip={trip} onEdit={() => setEditingLoadingDetails(true)} />
-        )}
-        {(!hasLoadingDetails || editingLoadingDetails) && (
-          <LoadingDetailsForm
-            tripId={tripId}
-            meta={meta}
-            trip={trip}
-            routeLoadingOptions={routeLoadingOptions}
-            onSaved={() => { setEditingLoadingDetails(false); load(); }}
-          />
-        )}
         {hasLoadingExpense && <LoadingExpenseSummary trip={trip} tripId={tripId} onSaved={load} />}
         {!hasLoadingExpense && <LoadingExpenseForm tripId={tripId} trip={trip} onSaved={load} />}
         <div className="card">
@@ -118,6 +105,16 @@ export default function TripDetail() {
             tripId={tripId}
             trip={trip}
             onSaved={() => { setEditingUnloadingExpense(false); load(); }}
+          />
+        )}
+        {hasLoadingDetails && (
+          <LoadingDetailsSummary trip={trip} onEdit={() => setEditingLoadingDetails(true)} />
+        )}
+        {(!hasLoadingDetails || editingLoadingDetails) && (
+          <LoadingDetailsForm
+            tripId={tripId}
+            trip={trip}
+            onSaved={() => { setEditingLoadingDetails(false); load(); }}
           />
         )}
         <div className="card">
@@ -277,16 +274,12 @@ function AdvanceSummary({ trip, onSaved }) {
   );
 }
 
-function LoadingDetailsForm({ tripId, meta, trip, routeLoadingOptions, onSaved }) {
+function LoadingDetailsForm({ tripId, trip, onSaved }) {
   const [loadingLocation, setLocation] = useState(trip.loadingLocation || '');
   const [loadingDate, setDate] = useState(trip.loadingDate ? new Date(trip.loadingDate).toISOString().slice(0, 10) : '');
 
   async function submit(e) {
     e.preventDefault();
-    if (!loadingLocation && !loadingDate) {
-      onSaved();
-      return;
-    }
     await api.setLoadingDetails(tripId, { loadingLocation, loadingDate });
     onSaved();
   }
@@ -297,27 +290,19 @@ function LoadingDetailsForm({ tripId, meta, trip, routeLoadingOptions, onSaved }
       <div className="grid-2">
         <div className="field">
           <label>Loading Location</label>
-          <select value={loadingLocation} onChange={(e) => setLocation(e.target.value)}>
-            <option value="">Select...</option>
-            {(routeLoadingOptions || []).filter(Boolean).map((loc) => <option key={loc} value={loc}>{loc}</option>)}
-          </select>
-        </div>
-        <div className="field">
-          <label>Or Enter Loading Location Manually</label>
           <input
             value={loadingLocation}
             onChange={(e) => setLocation(e.target.value)}
             placeholder="Enter loading location"
+            required
           />
         </div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginTop: 12 }}>
-        <div className="field" style={{ marginBottom: 0 }}>
+        <div className="field">
           <label>Loading Date</label>
-          <input type="date" value={loadingDate} onChange={(e) => setDate(e.target.value)} />
+          <input type="date" value={loadingDate} onChange={(e) => setDate(e.target.value)} required />
         </div>
-        <button className="btn" style={{ marginBottom: 0 }}>Save Loading Details</button>
       </div>
+      <button className="btn">Save Loading Details</button>
     </form>
   );
 }
