@@ -574,20 +574,20 @@ function DieselForm({
           </select>
         </div>
         <div className="field"><label>Odometer Reading</label><input type="number" value={odometerKm} onChange={(e) => setOdo(e.target.value)} placeholder="Optional" /></div>
-        <div className="field" style={{ gridColumn: '1 / -1' }}>
+        <div className="field">
           <label>Date</label>
           <input type="date" value={filledAt} onChange={(e) => setFilledAt(e.target.value)} required />
         </div>
+        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, fontWeight: 600 }}>
+          <input
+            type="checkbox"
+            checked={dieselFilledConfirmed}
+            onChange={(e) => setDieselFilledConfirmed(e.target.checked)}
+            required
+          />
+          Tank Fill
+        </label>
       </div>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, fontWeight: 600 }}>
-        <input
-          type="checkbox"
-          checked={dieselFilledConfirmed}
-          onChange={(e) => setDieselFilledConfirmed(e.target.checked)}
-          required
-        />
-        Tank Fill
-      </label>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginTop: 12 }}>
         <div className="field">
           <label>Photo (optional)</label>
