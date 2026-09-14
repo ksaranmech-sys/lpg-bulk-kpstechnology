@@ -63,8 +63,10 @@ async function attemptConnect() {
         if (removedTrips > 0) {
           console.log(`[retention] Removed ${removedTrips} closed trip(s) older than one year`);
         }
-        const { ensureSeed } = require('../utils/seed');
-        await ensureSeed();
+        if (process.env.AUTO_SEED !== 'false') {
+          const { ensureSeed } = require('../utils/seed');
+          await ensureSeed();
+        }
       } catch (retentionErr) {
         console.error('[db] Error during post-connection setup:', retentionErr.message);
       }
@@ -92,8 +94,10 @@ async function attemptConnect() {
       isConnecting = false;
 
       try {
-        const { ensureSeed } = require('../utils/seed');
-        await ensureSeed();
+        if (process.env.AUTO_SEED !== 'false') {
+          const { ensureSeed } = require('../utils/seed');
+          await ensureSeed();
+        }
       } catch (seedErr) {
         console.error('[db] Error during memory server seed:', seedErr.message);
       }
