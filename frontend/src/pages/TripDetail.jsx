@@ -900,6 +900,10 @@ function OtherExpenseSummary({ trip, tripId, onSaved }) {
 function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
   const [unloadingLocation, setLoc] = useState(trip.unloadingLocation || '');
   const [unloadingDate, setDate] = useState(trip.unloadingDate ? new Date(trip.unloadingDate).toISOString().slice(0, 10) : '');
+  const [isDiverted, setIsDiverted] = useState(Boolean(trip.isDiverted));
+  const [divertUnloadingLocation, setDivertUnloadingLocation] = useState(trip.divertUnloadingLocation || '');
+  const [divertDate, setDivertDate] = useState(trip.divertDate ? new Date(trip.divertDate).toISOString().slice(0, 10) : '');
+  const [divertKm, setDivertKm] = useState(trip.divertKm == null ? '' : String(trip.divertKm));
   const [selectedCorporation, setSelectedCorporation] = useState(
     (() => {
       const currentLocation = trip.unloadingLocation || unloadingLocation;
@@ -922,6 +926,10 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
     await api.setUnloading(tripId, {
       unloadingLocation,
       unloadingDate,
+      isDiverted,
+      divertUnloadingLocation: isDiverted ? divertUnloadingLocation : undefined,
+      divertDate: isDiverted ? divertDate : undefined,
+      divertKm: isDiverted ? Number(divertKm) : undefined,
     });
     onSaved();
   }
@@ -977,6 +985,37 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
           <input type="date" value={unloadingDate} onChange={(e) => setDate(e.target.value)} required />
         </div>
       </div>
+      <label className="divert-control">
+        <input
+          type="checkbox"
+          checked={isDiverted}
+          onChange={(e) => setIsDiverted(e.target.checked)}
+        />
+        Divert
+      </label>
+      {isDiverted && (
+        <div className="divert-fields">
+          <div className="field">
+            <label>Unloading Location</label>
+            <select
+              value={divertUnloadingLocation}
+              onChange={(e) => setDivertUnloadingLocation(e.target.value)}
+              required
+            >
+              <option value="">Select...</option>
+              {(routeUnloadingOptions || []).filter(Boolean).map((loc) => <option key={loc} value={loc}>{loc}</option>)}
+            </select>
+          </div>
+          <div className="field">
+            <label>Date</label>
+            <input type="date" value={divertDate} onChange={(e) => setDivertDate(e.target.value)} required />
+          </div>
+          <div className="field">
+            <label>Divert KM</label>
+            <input type="number" min="0" value={divertKm} onChange={(e) => setDivertKm(e.target.value)} required />
+          </div>
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginTop: 12 }}>
         <div />
         <button className="btn" style={{ marginBottom: 0 }}>Save Unloading Details</button>
@@ -992,6 +1031,7 @@ function UnloadingDetailsSummary({ trip, onEdit }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
         <p style={{ margin: 0 }}>
           {trip.unloadingLocation || '-'} • {trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}
+          {trip.isDiverted ? ` • Divert: ${trip.divertUnloadingLocation || '-'} • ${trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'} • ${trip.divertKm ?? 0} KM` : ''}
         </p>
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button type="button" className="btn secondary" onClick={onEdit}>Edit</button>

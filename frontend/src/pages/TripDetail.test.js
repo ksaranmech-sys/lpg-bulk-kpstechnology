@@ -9,6 +9,7 @@ jest.mock('../api/api', () => ({
   getMeta: jest.fn(),
   setTurnDetails: jest.fn(),
   closeTrip: jest.fn(),
+  setUnloading: jest.fn(),
   setUnloadingTurnDetails: jest.fn(),
   deleteUnloadingTurnDetails: jest.fn(),
 }));
@@ -117,6 +118,26 @@ test('shows editable manual loading details below driver advance', async () => {
   api.deleteUnloadingTurnDetails.mockResolvedValue({ data: {} });
   await act(async () => unTurnSummary.querySelector('button').click());
   expect(api.deleteUnloadingTurnDetails).toHaveBeenCalledWith('trip-1');
+
+  const unloadingSummary = Array.from(container.querySelectorAll('.card')).find(
+    (card) => card.querySelector('h3')?.textContent === 'Unloading Details Added'
+  );
+  await act(async () => unloadingSummary.querySelector('button').click());
+  const unloadingForm = Array.from(container.querySelectorAll('form')).find(
+    (form) => form.querySelector('h3')?.textContent === 'Unloading Details'
+  );
+  const divertCheckbox = Array.from(unloadingForm.querySelectorAll('input[type="checkbox"]')).find(
+    (checkbox) => checkbox.parentElement.textContent.includes('Divert')
+  );
+  expect(divertCheckbox.checked).toBe(false);
+  expect(unloadingForm.querySelector('.divert-fields')).toBeNull();
+  await act(async () => divertCheckbox.click());
+  const divertFields = unloadingForm.querySelector('.divert-fields');
+  expect(divertFields).not.toBeNull();
+  expect(divertFields.children).toHaveLength(3);
+  expect(divertFields.querySelector('select')).not.toBeNull();
+  expect(divertFields.querySelector('input[type="date"]')).not.toBeNull();
+  expect(divertFields.querySelector('input[type="number"]')).not.toBeNull();
 
   const dieselForm = Array.from(container.querySelectorAll('form')).find(
     (form) => form.querySelector('h3')?.textContent === 'Diesel Filling Entry'
