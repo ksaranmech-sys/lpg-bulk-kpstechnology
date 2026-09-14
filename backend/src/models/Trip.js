@@ -75,6 +75,10 @@ const tripSchema = new mongoose.Schema(
     unloadingDate: { type: Date },
     unloadingExpense: { type: Number, default: 0, min: 0 },
     manualKm: { type: Number, default: null, min: 0 },
+    isDiverted: { type: Boolean, default: false },
+    divertUnloadingLocation: { type: String, trim: true, default: null },
+    divertDate: { type: Date, default: null },
+    divertKm: { type: Number, default: null, min: 0 },
 
     turnNumber: { type: Number, min: 0 },
     turnDate: { type: Date },

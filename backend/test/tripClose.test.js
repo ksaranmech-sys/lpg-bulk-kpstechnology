@@ -281,6 +281,18 @@ test('trip schema supports an optional manualKm field for unloading details', ()
   assert.equal(trip.manualKm, 240);
 });
 
+test('trip schema stores optional divert unloading details', () => {
+  const trip = new Trip({
+    isDiverted: true,
+    divertUnloadingLocation: 'Alternate Depot',
+    divertDate: new Date('2026-09-14'),
+    divertKm: 35,
+  });
+  assert.equal(trip.isDiverted, true);
+  assert.equal(trip.divertUnloadingLocation, 'Alternate Depot');
+  assert.equal(trip.divertKm, 35);
+});
+
 test('odometer KM uses current and previous trip closing diesel odometers', () => {
   const currentTrip = { dieselEntries: [{ odometerKm: 1000 }, { odometerKm: 1450 }] };
   const previousTrip = { dieselEntries: [{ odometerKm: 700 }, { odometerKm: 900 }] };

@@ -401,12 +401,21 @@ async function deleteOtherExpense(req, res) {
   res.json({ trip });
 }
 
-// PATCH /api/v1/trips/:tripId/unloading   body: { unloadingLocation, unloadingDate, unloadingExpense }
+// PATCH /api/v1/trips/:tripId/unloading
 async function setUnloading(req, res) {
   const trip = await getOpenTripOr404(req, res);
   if (!trip) return;
 
-  const { unloadingLocation, unloadingDate, unloadingExpense, manualKm } = req.body;
+  const {
+    unloadingLocation,
+    unloadingDate,
+    unloadingExpense,
+    manualKm,
+    isDiverted,
+    divertUnloadingLocation,
+    divertDate,
+    divertKm,
+  } = req.body;
   if (unloadingLocation) trip.unloadingLocation = unloadingLocation;
   if (!unloadingDate) return res.status(400).json({ error: 'unloadingDate is required' });
   const date = new Date(unloadingDate);
@@ -419,6 +428,28 @@ async function setUnloading(req, res) {
       return res.status(400).json({ error: 'manualKm must be a non-negative number' });
     }
     trip.manualKm = km;
+  }
+  if (isDiverted != null) {
+    trip.isDiverted = Boolean(isDiverted);
+    if (trip.isDiverted) {
+      const location = String(divertUnloadingLocation || '').trim();
+      if (!location) return res.status(400).json({ error: 'divertUnloadingLocation is required when diverted' });
+      const date = new Date(divertDate);
+      if (!divertDate || Number.isNaN(date.getTime())) {
+        return res.status(400).json({ error: 'divertDate must be a valid date when diverted' });
+      }
+      const km = Number(divertKm);
+      if (!Number.isFinite(km) || km < 0) {
+        return res.status(400).json({ error: 'divertKm must be a non-negative number when diverted' });
+      }
+      trip.divertUnloadingLocation = location;
+      trip.divertDate = date;
+      trip.divertKm = km;
+    } else {
+      trip.divertUnloadingLocation = null;
+      trip.divertDate = null;
+      trip.divertKm = null;
+    }
   }
   await trip.save();
   res.json({ trip });
