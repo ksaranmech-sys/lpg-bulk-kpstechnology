@@ -166,7 +166,8 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
       .select(
         'loadingLocation loadingDate unloadingLocation unloadingDate fillingOrderLocation turnDate closedAt ' +
         'dieselEntries.filledAt settlement.balance settlement.totalKm ' +
-        'driverAdvances loadingExpense unloadingExpense rtoEntries otherExpenses manualKm'
+        'driverAdvances loadingExpense unloadingExpense rtoEntries otherExpenses manualKm ' +
+        'isDiverted divertUnloadingLocation divertDate'
       )
       .sort('closedAt loadingDate')
     : [];

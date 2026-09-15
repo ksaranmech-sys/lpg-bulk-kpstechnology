@@ -21,10 +21,6 @@ async function scopeToOpenTripForUser(req, res, next) {
 
   if (hasAdministrativeTripAccess(req, trip)) return next();
 
-  if (trip.status !== 'open') {
-    return res.status(400).json({ error: 'Only open trips can be edited by the assigned user' });
-  }
-
   const currentUser = req.user.role === ROLES.VEHICLE_USER
     ? await User.findById(req.user.id).select('role vehicle isActive')
     : null;

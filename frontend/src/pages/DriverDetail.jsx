@@ -400,15 +400,16 @@ export default function DriverDetail() {
                         <th style={{ width: '12%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Date</th>
                         <th style={{ width: '15%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Unloading Location</th>
                         <th style={{ width: '12%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Unloading Date</th>
+                        <th style={{ width: '15%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>New Unloading Location</th>
+                        <th style={{ width: '12%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>New Unloading Date</th>
                         <th style={{ width: '8%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Corp. KM</th>
-                        <th style={{ width: '8%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Manual KM</th>
                         <th style={{ width: '10%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Driver KM</th>
                         <th style={{ width: '15%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip balance</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(salary.trips || []).length === 0 ? (
-                        <tr><td colSpan="9" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No closed trips for this month.</td></tr>
+                        <tr><td colSpan="10" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No closed trips for this month.</td></tr>
                       ) : (salary.trips || []).map((trip, index) => (
                         <tr key={trip._id || index}>
                           <td style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>{index + 1}</td>
@@ -416,16 +417,41 @@ export default function DriverDetail() {
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingLocation || '-'}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}</td>
+                          <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.isDiverted ? trip.divertUnloadingLocation || '-' : '-'}</td>
+                          <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.isDiverted && trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'}</td>
                           <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.corpKm != null ? `${Math.round(trip.corpKm)} km` : '-'}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.manualKm != null ? `${Math.round(trip.manualKm)} km` : '-'}</td>
                           <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.corporationKm != null ? `${Math.round(trip.corporationKm)} km` : '-'}</td>
                           <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.balance ?? 0}</td>
                         </tr>
                       ))}
                       <tr>
-                        <td colSpan="8" style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
+                        <td colSpan="9" style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
                         <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {salary.totalBalance}</td>
                       </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ overflowX: 'auto', marginBottom: 16 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '8%', textAlign: 'right', padding: '8px 10px', border: '1px solid #d0d7de' }}>S.No</th>
+                        <th style={{ width: '30%', textAlign: 'left', padding: '8px 10px', border: '1px solid #d0d7de' }}>Manual KM Loading</th>
+                        <th style={{ width: '30%', textAlign: 'left', padding: '8px 10px', border: '1px solid #d0d7de' }}>Manual KM Unloading</th>
+                        <th style={{ width: '16%', textAlign: 'right', padding: '8px 10px', border: '1px solid #d0d7de' }}>Manual KM</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(salary.trips || []).filter((trip) => trip.manualKm != null).length === 0 ? (
+                        <tr><td colSpan="4" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No manual KM entries for this month.</td></tr>
+                      ) : (salary.trips || []).filter((trip) => trip.manualKm != null).map((trip, index) => (
+                        <tr key={trip._id || index}>
+                          <td style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>{index + 1}</td>
+                          <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.isDiverted ? trip.unloadingLocation || '-' : trip.loadingLocation || '-'}</td>
+                          <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.isDiverted ? trip.divertUnloadingLocation || '-' : trip.unloadingLocation || '-'}</td>
+                          <td style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>{Math.round(trip.manualKm)} km</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>

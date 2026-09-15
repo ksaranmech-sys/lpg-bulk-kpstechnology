@@ -439,12 +439,9 @@ async function setUnloading(req, res) {
         return res.status(400).json({ error: 'divertDate must be a valid date when diverted' });
       }
       const km = Number(divertKm);
-      if (!Number.isFinite(km) || km < 0) {
-        return res.status(400).json({ error: 'divertKm must be a non-negative number when diverted' });
-      }
       trip.divertUnloadingLocation = location;
       trip.divertDate = date;
-      trip.divertKm = km;
+      trip.divertKm = Number.isFinite(km) && km >= 0 ? km : null;
     } else {
       trip.divertUnloadingLocation = null;
       trip.divertDate = null;
@@ -644,11 +641,6 @@ async function getOpenTripOr404(req, res) {
 
   if (req.user.role === ROLES.SUPER_ADMIN) return trip;
   if (req.user.role === ROLES.CUSTOMER_ADMIN && String(trip.customer) === String(req.user.customer)) return trip;
-
-  if (trip.status === TRIP_STATUS.CLOSED) {
-    res.status(400).json({ error: 'Trip is already closed and settled - cannot edit further' });
-    return null;
-  }
 
   const currentUser = req.user.role === ROLES.VEHICLE_USER
     ? await User.findById(req.user.id).select('role vehicle isActive')

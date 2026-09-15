@@ -134,11 +134,10 @@ test('shows editable manual loading details below driver advance', async () => {
   await act(async () => divertCheckbox.click());
   const divertFields = unloadingForm.querySelector('.divert-fields');
   expect(divertFields).not.toBeNull();
-  expect(divertFields.children).toHaveLength(3);
+  expect(divertFields.children).toHaveLength(2);
   expect(divertFields.querySelector('select')).not.toBeNull();
   expect(divertFields.querySelector('input[type="date"]')).not.toBeNull();
-  expect(divertFields.querySelector('input[type="number"]')).not.toBeNull();
-  expect(divertFields.textContent).toContain('Unloading Date');
+  expect(divertFields.textContent).toContain('New Unloading Date');
 
   const dieselForm = Array.from(container.querySelectorAll('form')).find(
     (form) => form.querySelector('h3')?.textContent === 'Diesel Filling Entry'
@@ -148,7 +147,7 @@ test('shows editable manual loading details below driver advance', async () => {
   expect(dieselConfirmation.parentElement.classList.contains('tank-fill-control')).toBe(true);
   expect(dieselConfirmation.parentElement.textContent).toContain('Loading Point Tank Fill');
   expect(dieselConfirmation.checked).toBe(false);
-  expect(addDieselButton.disabled).toBe(true);
+  expect(addDieselButton.disabled).toBe(false);
   await act(async () => dieselConfirmation.click());
   expect(dieselConfirmation.checked).toBe(true);
   expect(addDieselButton.disabled).toBe(false);

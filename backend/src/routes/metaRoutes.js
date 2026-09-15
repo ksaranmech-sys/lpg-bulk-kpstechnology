@@ -96,8 +96,8 @@ function buildLocationOptions(rows = routeKmTable) {
 
   if (tableRows.length > 0) {
     return {
-      loadingLocations: sortLocations(loadingFromTable),
-      unloadingLocations: sortLocations(unloadingFromTable),
+      loadingLocations: sortLocations([...loadingFromTable, ...unloadingFromTable]),
+      unloadingLocations: sortLocations([...loadingFromTable, ...unloadingFromTable]),
     };
   }
 

@@ -26,6 +26,25 @@ function getCorporationKmDetails(trip, routeKmTable, routeKmGroups = loadRouteKm
   const loadingLocation = String(trip.loadingLocation || '').trim();
   const unloadingLocation = String(trip.unloadingLocation || '').trim();
   const fillingOrderLocation = String(trip.fillingOrderLocation || '').trim();
+  const divertUnloadingLocation = String(trip.divertUnloadingLocation || '').trim();
+
+  if (trip.isDiverted && divertUnloadingLocation) {
+    const firstLegKm = findRouteKm(routeKmTable, loadingLocation, unloadingLocation);
+    const tableSecondLegKm = findRouteKm(routeKmTable, unloadingLocation, divertUnloadingLocation);
+    const manualSecondLegKm = Number(trip.divertKm);
+    const secondLegKm = tableSecondLegKm != null
+      ? tableSecondLegKm
+      : Number.isFinite(manualSecondLegKm) && manualSecondLegKm >= 0 ? manualSecondLegKm : null;
+    const thirdLegKm = findRouteKm(routeKmTable, fillingOrderLocation, divertUnloadingLocation);
+    if ([firstLegKm, secondLegKm, thirdLegKm].every((km) => km != null)) {
+      return {
+        value: (firstLegKm * 0.5) + (secondLegKm * 0.5) + (thirdLegKm * 0.5),
+        source: tableSecondLegKm != null ? 'km_table_divert_weighted' : 'manual_divert_weighted',
+      };
+    }
+    return { value: null, source: 'manual_required' };
+  }
+
   const directKm = findRouteKm(routeKmTable, loadingLocation, unloadingLocation);
   const loadingGroup = routeKmGroups.group1.has(loadingLocation) ? 'group1'
     : routeKmGroups.group2.has(loadingLocation) ? 'group2' : null;

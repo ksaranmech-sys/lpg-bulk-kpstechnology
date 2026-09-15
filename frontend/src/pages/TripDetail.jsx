@@ -41,6 +41,7 @@ export default function TripDetail() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginTop: 12 }}>
         <h2 className="section-title" style={{ margin: 0 }}>
           Trip: {trip.loadingLocation}{loadingDateText ? ` (${loadingDateText})` : ''} &rarr; {trip.unloadingLocation || '(unloading pending)'}{unloadingDateText ? ` (${unloadingDateText})` : ''}
+          {trip.isDiverted && trip.divertUnloadingLocation ? ` \u2192 ${trip.divertUnloadingLocation}${trip.divertDate ? ` (${formatDate(trip.divertDate)})` : ''} - Divert` : ''}
         </h2>
         <span className={`badge ${trip.status}`}>{trip.status}</span>
       </div>
@@ -50,9 +51,7 @@ export default function TripDetail() {
         </p>
       </div>
 
-      {message && <div className="card" style={{ background: '#fff8e1' }}>{message}</div>}
-
-      <fieldset disabled={isClosed} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+      <fieldset style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         {isClosed && trip.settlement?.calculatedAt && (
           <SettlementCard trip={trip} onSend={async () => {
             setBusy(true);
@@ -394,12 +393,19 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
   const [turnDate, setTurnDate] = useState(trip.turnDate ? new Date(trip.turnDate).toISOString().slice(0, 10) : '');
   const [fillingOrderLocation, setFillingOrderLocation] = useState(trip.fillingOrderLocation || '');
   const [manualKm, setManualKm] = useState(trip.manualKm != null ? String(trip.manualKm) : '');
+  const [showManualKmModal, setShowManualKmModal] = useState(false);
   const [error, setError] = useState('');
   const loadingLocations = Array.from(new Set((meta.routeKmTable || []).map((row) => row.loadingLocation).filter(Boolean)));
   const manualKmRequired = trip.corporationKmSource === 'manual_required';
+  const manualKmFromLocation = trip.isDiverted ? trip.unloadingLocation : trip.loadingLocation;
+  const manualKmToLocation = trip.isDiverted ? trip.divertUnloadingLocation : trip.unloadingLocation;
 
   async function submit(e) {
     e.preventDefault();
+    if (manualKmRequired && manualKm === '') {
+      setShowManualKmModal(true);
+      return;
+    }
     setError('');
     try {
       await api.setTurnDetails(tripId, {
@@ -447,19 +453,40 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginTop: 12 }}>
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label>Manual KM{manualKmRequired ? ' (required)' : ' (optional)'}</label>
-          <input
-            type="number"
-            min="0"
-            value={manualKm}
-            onChange={(e) => setManualKm(e.target.value)}
-            placeholder="Enter Corporation KM manually"
-            required={manualKmRequired}
-          />
-        </div>
+        <div />
         <button className="btn">Trip close</button>
       </div>
+      {showManualKmModal && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="manual-km-title">
+          <div className="card modal-panel" style={{ width: '100%', maxWidth: 420, margin: 20 }}>
+            <h3 id="manual-km-title" className="section-title">Enter Manual KM(one way)</h3>
+            <div className="grid-2">
+              <div className="field">
+                <label>Loading Location</label>
+                <input value={manualKmFromLocation || '-'} readOnly />
+              </div>
+              <div className="field">
+                <label>Unloading Location</label>
+                <input value={manualKmToLocation || '-'} readOnly />
+              </div>
+            </div>
+            <div className="field">
+              <label>Manual KM</label>
+              <input
+                type="number"
+                min="0"
+                value={manualKm}
+                onChange={(e) => setManualKm(e.target.value)}
+                autoFocus
+                required={manualKmRequired}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button type="button" className="btn secondary" onClick={() => setShowManualKmModal(false)}>Done</button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
@@ -472,6 +499,7 @@ function TurnDetailsSummary({ trip, onEdit }) {
         <p style={{ margin: 0 }}>
           Turn {trip.turnNumber} • {new Date(trip.turnDate).toLocaleDateString('en-IN')}
           {trip.fillingOrderLocation ? ` • Filling order: ${trip.fillingOrderLocation}` : ''}
+          {trip.manualKm != null && trip.manualKm !== '' ? ` • Manual KM: ${trip.manualKm}` : ''}
         </p>
         <button type="button" className="btn secondary" onClick={onEdit}>Edit</button>
       </div>
@@ -583,7 +611,6 @@ function DieselForm({
             type="checkbox"
             checked={dieselFilledConfirmed}
             onChange={(e) => setDieselFilledConfirmed(e.target.checked)}
-            required
           />
           Loading Point Tank Fill
         </label>
@@ -593,7 +620,7 @@ function DieselForm({
           <label>Photo (optional)</label>
           <input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files[0])} />
         </div>
-        <button className="btn" type="submit" disabled={!dieselFilledConfirmed}>{submitLabel}</button>
+        <button className="btn" type="submit">{submitLabel}</button>
       </div>
     </form>
   );
@@ -904,6 +931,7 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
   const [divertUnloadingLocation, setDivertUnloadingLocation] = useState(trip.divertUnloadingLocation || '');
   const [divertDate, setDivertDate] = useState(trip.divertDate ? new Date(trip.divertDate).toISOString().slice(0, 10) : '');
   const [divertKm, setDivertKm] = useState(trip.divertKm == null ? '' : String(trip.divertKm));
+  const [showDivertKmModal, setShowDivertKmModal] = useState(false);
   const [selectedCorporation, setSelectedCorporation] = useState(
     (() => {
       const currentLocation = trip.unloadingLocation || unloadingLocation;
@@ -923,6 +951,14 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
 
   async function submit(e) {
     e.preventDefault();
+    const hasSecondLegInTable = (meta.routeKmTable || []).some((row) => (
+      String(row?.loadingLocation || '').trim() === String(unloadingLocation || '').trim() &&
+      String(row?.unloadingLocation || '').trim() === String(divertUnloadingLocation || '').trim()
+    ));
+    if (isDiverted && !hasSecondLegInTable && (!Number.isFinite(Number(divertKm)) || Number(divertKm) < 0)) {
+      setShowDivertKmModal(true);
+      return;
+    }
     await api.setUnloading(tripId, {
       unloadingLocation,
       unloadingDate,
@@ -996,7 +1032,7 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
       {isDiverted && (
         <div className="divert-fields">
           <div className="field">
-            <label>Unloading Location</label>
+            <label>New Unloading Location</label>
             <select
               value={divertUnloadingLocation}
               onChange={(e) => setDivertUnloadingLocation(e.target.value)}
@@ -1007,12 +1043,8 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
             </select>
           </div>
           <div className="field">
-            <label>Unloading Date</label>
+            <label>New Unloading Date</label>
             <input type="date" value={divertDate} onChange={(e) => setDivertDate(e.target.value)} required />
-          </div>
-          <div className="field">
-            <label>Divert KM</label>
-            <input type="number" min="0" value={divertKm} onChange={(e) => setDivertKm(e.target.value)} required />
           </div>
         </div>
       )}
@@ -1020,6 +1052,37 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
         <div />
         <button className="btn" style={{ marginBottom: 0 }}>Save Unloading Details</button>
       </div>
+      {showDivertKmModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="divert-km-title"
+          style={{
+            position: 'fixed', inset: 0, zIndex: 10, display: 'grid', placeItems: 'center',
+            padding: 16, background: 'rgba(0, 0, 0, 0.35)',
+          }}
+        >
+          <div className="card" style={{ width: 'min(100%, 360px)', margin: 0, background: '#fff' }}>
+            <h3 id="divert-km-title" className="section-title">Divert location KM from here</h3>
+            <div className="field">
+              <label htmlFor="divert-km-input">Divert location KM from here</label>
+              <input
+                id="divert-km-input"
+                type="number"
+                min="0"
+                value={divertKm}
+                onChange={(e) => setDivertKm(e.target.value)}
+                autoFocus
+                required
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button type="button" className="btn secondary" onClick={() => setShowDivertKmModal(false)}>Cancel</button>
+              <button type="submit" className="btn">Save KM</button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
@@ -1031,7 +1094,7 @@ function UnloadingDetailsSummary({ trip, onEdit }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
         <p style={{ margin: 0 }}>
           {trip.unloadingLocation || '-'} • {trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}
-          {trip.isDiverted ? ` • Divert: ${trip.divertUnloadingLocation || '-'} • ${trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'} • ${trip.divertKm ?? 0} KM` : ''}
+          {trip.isDiverted ? ` • Divert: ${trip.divertUnloadingLocation || '-'} • ${trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'}` : ''}
         </p>
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button type="button" className="btn secondary" onClick={onEdit}>Edit</button>
@@ -1106,6 +1169,9 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
   const otherExpenseTotal = otherExpenses.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
   const totalExpenses = loadingExpenseTotal + rtoExpenseTotal + unloadingExpenseTotal + otherExpenseTotal;
   const balance = totalAdvance - (dieselCashTotal + totalExpenses);
+  const manualKmRoute = trip.isDiverted && trip.divertUnloadingLocation
+    ? `${trip.unloadingLocation || '-'} to ${trip.divertUnloadingLocation}`
+    : `${trip.loadingLocation || '-'} to ${trip.unloadingLocation || '-'}`;
 
   function printTripDetails() {
     const printDate = trip.loadingDate || trip.unloadingDate || new Date();
@@ -1263,22 +1329,52 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
                   <td style={{ width: '25%', padding: '8px 12px 8px 0', fontWeight: 600 }}>Unloading Date</td>
                   <td style={{ width: '25%', padding: '8px 0' }}>{trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}</td>
                 </tr>
+                {trip.isDiverted && (
+                  <tr>
+                    <td style={{ width: '25%', padding: '8px 12px 8px 0', fontWeight: 600 }}>New Unloading Location</td>
+                    <td style={{ width: '25%', padding: '8px 12px 8px 0' }}>{trip.divertUnloadingLocation ? `${trip.divertUnloadingLocation} (Divert)` : '-'}</td>
+                    <td style={{ width: '25%', padding: '8px 12px 8px 0', fontWeight: 600 }}>New Unloading Date</td>
+                    <td style={{ width: '25%', padding: '8px 0' }}>{trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'}</td>
+                  </tr>
+                )}
                 <tr>
                   <td colSpan="4" style={{ padding: '10px 0 8px' }}>
-                    <div className="trip-km-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
-                      {[
-                        { label: 'Odometer KM', value: trip.odometerKm != null ? `${trip.odometerKm} km` : 'NA', mileage: formatMileage(trip.odometerKm, totalDieselLitres) },
-                        { label: 'Corp. KM', value: corporationKm != null ? `${corporationKm} km` : 'NA', mileage: formatMileage(corporationKm, totalDieselLitres) },
-                        { label: 'Manual KM', value: trip.manualKm != null && trip.manualKm !== '' ? `${trip.manualKm} km` : 'NA', mileage: formatMileage(trip.manualKm, totalDieselLitres) },
-                        { label: 'Driver KM', value: calculatedCorporationKm != null ? `${calculatedCorporationKm} km` : 'NA', mileage: formatMileage(calculatedCorporationKm, totalDieselLitres) },
-                      ].map((item) => (
-                        <div key={item.label} style={{ minWidth: 0, padding: '8px 10px', border: '1px solid #1f4d2b', borderRadius: 6, textAlign: 'center' }}>
-                          <strong style={{ display: 'block', marginBottom: 4 }}>{item.label}</strong>
-                          <div>{item.value}</div>
-                          <small>Mil.: {item.mileage}</small>
-                        </div>
-                      ))}
-                    </div>
+                    <table className="trip-km-table" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 8 }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: 'left', padding: '8px 12px', border: '1px solid #1f4d2b' }}>Odometer KM</th>
+                          <th style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #1f4d2b' }}>KM</th>
+                          <th style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #1f4d2b' }}>Mileage</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td style={{ padding: '8px 12px', border: '1px solid #1f4d2b', fontWeight: 600 }}>Odometer KM</td>
+                          <td style={{ padding: '8px 12px', border: '1px solid #1f4d2b', textAlign: 'right' }}>{trip.odometerKm != null ? `${trip.odometerKm} km` : 'NA'}</td>
+                          <td style={{ padding: '8px 12px', border: '1px solid #1f4d2b', textAlign: 'right' }}>{formatMileage(trip.odometerKm, totalDieselLitres)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <table className="trip-km-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: 'left', padding: '8px 12px', border: '1px solid #1f4d2b' }}>Remaining KM Type</th>
+                          <th style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #1f4d2b' }}>KM</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          ['Corp. KM', corporationKm != null ? `${corporationKm} km` : 'NA'],
+                          [`Manual KM (${manualKmRoute})`, trip.manualKm != null && trip.manualKm !== '' ? `${trip.manualKm} km` : 'NA'],
+                          ['Driver KM', calculatedCorporationKm != null ? `${calculatedCorporationKm} km` : 'NA'],
+                        ].map(([label, value]) => (
+                          <tr key={label}>
+                            <td style={{ padding: '8px 12px', border: '1px solid #1f4d2b', fontWeight: 600 }}>{label}</td>
+                            <td style={{ padding: '8px 12px', border: '1px solid #1f4d2b', textAlign: 'right' }}>{value}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </td>
                 </tr>
               </tbody>

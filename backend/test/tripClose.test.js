@@ -11,6 +11,7 @@ const User = require('../src/models/User');
 const Trip = require('../src/models/Trip');
 const metaRoutes = require('../src/routes/metaRoutes');
 const { calculateClosingOdometerKm } = require('../src/utils/tripCalculations');
+const { getCorporationKmDetails } = require('../src/utils/corporationKm');
 
 test('tripController exposes a closeTrip endpoint', () => {
   assert.equal(typeof tripController.closeTrip, 'function');
@@ -293,6 +294,41 @@ test('trip schema stores optional divert unloading details', () => {
   assert.equal(trip.divertKm, 35);
 });
 
+test('diverted Driver KM uses the three weighted route legs', () => {
+  const trip = {
+    loadingLocation: 'Loading',
+    unloadingLocation: 'Unloading',
+    fillingOrderLocation: 'Filling Order',
+    isDiverted: true,
+    divertUnloadingLocation: 'New Unloading',
+  };
+  const routes = [
+    { loadingLocation: 'Loading', unloadingLocation: 'Unloading', km: 100 },
+    { loadingLocation: 'Unloading', unloadingLocation: 'New Unloading', km: 40 },
+    { loadingLocation: 'Filling Order', unloadingLocation: 'New Unloading', km: 60 },
+  ];
+
+  assert.equal(getCorporationKmDetails(trip, routes).value, 100);
+});
+
+test('diverted Driver KM uses manual KM when the unloading-to-new-unloading route is missing', () => {
+  const trip = {
+    loadingLocation: 'Loading',
+    unloadingLocation: 'Unloading',
+    fillingOrderLocation: 'Filling Order',
+    isDiverted: true,
+    divertUnloadingLocation: 'New Unloading',
+    divertKm: 50,
+  };
+  const routes = [
+    { loadingLocation: 'Loading', unloadingLocation: 'Unloading', km: 100 },
+    { loadingLocation: 'Filling Order', unloadingLocation: 'New Unloading', km: 60 },
+  ];
+
+  assert.equal(getCorporationKmDetails(trip, routes).value, 105);
+  assert.equal(getCorporationKmDetails(trip, routes).source, 'manual_divert_weighted');
+});
+
 test('odometer KM uses current and previous trip closing diesel odometers', () => {
   const currentTrip = { dieselEntries: [{ odometerKm: 1000 }, { odometerKm: 1450 }] };
   const previousTrip = { dieselEntries: [{ odometerKm: 700 }, { odometerKm: 900 }] };
@@ -346,7 +382,7 @@ test('meta route table updates a single row by id', () => {
   assert.equal(updated[0].id, 'row-1');
 });
 
-test('meta route loading dropdown matches the route KM table loading location column without duplicates', () => {
+test('meta route location dropdowns include both route endpoints without duplicates', () => {
   const rows = [
     { loadingLocation: 'MRPL', unloadingLocation: 'Belgaum', corporation: 'KPS', km: 450 },
     { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', corporation: 'KPS', km: 620 },
@@ -356,7 +392,14 @@ test('meta route loading dropdown matches the route KM table loading location co
 
   const options = metaRoutes.buildLocationOptions(rows);
 
-  assert.deepEqual(options.loadingLocations, ['AEGIS-Mangalore', 'MRPL', 'Total-Mangalore']);
+  assert.deepEqual(options.loadingLocations, [
+    'AEGIS-Mangalore',
+    'Belgaum',
+    'Chengalpattu',
+    'MRPL',
+    'Total-Mangalore',
+    'Trichy',
+  ]);
 });
 
 test('route KM table takes precedence over generic meta loading options when both are present', () => {
@@ -367,11 +410,16 @@ test('route KM table takes precedence over generic meta loading options when bot
 
   const options = metaRoutes.buildLocationOptions(rows);
 
-  assert.deepEqual(options.loadingLocations, ['Another-Route-Location', 'Updated-Route-Location']);
-  assert.deepEqual(options.unloadingLocations, ['Belgaum', 'Trichy']);
+  assert.deepEqual(options.loadingLocations, [
+    'Another-Route-Location',
+    'Belgaum',
+    'Trichy',
+    'Updated-Route-Location',
+  ]);
+  assert.deepEqual(options.unloadingLocations, ['Another-Route-Location', 'Belgaum', 'Trichy', 'Updated-Route-Location']);
 });
 
-test('route km table is the only source of loading and unloading options', () => {
+test('route km table is the only source of shared loading and unloading options', () => {
   const rows = [
     { loadingLocation: 'Master-Load', unloadingLocation: 'Master-Unload', corporation: 'KPS', km: 90 },
     { loadingLocation: 'Master-Load', unloadingLocation: 'Another-Unload', corporation: 'KPS', km: 110 },
@@ -379,8 +427,8 @@ test('route km table is the only source of loading and unloading options', () =>
 
   const options = metaRoutes.buildLocationOptions(rows);
 
-  assert.deepEqual(options.loadingLocations, ['Master-Load']);
-  assert.deepEqual(options.unloadingLocations, ['Another-Unload', 'Master-Unload']);
+  assert.deepEqual(options.loadingLocations, ['Another-Unload', 'Master-Load', 'Master-Unload']);
+  assert.deepEqual(options.unloadingLocations, ['Another-Unload', 'Master-Load', 'Master-Unload']);
 });
 
 test('toSafeJSON serializes populated customer and vehicle ids as strings', () => {
