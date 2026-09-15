@@ -54,14 +54,6 @@ test('customerController exposes updateVehicleUser endpoint', () => {
   assert.equal(typeof customerController.updateVehicleUser, 'function');
 });
 
-test('monthly salary is available from the 25th of the following month', () => {
-  const unavailable = customerController.getSalaryAvailability('2026-08', new Date(2026, 8, 24));
-  const available = customerController.getSalaryAvailability('2026-08', new Date(2026, 8, 25));
-
-  assert.equal(unavailable.available, false);
-  assert.equal(available.available, true);
-});
-
 test('basic salary prorates from an employee joining date', () => {
   const salary = customerController.calculateBasicSalary('2026-04', 30000, new Date(2026, 3, 11), null, [
     { startDate: new Date(2026, 3, 15), endDate: new Date(2026, 3, 16) },

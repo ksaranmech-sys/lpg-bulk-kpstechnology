@@ -390,11 +390,7 @@ export default function DriverDetail() {
                 />
               </div>
             </div>
-            {!salary ? <p style={{ margin: 0 }}>Loading salary calculation...</p> : !salary.available ? (
-              <p style={{ margin: 0, color: '#666' }}>
-                This salary calculation will be available on {new Date(salary.availableOn).toLocaleDateString('en-IN')}.
-              </p>
-            ) : (
+            {!salary ? <p style={{ margin: 0 }}>Loading salary calculation...</p> : (
               <>
                 <div style={{ overflowX: 'auto', marginBottom: 16 }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>

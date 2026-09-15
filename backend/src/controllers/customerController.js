@@ -25,12 +25,6 @@ function loadRouteKmTable() {
   }
 }
 
-function getSalaryAvailability(month, now = new Date()) {
-  const [year, monthNumber] = month.split('-').map(Number);
-  const availableOn = new Date(year, monthNumber, 25);
-  return { available: now >= availableOn, availableOn };
-}
-
 function calculateTripBalance(trip) {
   const totalAdvance = (trip.driverAdvances || []).reduce((total, entry) => total + Number(entry.amount || 0), 0);
   const rtoExpense = (trip.rtoEntries || []).reduce((total, entry) => total + Number(entry.amount || 0), 0);
@@ -148,9 +142,6 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   if (!driver) return null;
 
   const { start: monthStart, end: monthEnd } = getSalaryMonthBounds(month);
-  const { available, availableOn } = getSalaryAvailability(month);
-  if (!available) return { month, available: false, availableOn, driver };
-
   const leaves = await Leave.find({
     customer: customerId,
     driver: userId,
@@ -200,8 +191,6 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   const kmBeta = round0(kmCharges * totalDriverKm);
   return {
     month,
-    available: true,
-    availableOn,
     driver,
     trips: tripsWithBalances,
     closedTrips: tripsWithBalances.length,
@@ -288,8 +277,8 @@ async function getDriverMonthlySalary(req, res) {
 
   const summary = await calculateDriverMonthlySalary(customerId, userId, month);
   if (!summary) return res.status(404).json({ error: 'Driver not found' });
-  const { driver, availableOn, ...response } = summary;
-  res.json({ ...response, availableOn: availableOn.toISOString() });
+  const { driver, ...response } = summary;
+  res.json(response);
 }
 
 // GET /api/v1/customers/:customerId/users/:userId/monthly-summary?month=YYYY-MM
@@ -301,9 +290,6 @@ async function downloadDriverMonthlySummary(req, res) {
   }
   const summary = await calculateDriverMonthlySalary(customerId, userId, month);
   if (!summary) return res.status(404).json({ error: 'Driver not found' });
-  if (!summary.available) {
-    return res.status(400).json({ error: `Monthly summary is available on ${summary.availableOn.toLocaleDateString('en-IN')}` });
-  }
   const [vehicle, customer] = await Promise.all([
     summary.driver.vehicle ? Vehicle.findById(summary.driver.vehicle).select('vehicleNumber') : null,
     Customer.findById(customerId).select('companyName'),
@@ -548,7 +534,6 @@ async function bulkDeleteVehicleUsers(req, res) {
 }
 
 module.exports = {
-  getSalaryAvailability,
   calculateTripBalance,
   sumTripBalances,
   getSalaryMonthBounds,

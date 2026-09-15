@@ -1225,9 +1225,9 @@ export default function Dashboard() {
                       </thead>
                       <tbody>
                         <tr>
-                          {!salary || !salary.available ? (
+                          {!salary ? (
                             <td colSpan={8} style={{ padding: '8px 12px', color: '#666' }}>
-                              {salary ? `Available on ${new Date(salary.availableOn).toLocaleDateString('en-IN')}` : 'Not available'}
+                              Not available
                             </td>
                           ) : (
                             <>
