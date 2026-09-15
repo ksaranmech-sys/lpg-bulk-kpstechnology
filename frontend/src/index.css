@@ -124,6 +124,40 @@ label { font-size: 12px; font-weight: 700; color: var(--green-900); display: blo
 
 .field { margin-bottom: 12px; }
 
+.trip-overview-table,
+.trip-km-table,
+.trip-detail-table,
+.trip-report-table { table-layout: fixed; }
+
+.trip-overview-table td,
+.trip-overview-table th,
+.trip-km-table td,
+.trip-km-table th,
+.trip-detail-table td,
+.trip-detail-table th,
+.trip-report-table td,
+.trip-report-table th { vertical-align: middle; overflow-wrap: anywhere; }
+
+.trip-overview-table td:nth-child(1),
+.trip-overview-table td:nth-child(3) { width: 32%; }
+
+.trip-overview-table td:nth-child(2),
+.trip-overview-table td:nth-child(2) { width: 40%; }
+
+.trip-overview-table td:nth-child(4) { width: 18%; }
+
+.trip-detail-table th,
+.trip-detail-table td,
+.trip-report-table th,
+.trip-report-table td { border: 1px solid #d0d7de; }
+
+.trip-expenses-table > tbody > tr > td,
+.trip-expenses-table .trip-detail-table td { border: 1px solid #d0d7de; }
+
+.trip-expenses-table > tbody > tr > td[colspan] { background: #f7faf7; }
+
+.trip-expenses-table .trip-detail-table { margin: 0; }
+
 .tank-fill-control {
   display: flex;
   align-items: center;

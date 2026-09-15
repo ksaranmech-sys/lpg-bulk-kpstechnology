@@ -10,7 +10,7 @@ const { ROUTE_KM_TABLE, LOADING_LOCATIONS, UNLOADING_LOCATIONS } = require('../s
 const User = require('../src/models/User');
 const Trip = require('../src/models/Trip');
 const metaRoutes = require('../src/routes/metaRoutes');
-const { calculateClosingOdometerKm } = require('../src/utils/tripCalculations');
+const { calculateClosingOdometerKm, computeTripSettlement } = require('../src/utils/tripCalculations');
 const { getCorporationKmDetails } = require('../src/utils/corporationKm');
 
 test('tripController exposes a closeTrip endpoint', () => {
@@ -54,9 +54,9 @@ test('customerController exposes updateVehicleUser endpoint', () => {
   assert.equal(typeof customerController.updateVehicleUser, 'function');
 });
 
-test('monthly salary is available from the 5th of the following month', () => {
+test('monthly salary is available from the 7th of the following month', () => {
   const unavailable = customerController.getSalaryAvailability('2026-08', new Date(2026, 8, 4));
-  const available = customerController.getSalaryAvailability('2026-08', new Date(2026, 8, 5));
+  const available = customerController.getSalaryAvailability('2026-08', new Date(2026, 8, 7));
 
   assert.equal(unavailable.available, false);
   assert.equal(available.available, true);
@@ -130,8 +130,45 @@ test('monthly salary assigns trips to their closed month when the trip was close
   assert.equal(end.getFullYear(), 2026);
   assert.equal(end.getMonth(), 8);
   assert.deepEqual(filter, {
-    status: 'closed',
+    status: { $in: ['pending_close', 'closed'] },
   });
+});
+
+test('settlement mileage uses Tank Fill opening odometers and diesel from the second fill through next first fill', () => {
+  const result = computeTripSettlement({
+    dieselEntries: [
+      { odometerKm: 1000, loadingPointTankFill: true, volumeLitres: 10, amount: 100 },
+      { volumeLitres: 40, amount: 400 },
+    ],
+    driverAdvances: [],
+    loadingExpense: 0,
+    unloadingExpense: 0,
+    rtoEntries: [],
+    otherExpenses: [],
+  }, {
+    dieselEntries: [{ odometerKm: 1500, loadingPointTankFill: true, volumeLitres: 20, amount: 200 }],
+  });
+
+  assert.equal(result.settlement.totalKm, 500);
+  assert.equal(result.settlement.totalDieselLitres, 60);
+  assert.equal(result.settlement.mileageKmPerLitre, 8.33);
+});
+
+test('settlement mileage is unavailable when the first Tank Fill marker is not selected', () => {
+  const result = computeTripSettlement({
+    dieselEntries: [{ odometerKm: 1000, loadingPointTankFill: false, volumeLitres: 10, amount: 100 }],
+    driverAdvances: [],
+    loadingExpense: 0,
+    unloadingExpense: 0,
+    rtoEntries: [],
+    otherExpenses: [],
+  }, {
+    dieselEntries: [{ odometerKm: 1500, loadingPointTankFill: true, volumeLitres: 20, amount: 200 }],
+  });
+
+  assert.equal(result.settlement.totalKm, null);
+  assert.equal(result.settlement.mileageKmPerLitre, null);
+  assert.equal(result.settlement.totalDieselLitres, 20);
 });
 
 test('salary month uses the final diesel fill when closedAt is missing', () => {
@@ -166,11 +203,13 @@ test('L Turn date takes precedence as the salary close date', () => {
 
 test('COP KM is the sum of matching route KM table entries for closed trips', () => {
   const total = customerController.sumRouteTableKm([
-    { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', settlement: { totalKm: 999 } },
-    { loadingLocation: 'AEGIS', unloadingLocation: 'Belgaum', settlement: { totalKm: 1 } },
+    { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', fillingOrderLocation: 'MRPL', settlement: { totalKm: 999 } },
+    { loadingLocation: 'AEGIS', unloadingLocation: 'Belgaum', fillingOrderLocation: 'AEGIS', settlement: { totalKm: 1 } },
     { loadingLocation: 'Unknown', unloadingLocation: 'Unknown', settlement: { totalKm: 500 } },
   ], [
     { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', km: 450 },
+    { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', km: 450 },
+    { loadingLocation: 'AEGIS', unloadingLocation: 'Belgaum', km: 275.5 },
     { loadingLocation: 'AEGIS', unloadingLocation: 'Belgaum', km: 275.5 },
   ]);
 
@@ -192,11 +231,13 @@ test('special trip charges count closed routes below 200 KM at Rs 1000 each', ()
 
 test('Corporation KM excludes routes below 200 KM when less than 200KM charges are enabled', () => {
   const trips = [
-    { loadingLocation: 'Short', unloadingLocation: 'Route' },
-    { loadingLocation: 'Long', unloadingLocation: 'Route' },
+    { loadingLocation: 'Short', unloadingLocation: 'Route', fillingOrderLocation: 'Short' },
+    { loadingLocation: 'Long', unloadingLocation: 'Route', fillingOrderLocation: 'Long' },
   ];
   const routes = [
     { loadingLocation: 'Short', unloadingLocation: 'Route', km: 199 },
+    { loadingLocation: 'Short', unloadingLocation: 'Route', km: 199 },
+    { loadingLocation: 'Long', unloadingLocation: 'Route', km: 500 },
     { loadingLocation: 'Long', unloadingLocation: 'Route', km: 500 },
   ];
 
@@ -204,16 +245,16 @@ test('Corporation KM excludes routes below 200 KM when less than 200KM charges a
   assert.equal(customerController.sumRouteTableKm(trips, routes, true), 500);
 });
 
-test('Corporation KM remains unavailable when route is missing', () => {
+test('Driver KM uses Manual KM for missing route legs', () => {
   const trips = [
     { loadingLocation: 'Unknown', unloadingLocation: 'Route', manualKm: 760 },
   ];
 
-  assert.equal(customerController.sumRouteTableKm(trips, [], false), 0);
-  assert.equal(customerController.sumRouteTableKm(trips, [], true), 0);
+  assert.equal(customerController.sumRouteTableKm(trips, [], false), 760);
+  assert.equal(customerController.sumRouteTableKm(trips, [], true), 760);
 });
 
-test('Corporation KM uses the route table when automatic group calculation is available', () => {
+test('Driver KM uses Manual KM for a missing filling-order leg', () => {
   const trips = [
     { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', manualKm: 760 },
   ];
@@ -221,13 +262,23 @@ test('Corporation KM uses the route table when automatic group calculation is av
     { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', km: 748 },
   ];
 
-  assert.equal(customerController.sumRouteTableKm(trips, routes, false, {
-    group1: new Set(['MRPL, Mangalore']),
-    group2: new Set(),
-  }), 748);
+  assert.equal(customerController.sumRouteTableKm(trips, routes, false), 754);
 });
 
-test('Corporation KM uses the direct route for a filling location in the same group', () => {
+test('Driver KM uses Manual KM for both missing normal-trip legs', () => {
+  const trip = {
+    loadingLocation: 'Unknown',
+    unloadingLocation: 'Route',
+    fillingOrderLocation: 'Filling Order',
+    manualKm: 300,
+  };
+
+  const details = getCorporationKmDetails(trip, []);
+  assert.equal(details.value, 300);
+  assert.equal(details.source, 'manual_weighted');
+});
+
+test('Corporation KM uses two weighted legs for normal trips', () => {
   const trip = {
     loadingLocation: 'IPPL, Chennai',
     unloadingLocation: 'Trichy',
@@ -235,14 +286,13 @@ test('Corporation KM uses the direct route for a filling location in the same gr
   };
   const routes = [
     { loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Trichy', km: 700 },
-    { loadingLocation: 'Trichy', unloadingLocation: 'CPCL, Chennai', km: 900 },
+    { loadingLocation: 'CPCL, Chennai', unloadingLocation: 'Trichy', km: 900 },
   ];
-  const groups = { group1: new Set(['IPPL, Chennai', 'CPCL, Chennai']), group2: new Set() };
 
-  assert.deepEqual(customerController.getTripCorporationKm(trip, routes, groups), 700);
+  assert.deepEqual(customerController.getTripCorporationKm(trip, routes), 800);
 });
 
-test('Corporation KM uses the direct route for the same loading plant', () => {
+test('Corporation KM uses the same route for both weighted legs when filling matches loading', () => {
   const trip = {
     loadingLocation: 'Custom Plant',
     unloadingLocation: 'Trichy',
@@ -250,10 +300,10 @@ test('Corporation KM uses the direct route for the same loading plant', () => {
   };
   const routes = [{ loadingLocation: 'Custom Plant', unloadingLocation: 'Trichy', km: 610 }];
 
-  assert.deepEqual(customerController.getTripCorporationKm(trip, routes, { group1: new Set(), group2: new Set() }), 610);
+  assert.deepEqual(customerController.getTripCorporationKm(trip, routes), 610);
 });
 
-test('Corporation KM uses weighted legs when filling order location is outside the loading group', () => {
+test('Corporation KM uses weighted normal legs without location groups', () => {
   const trip = {
     loadingLocation: 'IPPL, Chennai',
     unloadingLocation: 'Trichy',
@@ -263,9 +313,7 @@ test('Corporation KM uses weighted legs when filling order location is outside t
     { loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Trichy', km: 700 },
     { loadingLocation: 'MRPL, Mangalore', unloadingLocation: 'Trichy', km: 900 },
   ];
-  const groups = { group1: new Set(['IPPL, Chennai']), group2: new Set(['MRPL, Mangalore']) };
-
-  assert.equal(customerController.getTripCorporationKm(trip, routes, groups), 800);
+  assert.equal(customerController.getTripCorporationKm(trip, routes), 800);
 });
 
 test('customerController exposes deleteVehicleUser endpoint', () => {
@@ -294,7 +342,7 @@ test('trip schema stores optional divert unloading details', () => {
   assert.equal(trip.divertKm, 35);
 });
 
-test('diverted Driver KM uses the three weighted route legs', () => {
+test('diverted Driver KM weights all three route legs at 50 percent', () => {
   const trip = {
     loadingLocation: 'Loading',
     unloadingLocation: 'Unloading',
@@ -311,21 +359,40 @@ test('diverted Driver KM uses the three weighted route legs', () => {
   assert.equal(getCorporationKmDetails(trip, routes).value, 100);
 });
 
-test('diverted Driver KM uses manual KM when the unloading-to-new-unloading route is missing', () => {
+test('Divert route calculation takes priority over Manual KM fallback', () => {
   const trip = {
     loadingLocation: 'Loading',
     unloadingLocation: 'Unloading',
     fillingOrderLocation: 'Filling Order',
     isDiverted: true,
     divertUnloadingLocation: 'New Unloading',
-    divertKm: 50,
+    manualKm: 300,
+  };
+  const routes = [
+    { loadingLocation: 'Loading', unloadingLocation: 'Unloading', km: 100 },
+    { loadingLocation: 'Unloading', unloadingLocation: 'New Unloading', km: 40 },
+    { loadingLocation: 'Filling Order', unloadingLocation: 'New Unloading', km: 60 },
+  ];
+
+  assert.equal(getCorporationKmDetails(trip, routes).value, 100);
+  assert.equal(getCorporationKmDetails(trip, routes).source, 'km_table_divert_weighted');
+});
+
+test('diverted Driver KM uses Manual KM for a missing automatic leg', () => {
+  const trip = {
+    loadingLocation: 'Loading',
+    unloadingLocation: 'Unloading',
+    fillingOrderLocation: 'Filling Order',
+    isDiverted: true,
+    divertUnloadingLocation: 'New Unloading',
+    manualKm: 300,
   };
   const routes = [
     { loadingLocation: 'Loading', unloadingLocation: 'Unloading', km: 100 },
     { loadingLocation: 'Filling Order', unloadingLocation: 'New Unloading', km: 60 },
   ];
 
-  assert.equal(getCorporationKmDetails(trip, routes).value, 105);
+  assert.equal(getCorporationKmDetails(trip, routes).value, 230);
   assert.equal(getCorporationKmDetails(trip, routes).source, 'manual_divert_weighted');
 });
 

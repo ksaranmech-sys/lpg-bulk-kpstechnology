@@ -131,9 +131,6 @@ export default function Dashboard() {
   const [showReminderPopup, setShowReminderPopup] = useState(false);
   const [customerData, setCustomerData] = useState(null);
   const [routeKmTable, setRouteKmTable] = useState([]);
-  const [routeKmGroups, setRouteKmGroups] = useState({ group1: [], group2: [] });
-  const [routeKmGroupsSaving, setRouteKmGroupsSaving] = useState(false);
-  const [routeKmGroupsHasChanges, setRouteKmGroupsHasChanges] = useState(false);
   const [routeKmForm, setRouteKmForm] = useState({ loadingLocation: '', corporation: '', unloadingLocation: '', km: '' });
   const [routeKmError, setRouteKmError] = useState('');
   const [routeKmSaving, setRouteKmSaving] = useState(false);
@@ -273,15 +270,11 @@ export default function Dashboard() {
       .getMeta()
       .then((res) => {
         setRouteKmTable(res.data.routeKmTable || []);
-        setRouteKmGroups(res.data.routeKmGroups || { group1: [], group2: [] });
         setRouteKmHasChanges(false);
-        setRouteKmGroupsHasChanges(false);
       })
       .catch(() => {
         setRouteKmTable([]);
-        setRouteKmGroups({ group1: [], group2: [] });
         setRouteKmHasChanges(false);
-        setRouteKmGroupsHasChanges(false);
       });
   }, [user]);
 
@@ -527,17 +520,6 @@ export default function Dashboard() {
       setRouteKmError(err.response?.data?.error || 'Failed to save route table');
     } finally {
       setRouteKmSaving(false);
-    }
-  }
-
-  async function saveRouteKmGroups() {
-    setRouteKmGroupsSaving(true);
-    try {
-      const res = await api.updateRouteKmGroups(routeKmGroups);
-      setRouteKmGroups(res.data.routeKmGroups || routeKmGroups);
-      setRouteKmGroupsHasChanges(false);
-    } finally {
-      setRouteKmGroupsSaving(false);
     }
   }
 
@@ -845,40 +827,6 @@ export default function Dashboard() {
                   {routeKmSaving ? 'Saving...' : 'Save changes'}
                 </button>
               </div>
-            </div>
-          </div>
-
-          <div className="card" style={{ marginBottom: 20 }}>
-            <h3 className="section-title" style={{ marginTop: 0 }}>Corporation KM Loading Groups</h3>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr><th>Group</th><th>Loading plants</th></tr></thead>
-              <tbody>
-                {['group1', 'group2'].map((groupKey, index) => (
-                  <tr key={groupKey}>
-                    <td style={{ padding: '8px 12px', fontWeight: 700 }}>Group {index + 1}</td>
-                    <td style={{ padding: '8px 12px' }}>
-                      <textarea
-                        value={(routeKmGroups[groupKey] || []).join('\n')}
-                        onChange={(event) => {
-                          setRouteKmGroups((current) => ({
-                            ...current,
-                            [groupKey]: event.target.value.split(/\r?\n|,/).map((value) => value.trim()).filter(Boolean),
-                          }));
-                          setRouteKmGroupsHasChanges(true);
-                        }}
-                        rows={3}
-                        placeholder="One loading plant per line"
-                        style={{ width: '100%' }}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
-              <button type="button" className="btn" disabled={!routeKmGroupsHasChanges || routeKmGroupsSaving} onClick={saveRouteKmGroups}>
-                {routeKmGroupsSaving ? 'Saving...' : 'Save loading groups'}
-              </button>
             </div>
           </div>
 

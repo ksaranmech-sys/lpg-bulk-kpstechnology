@@ -108,6 +108,17 @@ export default function CustomerDetail() {
     }
   }
 
+  async function closeTrip(tripId) {
+    try {
+      await api.closeTrip(tripId);
+      setClosedTrips((current) => current.map((trip) => (
+        trip._id === tripId ? { ...trip, status: 'closed' } : trip
+      )));
+    } catch (err) {
+      setTripHistoryError(err.response?.data?.error || 'Failed to close trip');
+    }
+  }
+
   const archivedTrips = closedTrips.filter((trip) => trip.status === 'closed' && !isCurrentOrPreviousMonth(tripHistoryMonthKey(trip)));
   const visibleClosedTrips = showArchivedTrips
     ? closedTrips
@@ -556,6 +567,11 @@ export default function CustomerDetail() {
                 <button type="button" className="btn danger" onClick={() => deleteTrip(trip._id)} disabled={deletingTripId === trip._id}>
                   {deletingTripId === trip._id ? 'Deleting...' : 'Delete'}
                 </button>
+                {trip.status === 'pending_close' && (
+                  <button type="button" className="btn" onClick={() => closeTrip(trip._id)}>
+                    Close Trip
+                  </button>
+                )}
               </div>
             ))}
           </div>

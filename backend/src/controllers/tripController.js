@@ -9,7 +9,7 @@ const { TRIP_STATUS, ROLES } = require('../config/constants');
 const User = require('../models/User');
 const { removeExpiredClosedTrips } = require('../utils/tripRetention');
 const metaRoutes = require('../routes/metaRoutes');
-const { getCorporationKmDetails, findRouteKm, loadRouteKmGroups } = require('../utils/corporationKm');
+const { getCorporationKmDetails, findRouteKm } = require('../utils/corporationKm');
 
 function getClosingDieselDate(trip, fallback = null) {
   const closingEntry = trip.dieselEntries?.[trip.dieselEntries.length - 1];
@@ -46,7 +46,7 @@ async function createTrip(req, res) {
 
   const existingOpenTrip = await Trip.findOne({
     vehicle: vehicle._id,
-    status: TRIP_STATUS.OPEN,
+    status: { $in: [TRIP_STATUS.OPEN, TRIP_STATUS.PENDING_CLOSE] },
   }).sort({ createdAt: -1 });
 
   if (existingOpenTrip) {
@@ -125,20 +125,19 @@ async function getTrip(req, res) {
     createdAt: { $lt: trip.createdAt },
   }).sort('-createdAt');
   const driver = await User.findOne({ role: ROLES.VEHICLE_USER, vehicle: trip.vehicle._id }).select('name');
+  if (trip.status === TRIP_STATUS.CLOSED) await refreshTripSettlement(trip);
   const result = trip.toObject();
   result.odometerKm = trip.status === TRIP_STATUS.CLOSED && trip.settlement?.totalKm != null
     ? trip.settlement.totalKm
     : calculateClosingOdometerKm(trip, previousTrip);
   result.corporationKmSource = getCorporationKmDetails(
     result,
-    metaRoutes.loadRouteKmTable(),
-    loadRouteKmGroups()
+    metaRoutes.loadRouteKmTable()
   ).source;
   result.corpKm = findRouteKm(metaRoutes.loadRouteKmTable(), result.loadingLocation, result.unloadingLocation);
   result.corporationKm = getCorporationKmDetails(
     result,
-    metaRoutes.loadRouteKmTable(),
-    loadRouteKmGroups()
+    metaRoutes.loadRouteKmTable()
   ).value;
   result.driverName = driver?.name || null;
   res.json({ trip: result });
@@ -194,7 +193,7 @@ async function addDieselEntry(req, res) {
   const trip = await getOpenTripOr404(req, res);
   if (!trip) return;
 
-  const { volumeLitres, ratePerLitre, totalValue, paymentMethod = 'diesel_card', odometerKm, filledAt, lat, lng } = req.body;
+  const { volumeLitres, ratePerLitre, totalValue, paymentMethod = 'diesel_card', loadingPointTankFill, odometerKm, filledAt, lat, lng } = req.body;
   if (!volumeLitres || (totalValue == null && !ratePerLitre)) {
     return res.status(400).json({ error: 'volumeLitres and totalValue are required' });
   }
@@ -220,6 +219,7 @@ async function addDieselEntry(req, res) {
     ratePerLitre: calculatedRate,
     amount,
     paymentMethod,
+    loadingPointTankFill: loadingPointTankFill === true || loadingPointTankFill === 'true',
     odometerKm: odometerKm != null && odometerKm !== '' ? Number(odometerKm) : null,
     filledAt: filledAt || new Date(),
     photo,
@@ -236,6 +236,7 @@ async function addDieselEntry(req, res) {
   if (trip.dieselEntries.length === 1) {
     await tryCloseVehiclePreviousTrip(trip);
   }
+  await refreshRelatedSettlements(trip);
 
   res.status(201).json({ trip });
 }
@@ -254,6 +255,7 @@ async function updateDieselEntry(req, res) {
   const volume = Number(req.body.volumeLitres);
   const amount = Number(req.body.totalValue);
   const paymentMethod = req.body.paymentMethod || entry.paymentMethod || 'diesel_card';
+  const loadingPointTankFill = req.body.loadingPointTankFill === true || req.body.loadingPointTankFill === 'true';
   const odometerKm = req.body.odometerKm != null && req.body.odometerKm !== '' ? Number(req.body.odometerKm) : null;
   if (!Number.isFinite(volume) || volume <= 0 || !Number.isFinite(amount) || amount < 0) {
     return res.status(400).json({ error: 'volumeLitres and totalValue must be valid numbers' });
@@ -269,6 +271,7 @@ async function updateDieselEntry(req, res) {
   entry.amount = amount;
   entry.ratePerLitre = amount / volume;
   entry.paymentMethod = paymentMethod;
+  entry.loadingPointTankFill = loadingPointTankFill;
   entry.odometerKm = odometerKm;
   if (req.body.filledAt) {
     const filledAt = new Date(req.body.filledAt);
@@ -278,6 +281,7 @@ async function updateDieselEntry(req, res) {
     entry.filledAt = filledAt;
   }
   await trip.save();
+  await refreshRelatedSettlements(trip);
 
   if (odometerKm != null) {
     await Vehicle.findByIdAndUpdate(trip.vehicle, { lastKnownOdometer: Number(odometerKm) });
@@ -297,6 +301,7 @@ async function deleteDieselEntry(req, res) {
 
   trip.dieselEntries.splice(index, 1);
   await trip.save();
+  await refreshRelatedSettlements(trip);
   res.json({ trip });
 }
 
@@ -479,7 +484,7 @@ async function setTurnDetails(req, res) {
     }
     trip.manualKm = km;
   }
-  const corporationKmDetails = getCorporationKmDetails(trip, metaRoutes.loadRouteKmTable(), loadRouteKmGroups());
+  const corporationKmDetails = getCorporationKmDetails(trip, metaRoutes.loadRouteKmTable());
   if (corporationKmDetails.source === 'manual_required' && !Number.isFinite(Number(trip.manualKm))) {
     return res.status(400).json({ error: 'Manual Corporation KM is required because automatic calculation is unavailable' });
   }
@@ -529,7 +534,7 @@ async function deleteUnloadingTurnDetails(req, res) {
 async function tryCloseVehiclePreviousTrip(newTrip) {
   const previousTrip = await Trip.findOne({
     vehicle: newTrip.vehicle,
-    status: TRIP_STATUS.OPEN,
+    status: { $in: [TRIP_STATUS.OPEN, TRIP_STATUS.PENDING_CLOSE] },
     _id: { $ne: newTrip._id },
   }).sort('-createdAt');
 
@@ -545,6 +550,34 @@ async function tryCloseVehiclePreviousTrip(newTrip) {
   await previousTrip.save();
 }
 
+async function refreshRelatedSettlements(trip) {
+  if (trip.status !== TRIP_STATUS.CLOSED) {
+    const previousClosedTrip = await Trip.findOne({
+      vehicle: trip.vehicle,
+      status: TRIP_STATUS.CLOSED,
+      createdAt: { $lt: trip.createdAt },
+    }).sort('-createdAt');
+    if (previousClosedTrip && String(previousClosedTrip.nextTrip || '') === String(trip._id)) {
+      await refreshTripSettlement(previousClosedTrip);
+    }
+    return;
+  }
+  await refreshTripSettlement(trip);
+}
+
+async function refreshTripSettlement(trip) {
+  const nextTrip = await Trip.findOne({
+    vehicle: trip.vehicle,
+    _id: { $ne: trip._id },
+    createdAt: { $gt: trip.createdAt },
+  }).sort({ createdAt: 1 });
+  const result = computeTripSettlement(trip, nextTrip);
+  if (!result.ready) return;
+  trip.settlement = result.settlement;
+  trip.nextTrip = nextTrip?._id || trip.nextTrip;
+  await trip.save();
+}
+
 // POST /api/v1/trips/:tripId/close
 async function closeTrip(req, res) {
   const trip = await getOpenTripOr404(req, res);
@@ -556,6 +589,7 @@ async function closeTrip(req, res) {
     createdAt: { $gt: trip.createdAt },
   }).sort({ createdAt: 1 });
 
+  const isCustomerFinalClose = req.user.role === ROLES.CUSTOMER_ADMIN || req.user.role === ROLES.SUPER_ADMIN;
   const result = computeTripSettlement(trip, nextTrip);
   if (result.ready) {
     trip.settlement = result.settlement;
@@ -564,15 +598,15 @@ async function closeTrip(req, res) {
     trip.nextTrip = nextTrip._id;
   }
 
-  trip.status = TRIP_STATUS.CLOSED;
-  trip.closedAt = getTripCloseDate(trip);
+  trip.status = isCustomerFinalClose ? TRIP_STATUS.CLOSED : TRIP_STATUS.PENDING_CLOSE;
+  if (isCustomerFinalClose) trip.closedAt = getTripCloseDate(trip);
   await trip.save();
 
   res.json({
     trip,
-    message: result.ready
+    message: isCustomerFinalClose
       ? 'Trip closed successfully.'
-      : 'Trip marked closed. Settlement will be finalized when the next trip records its first fill.',
+      : 'Trip marked ready for customer close.',
   });
 }
 
@@ -621,6 +655,7 @@ async function downloadReport(req, res) {
     .populate('vehicle', 'vehicleNumber')
     .populate('customer', 'companyName email');
   if (!trip) return res.status(404).json({ error: 'Trip not found' });
+  if (trip.status === TRIP_STATUS.CLOSED) await refreshTripSettlement(trip);
   const previousTrip = await Trip.findOne({
     vehicle: trip.vehicle._id,
     createdAt: { $lt: trip.createdAt },

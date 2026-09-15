@@ -45,7 +45,6 @@ export const getMe = () => api.get('/auth/me');
 export const getMeta = () => api.get('/meta');
 export const updateRouteKmTable = (routeKmTable, rowId, row) =>
   api.put('/meta/route-km', rowId && row ? { rowId, row } : { routeKmTable });
-export const updateRouteKmGroups = (routeKmGroups) => api.put('/meta/route-km-groups', { routeKmGroups });
 
 // ---- Vehicles ----
 export const listVehicles = (customerId) =>

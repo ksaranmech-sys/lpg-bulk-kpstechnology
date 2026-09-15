@@ -109,8 +109,9 @@ export default function DriverDetail() {
   const [reminderSaving, setReminderSaving] = useState(false);
   const [salaryMonth, setSalaryMonth] = useState(previousMonth);
   const [salary, setSalary] = useState(null);
+  const [selectedSalaryTrips, setSelectedSalaryTrips] = useState([]);
   const [showArchivedSalary, setShowArchivedSalary] = useState(false);
-  const [archivedSalaryMonth, setArchivedSalaryMonth] = useState('');
+  const [archivedSalaryMonth, setArchivedSalaryMonth] = useState(previousMonth);
   const [summaryPrinting, setSummaryPrinting] = useState(false);
   const [trips, setTrips] = useState([]);
   const [tripsLoading, setTripsLoading] = useState(false);
@@ -129,7 +130,7 @@ export default function DriverDetail() {
 
   const driver = data?.users?.find((entry) => String(entry.id || entry._id) === String(driverId));
   const vehicle = data?.vehicles?.find((entry) => String(entry._id) === String(driver?.vehicle));
-  const openTrips = trips.filter((trip) => trip.status === 'open');
+  const openTrips = trips.filter((trip) => trip.status !== 'closed');
   const closedTrips = trips.filter((trip) => trip.status === 'closed');
   const archivedTrips = closedTrips.filter((trip) => {
     const closeDate = trip.turnDate || trip.closedAt;
@@ -257,6 +258,18 @@ export default function DriverDetail() {
     }
   }
 
+  async function closeSelectedSalaryTrips() {
+    if (!selectedSalaryTrips.length) return;
+    try {
+      await Promise.all(selectedSalaryTrips.map((tripId) => api.closeTrip(tripId)));
+      setSelectedSalaryTrips([]);
+      const res = await api.getDriverMonthlySalary(customerId, driverId, salaryMonth);
+      setSalary(res.data);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to close selected trips');
+    }
+  }
+
   return (
     <Layout>
       <Link to="/">&larr; Back to dashboard</Link>
@@ -288,7 +301,8 @@ export default function DriverDetail() {
                     <Link key={trip._id} to={`/trips/${trip._id}`} className="list-item" style={{ display: 'block' }}>
                       <strong>{trip.loadingLocation || 'Loading pending'}</strong> &rarr; {trip.unloadingLocation || 'Unloading pending'}
                       <div style={{ color: '#666', fontSize: 12, marginTop: 4 }}>
-                        {trip.createdAt ? new Date(trip.createdAt).toLocaleDateString('en-IN') : ''}
+                        {trip.status === 'pending_close' ? 'Pending customer close' : 'Open'}
+                        {trip.createdAt ? ` • ${new Date(trip.createdAt).toLocaleDateString('en-IN')}` : ''}
                       </div>
                     </Link>
                   ))}
@@ -310,15 +324,6 @@ export default function DriverDetail() {
                               Trip close: {new Date(closeDate).toLocaleDateString('en-IN')}
                             </div>
                           </Link>
-                          <a
-                            className="btn secondary"
-                            href={api.reportDownloadUrl(trip._id)}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ alignSelf: 'center', whiteSpace: 'nowrap' }}
-                          >
-                            Single Trip
-                          </a>
                         </div>
                       ))}
                     </div>
@@ -395,6 +400,7 @@ export default function DriverDetail() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                     <thead>
                       <tr>
+                        <th style={{ width: '4%', textAlign: 'center', padding: '8px 6px', border: '1px solid #d0d7de' }}>Select</th>
                         <th style={{ width: '5%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>S.No</th>
                         <th style={{ width: '15%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Location</th>
                         <th style={{ width: '12%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Date</th>
@@ -402,16 +408,29 @@ export default function DriverDetail() {
                         <th style={{ width: '12%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Unloading Date</th>
                         <th style={{ width: '15%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>New Unloading Location</th>
                         <th style={{ width: '12%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>New Unloading Date</th>
-                        <th style={{ width: '8%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Corp. KM</th>
                         <th style={{ width: '10%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Driver KM</th>
                         <th style={{ width: '15%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip balance</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(salary.trips || []).length === 0 ? (
-                        <tr><td colSpan="10" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No closed trips for this month.</td></tr>
+                        <tr><td colSpan="10" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No trips for this month.</td></tr>
                       ) : (salary.trips || []).map((trip, index) => (
                         <tr key={trip._id || index}>
+                          <td style={{ textAlign: 'center', padding: '8px 6px', border: '1px solid #d0d7de' }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedSalaryTrips.includes(trip._id)}
+                              disabled={trip.status === 'closed'}
+                              onChange={() => setSelectedSalaryTrips((current) => (
+                                current.includes(trip._id)
+                                  ? current.filter((id) => id !== trip._id)
+                                  : [...current, trip._id]
+                              ))}
+                              aria-label={`Select trip ${trip._id}`}
+                              style={{ width: 'auto' }}
+                            />
+                          </td>
                           <td style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>{index + 1}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingLocation || '-'}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}</td>
@@ -419,7 +438,6 @@ export default function DriverDetail() {
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.isDiverted ? trip.divertUnloadingLocation || '-' : '-'}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.isDiverted && trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.corpKm != null ? `${Math.round(trip.corpKm)} km` : '-'}</td>
                           <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.corporationKm != null ? `${Math.round(trip.corporationKm)} km` : '-'}</td>
                           <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.balance ?? 0}</td>
                         </tr>
@@ -430,6 +448,16 @@ export default function DriverDetail() {
                       </tr>
                     </tbody>
                   </table>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={!selectedSalaryTrips.length}
+                      onClick={closeSelectedSalaryTrips}
+                    >
+                      Confirm Selected Trips
+                    </button>
+                  </div>
                 </div>
                 <div style={{ overflowX: 'auto', marginBottom: 16 }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
@@ -480,9 +508,7 @@ export default function DriverDetail() {
               className="salary-archive-link"
               onClick={() => {
                 setShowArchivedSalary((current) => {
-                  const next = !current;
-                  if (next && !archivedSalaryMonth) setArchivedSalaryMonth(salaryMonth);
-                  return next;
+                  return !current;
                 });
               }}
             >

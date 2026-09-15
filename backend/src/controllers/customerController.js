@@ -7,7 +7,7 @@ const path = require('path');
 const { ROLES } = require('../config/constants');
 const { buildDriverMonthlySummaryPdf } = require('../utils/pdfGenerator');
 const Leave = require('../models/Leave');
-const { loadRouteKmGroups, findRouteKm, getCorporationKmDetails } = require('../utils/corporationKm');
+const { findRouteKm, getCorporationKmDetails } = require('../utils/corporationKm');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -27,7 +27,7 @@ function loadRouteKmTable() {
 
 function getSalaryAvailability(month, now = new Date()) {
   const [year, monthNumber] = month.split('-').map(Number);
-  const availableOn = new Date(year, monthNumber, 5);
+  const availableOn = new Date(year, monthNumber, 7);
   return { available: now >= availableOn, availableOn };
 }
 
@@ -55,7 +55,7 @@ function getSalaryMonthBounds(month) {
 }
 
 function getClosedTripsMonthFilter(monthStart, monthEnd) {
-  return { status: 'closed' };
+  return { status: { $in: ['pending_close', 'closed'] } };
 }
 
 function getTripClosedDate(trip) {
@@ -75,16 +75,16 @@ function isTripInSalaryMonth(trip, monthStart, monthEnd) {
   return closedDate && closedDate >= monthStart && closedDate < monthEnd;
 }
 
-function sumRouteTableKm(trips, routeKmTable, excludeShortTrips = false, routeKmGroups = loadRouteKmGroups()) {
+function sumRouteTableKm(trips, routeKmTable, excludeShortTrips = false) {
   return trips.reduce((total, trip) => {
-    const routeKm = getTripCorporationKm(trip, routeKmTable, routeKmGroups);
+    const routeKm = getTripCorporationKm(trip, routeKmTable);
     if (!Number.isFinite(routeKm) || (excludeShortTrips && routeKm < 200)) return total;
     return total + routeKm;
   }, 0);
 }
 
-function getTripCorporationKm(trip, routeKmTable, routeKmGroups = loadRouteKmGroups()) {
-  return getCorporationKmDetails(trip, routeKmTable, routeKmGroups).value;
+function getTripCorporationKm(trip, routeKmTable) {
+  return getCorporationKmDetails(trip, routeKmTable).value;
 }
 
 function calculateSpecialTripCharges(trips, routeKmTable) {
@@ -167,15 +167,14 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
         'loadingLocation loadingDate unloadingLocation unloadingDate fillingOrderLocation turnDate closedAt ' +
         'dieselEntries.filledAt settlement.balance settlement.totalKm ' +
         'driverAdvances loadingExpense unloadingExpense rtoEntries otherExpenses manualKm ' +
-        'isDiverted divertUnloadingLocation divertDate'
+        'isDiverted divertUnloadingLocation divertDate divertKm'
       )
       .sort('closedAt loadingDate')
     : [];
   const monthTrips = trips.filter((trip) => isTripInSalaryMonth(trip, monthStart, monthEnd));
   const routeKmTable = loadRouteKmTable();
-  const routeKmGroups = loadRouteKmGroups();
   const tripsWithBalances = monthTrips.map((trip) => {
-    const corporationKmDetails = getCorporationKmDetails(trip, routeKmTable, routeKmGroups);
+    const corporationKmDetails = getCorporationKmDetails(trip, routeKmTable);
     return {
       ...trip.toObject(),
       balance: trip.settlement?.balance != null ? Number(trip.settlement.balance) : calculateTripBalance(trip),
@@ -184,8 +183,8 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
       corporationKmSource: corporationKmDetails.source,
     };
   });
-  const corporationKm = sumRouteTableKm(tripsWithBalances, routeKmTable, Number(driver.minKmCharges || 0) > 0, routeKmGroups);
-  const manualKmTotal = tripsWithBalances.reduce((total, trip) => total + Number(trip.manualKm || 0), 0);
+  const corporationKm = sumRouteTableKm(tripsWithBalances, routeKmTable, Number(driver.minKmCharges || 0) > 0);
+  const manualKmTotal = 0;
   const totalDriverKm = corporationKm + manualKmTotal;
   const { specialTripCount, specialTripCharges } = calculateSpecialTripCharges(tripsWithBalances, routeKmTable);
   const totalBalance = sumTripBalances(tripsWithBalances);
@@ -316,8 +315,16 @@ async function downloadDriverMonthlySummary(req, res) {
     summary,
     trips: summary.trips,
   });
+  const cleanFilenamePart = (value) => String(value || 'Unknown').trim()
+    .replace(/[\\/:*?"<>|]+/g, '-')
+    .replace(/\s+/g, '-');
+  const monthlyFilename = [
+    cleanFilenamePart(customer?.companyName),
+    cleanFilenamePart(summary.driver?.name || summary.driver?.username),
+    cleanFilenamePart(formatMonth(month)),
+  ].join('_');
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `inline; filename="monthly-summary-${userId}-${month}.pdf"`);
+  res.setHeader('Content-Disposition', `inline; filename="${monthlyFilename}.pdf"`);
   res.send(pdfBuffer);
 }
 
@@ -549,7 +556,6 @@ module.exports = {
   getTripClosedDate,
   isTripInSalaryMonth,
   loadRouteKmTable,
-  loadRouteKmGroups,
   getTripCorporationKm,
   sumRouteTableKm,
   calculateSpecialTripCharges,

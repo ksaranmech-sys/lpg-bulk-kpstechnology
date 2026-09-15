@@ -79,18 +79,18 @@ test('shows editable manual loading details below driver advance', async () => {
   expect(loadingForm.querySelector('button').textContent).toBe('Save loading details');
 
   const turnHeadings = Array.from(container.querySelectorAll('h3')).map((heading) => heading.textContent);
-  expect(turnHeadings.indexOf('L Turn Added')).toBeGreaterThan(
+  expect(turnHeadings.indexOf('Load Turn Added')).toBeGreaterThan(
     turnHeadings.indexOf('Unloading Expenses Added')
   );
-  expect(turnHeadings.indexOf('L Turn Added')).toBeGreaterThan(
+  expect(turnHeadings.indexOf('Load Turn Added')).toBeGreaterThan(
     turnHeadings.indexOf('Other Expenses Added')
   );
   const turnSummary = Array.from(container.querySelectorAll('.card')).find(
-    (card) => card.querySelector('h3')?.textContent === 'L Turn Added'
+    (card) => card.querySelector('h3')?.textContent === 'Load Turn Added'
   );
   await act(async () => turnSummary.querySelector('button').click());
   const turnForm = Array.from(container.querySelectorAll('form')).find(
-    (form) => form.querySelector('h3')?.textContent === 'L Turn'
+    (form) => form.querySelector('h3')?.textContent === 'Load Turn'
   );
   expect(turnForm.querySelector('input[type="number"]').value).toBe('7');
   expect(turnForm.querySelector('input[type="date"]').value).toBe('2026-09-13');
@@ -107,11 +107,11 @@ test('shows editable manual loading details below driver advance', async () => {
   expect(api.closeTrip).toHaveBeenCalledWith('trip-1');
 
   const unTurnHeadings = Array.from(container.querySelectorAll('h3')).map((heading) => heading.textContent);
-  expect(unTurnHeadings.indexOf('UN Turn Added')).toBeLessThan(
+  expect(unTurnHeadings.indexOf('Unload Turn Added')).toBeLessThan(
     unTurnHeadings.indexOf('Unloading Details Added')
   );
   const unTurnSummary = Array.from(container.querySelectorAll('.card')).find(
-    (card) => card.querySelector('h3')?.textContent === 'UN Turn Added'
+    (card) => card.querySelector('h3')?.textContent === 'Unload Turn Added'
   );
   expect(unTurnSummary.textContent).toContain('Turn 8');
   window.confirm = jest.fn(() => true);
@@ -145,7 +145,7 @@ test('shows editable manual loading details below driver advance', async () => {
   const dieselConfirmation = dieselForm.querySelector('input[type="checkbox"]');
   const addDieselButton = dieselForm.querySelector('button[type="submit"]');
   expect(dieselConfirmation.parentElement.classList.contains('tank-fill-control')).toBe(true);
-  expect(dieselConfirmation.parentElement.textContent).toContain('Loading Point Tank Fill');
+  expect(dieselConfirmation.parentElement.textContent).toContain('Tank Fill');
   expect(dieselConfirmation.checked).toBe(false);
   expect(addDieselButton.disabled).toBe(false);
   await act(async () => dieselConfirmation.click());

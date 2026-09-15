@@ -3,7 +3,7 @@
  *
  * How the business actually works (per spec):
  * - A trip "opens" when a diesel fill happens at the loading location.
- * - It "closes" the moment diesel is filled again at the loading location for
+ * - It becomes ready to close when diesel is filled again at the loading location for
  *   the NEXT trip. So consecutive trips share a diesel-fill boundary.
  * - Diesel consumed DURING a trip is not simply sum(dieselEntries) for that
  *   trip, because the trip's first fill is really "topping off" left over
@@ -66,8 +66,11 @@ function computeTripSettlement(trip, nextTrip) {
   const remainingFills = dieselEntries.slice(1); // everything except the first fill
   const nextTripFirstFill = nextTrip.dieselEntries[0];
 
-  const hasOdometerData = firstFill.odometerKm != null && nextTripFirstFill.odometerKm != null;
-  const totalKm = hasOdometerData ? nextTripFirstFill.odometerKm - firstFill.odometerKm : null;
+  const hasTankFillMarkers = firstFill.loadingPointTankFill === true && nextTripFirstFill.loadingPointTankFill === true;
+  const currentFirstOdometerKm = Number(firstFill.odometerKm);
+  const nextFirstOdometerKm = Number(nextTripFirstFill.odometerKm);
+  const hasOdometerData = hasTankFillMarkers && Number.isFinite(currentFirstOdometerKm) && Number.isFinite(nextFirstOdometerKm);
+  const totalKm = hasOdometerData ? nextFirstOdometerKm - currentFirstOdometerKm : null;
 
   if (totalKm != null && totalKm < 0) {
     return {

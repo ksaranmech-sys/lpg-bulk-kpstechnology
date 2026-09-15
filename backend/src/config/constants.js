@@ -29,6 +29,7 @@ const ROLES = {
 
 const TRIP_STATUS = {
   OPEN: 'open',
+  PENDING_CLOSE: 'pending_close',
   CLOSED: 'closed',
 };
 

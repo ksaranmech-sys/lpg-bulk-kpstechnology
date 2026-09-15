@@ -2,7 +2,7 @@ const express = require('express');
 const { ROLES } = require('../config/constants');
 const ctrl = require('../controllers/tripController');
 const { requireAuth } = require('../middleware/auth');
-const { scopeToTrip, scopeToOpenTripForUser } = require('../middleware/tripAccess');
+const { scopeToTrip, scopeToOpenTripForUser, scopeToTripClose } = require('../middleware/tripAccess');
 const { upload } = require('../middleware/upload');
 
 const router = express.Router();
@@ -51,7 +51,7 @@ router.patch('/:tripId/unloading', scopeToOpenTripForUser, ctrl.setUnloading);
 router.patch('/:tripId/turn', scopeToOpenTripForUser, ctrl.setTurnDetails);
 router.patch('/:tripId/unloading-turn', scopeToOpenTripForUser, ctrl.setUnloadingTurnDetails);
 router.delete('/:tripId/unloading-turn', scopeToOpenTripForUser, ctrl.deleteUnloadingTurnDetails);
-router.post('/:tripId/close', scopeToOpenTripForUser, ctrl.closeTrip);
+router.post('/:tripId/close', scopeToTripClose, ctrl.closeTrip);
 router.post('/:tripId/send-report', scopeToTrip, ctrl.sendReport);
 router.get('/:tripId/report', scopeToTrip, ctrl.downloadReport);
 

@@ -30,6 +30,7 @@ const dieselEntrySchema = new mongoose.Schema(
     ratePerLitre: { type: Number, required: true, min: 0 },
     amount: { type: Number, required: true, min: 0 }, // volumeLitres * ratePerLitre, computed
     paymentMethod: { type: String, enum: ['diesel_card', 'cash'], default: 'diesel_card' },
+    loadingPointTankFill: { type: Boolean, default: false },
     odometerKm: { type: Number, default: null },
     filledAt: { type: Date, required: true, default: Date.now },
     photo: photoSchema,

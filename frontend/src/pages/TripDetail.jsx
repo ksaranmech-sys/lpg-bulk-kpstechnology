@@ -6,9 +6,7 @@ import Layout from '../components/Layout';
 export default function TripDetail() {
   const { tripId } = useParams();
   const [trip, setTrip] = useState(null);
-  const [meta, setMeta] = useState({ loadingLocations: [], unloadingLocations: [], routeKmTable: [], routeKmGroups: { group1: [], group2: [] } });
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState('');
+  const [meta, setMeta] = useState({ loadingLocations: [], unloadingLocations: [], routeKmTable: [] });
   const [editingLoadingDetails, setEditingLoadingDetails] = useState(false);
   const [editingUnloadingDetails, setEditingUnloadingDetails] = useState(false);
   const [editingUnloadingExpense, setEditingUnloadingExpense] = useState(false);
@@ -22,7 +20,7 @@ export default function TripDetail() {
 
   if (!trip) return <Layout><p>Loading...</p></Layout>;
 
-  const isClosed = trip.status === 'closed';
+  const isTripLocked = trip.status !== 'open';
   const hasLoadingDetails = Boolean(trip.loadingLocation && trip.loadingDate);
   const hasLoadingExpense = Number(trip.loadingExpense) > 0;
   const hasUnloadingDetails = Boolean(trip.unloadingLocation && trip.unloadingDate);
@@ -51,22 +49,7 @@ export default function TripDetail() {
         </p>
       </div>
 
-      <fieldset style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
-        {isClosed && trip.settlement?.calculatedAt && (
-          <SettlementCard trip={trip} onSend={async () => {
-            setBusy(true);
-            setMessage('');
-            try {
-              await api.sendReport(tripId);
-              setMessage('Report emailed to company (and customer) successfully.');
-            } catch (err) {
-              setMessage(err.response?.data?.error || 'Failed to send report');
-            } finally {
-              setBusy(false);
-            }
-          }} busy={busy} />
-        )}
-
+      <fieldset disabled={isTripLocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <>
         {(trip.driverAdvances || []).length > 0 && (
           <div className="card">
@@ -150,33 +133,6 @@ export default function TripDetail() {
         calculatedCorporationKm={trip.corporationKm}
       />
     </Layout>
-  );
-}
-
-function SettlementCard({ trip, onSend, busy }) {
-  const s = trip.settlement;
-  return (
-    <div>
-      <h3 className="section-title">Settlement Summary</h3>
-      <table>
-        <tbody>
-          <tr><td>Total Diesel</td><td>{s.totalDieselLitres} L (Rs {s.totalDieselCost})</td></tr>
-          <tr><td>Total KM Run</td><td>{s.totalKm} km</td></tr>
-          <tr><td>Mileage</td><td>{s.mileageKmPerLitre ?? '-'} km/L</td></tr>
-          <tr><td>Total Expense (excl. diesel)</td><td>Rs {s.totalExpense}</td></tr>
-          <tr><td>Total Advance</td><td>Rs {s.totalAdvance}</td></tr>
-          <tr><td><strong>Balance</strong></td><td><strong>Rs {s.balance}</strong></td></tr>
-        </tbody>
-      </table>
-      <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
-        <a className="btn secondary" href={api.reportDownloadUrl(trip._id)} target="_blank" rel="noreferrer">
-          Print / View PDF
-        </a>
-        <button className="btn" onClick={onSend} disabled={busy}>
-          {busy ? 'Sending...' : 'Email Report to Company'}
-        </button>
-      </div>
-    </div>
   );
 }
 
@@ -423,7 +379,7 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
 
   return (
     <form className="card" onSubmit={submit}>
-      <h3 className="section-title">L Turn</h3>
+      <h3 className="section-title">Load Turn</h3>
       {error && <div className="error-text">{error}</div>}
       <div className="grid-2">
         <div className="field">
@@ -453,13 +409,21 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginTop: 12 }}>
-        <div />
-        <button className="btn">Trip close</button>
+        <div style={{ gridColumn: 2, gridRow: 1 }}>
+          <button className="btn">Trip close</button>
+        </div>
+        <div style={{ gridColumn: 1, gridRow: 1 }}>
+          {manualKm !== '' && (
+            <button type="button" className="btn secondary" onClick={() => setShowManualKmModal(true)}>
+              Edit Manual KM
+            </button>
+          )}
+        </div>
       </div>
       {showManualKmModal && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="manual-km-title">
           <div className="card modal-panel" style={{ width: '100%', maxWidth: 420, margin: 20 }}>
-            <h3 id="manual-km-title" className="section-title">Enter Manual KM(one way)</h3>
+            <h3 id="manual-km-title" className="section-title">Enter Manual KM(Round-trip)</h3>
             <div className="grid-2">
               <div className="field">
                 <label>Loading Location</label>
@@ -494,7 +458,7 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
 function TurnDetailsSummary({ trip, onEdit }) {
   return (
     <div className="card">
-      <h3 className="section-title">L Turn Added</h3>
+      <h3 className="section-title">Load Turn Added</h3>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
         <p style={{ margin: 0 }}>
           Turn {trip.turnNumber} • {new Date(trip.turnDate).toLocaleDateString('en-IN')}
@@ -519,7 +483,7 @@ function UnloadingTurnForm({ tripId, trip, onSaved }) {
 
   return (
     <form className="card" onSubmit={submit}>
-      <h3 className="section-title">UN Turn</h3>
+      <h3 className="section-title">Unload Turn</h3>
       <div className="grid-2">
         <div className="field">
           <label>Turn Number</label>
@@ -531,7 +495,7 @@ function UnloadingTurnForm({ tripId, trip, onSaved }) {
         </div>
       </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button className="btn">Add UN Turn</button>
+        <button className="btn">Add Unload Turn</button>
       </div>
     </form>
   );
@@ -539,14 +503,14 @@ function UnloadingTurnForm({ tripId, trip, onSaved }) {
 
 function UnloadingTurnSummary({ trip, onDeleted }) {
   async function deleteTurn() {
-    if (!window.confirm('Delete this UN Turn?')) return;
+    if (!window.confirm('Delete this Unload Turn?')) return;
     await api.deleteUnloadingTurnDetails(trip._id);
     onDeleted();
   }
 
   return (
     <div className="card">
-      <h3 className="section-title">UN Turn Added</h3>
+      <h3 className="section-title">Unload Turn Added</h3>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
         <p style={{ margin: 0 }}>
           Turn {trip.unTurnNumber} • {new Date(trip.unTurnDate).toLocaleDateString('en-IN')}
@@ -577,7 +541,7 @@ function DieselForm({
     const gps = await api.getCurrentPosition();
     await api.addDieselEntry(
       tripId,
-      { volumeLitres, totalValue, paymentMethod, odometerKm: odometerKm || undefined, filledAt: filledAt || undefined, lat: gps?.lat, lng: gps?.lng },
+      { volumeLitres, totalValue, paymentMethod, loadingPointTankFill: dieselFilledConfirmed, odometerKm: odometerKm || undefined, filledAt: filledAt || undefined, lat: gps?.lat, lng: gps?.lng },
       photo
     );
     setVolume(''); setTotalValue(''); setPaymentMethod('diesel_card'); setOdo(''); setFilledAt(''); setPhoto(null); setDieselFilledConfirmed(false);
@@ -612,7 +576,7 @@ function DieselForm({
             checked={dieselFilledConfirmed}
             onChange={(e) => setDieselFilledConfirmed(e.target.checked)}
           />
-          Loading Point Tank Fill
+          Tank Fill
         </label>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginTop: 12 }}>
@@ -632,6 +596,8 @@ function DieselSummary({ trip, tripId, onSaved }) {
   const [volume, setVolume] = useState('');
   const [totalValue, setTotalValue] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('diesel_card');
+  const [loadingPointTankFill, setLoadingPointTankFill] = useState(false);
+  const [odometerKm, setOdometerKm] = useState('');
   const [date, setDate] = useState('');
   const [error, setError] = useState('');
 
@@ -640,6 +606,8 @@ function DieselSummary({ trip, tripId, onSaved }) {
     setVolume(String(entry.volumeLitres));
     setTotalValue(String(entry.amount));
     setPaymentMethod(entry.paymentMethod || 'diesel_card');
+    setLoadingPointTankFill(Boolean(entry.loadingPointTankFill));
+    setOdometerKm(entry.odometerKm == null ? '' : String(entry.odometerKm));
     setDate(entry.filledAt ? new Date(entry.filledAt).toISOString().slice(0, 10) : '');
     setError('');
   }
@@ -651,6 +619,8 @@ function DieselSummary({ trip, tripId, onSaved }) {
         volumeLitres: Number(volume),
         totalValue: Number(totalValue),
         paymentMethod,
+        loadingPointTankFill,
+        odometerKm: odometerKm === '' ? undefined : Number(odometerKm),
         filledAt: date || undefined,
       });
       setEditingIndex(null);
@@ -668,7 +638,7 @@ function DieselSummary({ trip, tripId, onSaved }) {
         <p style={{ margin: 0, color: '#666' }}>No diesel fills added yet.</p>
       ) : (
         <table>
-          <thead><tr><th>Volume (L)</th><th>Total Value</th><th>Date</th><th>Payment</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
+          <thead><tr><th>Volume (L)</th><th>Total Value</th><th>Odometer KM</th><th>Date</th><th>Payment</th><th>Tank Fill</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
           <tbody>
             {entries.map((entry, index) => (
               <tr key={index}>
@@ -676,12 +646,19 @@ function DieselSummary({ trip, tripId, onSaved }) {
                   <>
                     <td><input type="number" value={volume} onChange={(e) => setVolume(e.target.value)} min="0" /></td>
                     <td><input type="number" value={totalValue} onChange={(e) => setTotalValue(e.target.value)} min="0" /></td>
+                    <td><input type="number" value={odometerKm} onChange={(e) => setOdometerKm(e.target.value)} min="0" /></td>
                     <td><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></td>
                     <td style={{ textAlign: 'right' }}>
                       <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
                         <option value="diesel_card">Diesel Card</option>
                         <option value="cash">Cash</option>
                       </select>
+                    </td>
+                    <td>
+                      <label className="tank-fill-control" style={{ justifyContent: 'flex-start' }}>
+                        <input type="checkbox" checked={loadingPointTankFill} onChange={(e) => setLoadingPointTankFill(e.target.checked)} />
+                        Tank Fill
+                      </label>
                     </td>
                     <td>
                       <button type="button" className="btn" onClick={() => saveEdit(index)}>Save</button>{' '}
@@ -692,8 +669,10 @@ function DieselSummary({ trip, tripId, onSaved }) {
                   <>
                     <td>{entry.volumeLitres}</td>
                     <td>Rs {entry.amount}</td>
+                    <td>{entry.odometerKm ?? '-'}</td>
                     <td>{new Date(entry.filledAt).toLocaleDateString('en-IN')}</td>
                     <td>{entry.paymentMethod === 'cash' ? 'Cash' : 'Diesel Card'}</td>
+                    <td>{entry.loadingPointTankFill ? '✓' : '-'}</td>
                     <td style={{ textAlign: 'right' }}>
                       <button type="button" className="btn secondary" onClick={() => startEdit(index, entry)}>Edit</button>{' '}
                       <button
@@ -1160,7 +1139,9 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
     .filter((entry) => entry.paymentMethod === 'cash')
     .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
   const totalDiesel = dieselEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-  const totalDieselLitres = dieselEntries.reduce((sum, entry) => sum + Number(entry.volumeLitres || 0), 0);
+  const totalDieselLitres = trip.settlement?.totalDieselLitres != null
+    ? Number(trip.settlement.totalDieselLitres)
+    : null;
   const loadingExpenseTotal = Number(trip.loadingExpense || 0);
   const rtoEntries = trip.rtoEntries || [];
   const rtoExpenseTotal = rtoEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
@@ -1264,6 +1245,7 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
           .trip-details-print-area table {
             width: 100% !important;
             border-collapse: collapse !important;
+            table-layout: fixed !important;
             font-size: 9pt !important;
           }
           .trip-details-print-area th,
@@ -1310,61 +1292,49 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
 
         <div className="summary-grid" style={{ display: 'grid', gap: 16 }}>
           <div className="card-section" style={{ border: '1px solid #dfeade', borderRadius: 10, overflow: 'hidden' }}>
-            <h3 style={{ margin: 0, padding: '10px 12px', background: '#f7faf7', borderBottom: '1px solid #dfeade' }}>Single Trip</h3>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table className="trip-overview-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               <tbody>
                 <tr>
-                  <td style={{ width: '25%', padding: '8px 12px 8px 0', fontWeight: 600 }}>Customer</td>
-                  <td colSpan="3" style={{ width: '75%', padding: '8px 0' }}>{trip.customer?.companyName || 'Unknown'}</td>
+                  <td style={{ width: '10%', padding: '8px 6px 8px 12px', fontWeight: 600 }}>Customer</td>
+                  <td style={{ width: '40%', padding: '8px 6px' }}>{trip.customer?.companyName || 'Unknown'}</td>
+                  <td style={{ width: '32%', padding: '8px 6px', fontWeight: 600, textAlign: 'right' }}>Driver</td>
+                  <td style={{ width: '18%', padding: '8px 12px 8px 6px', textAlign: 'right' }}>{trip.driverName || '-'}</td>
                 </tr>
                 <tr>
-                  <td style={{ width: '25%', padding: '8px 12px 8px 0', fontWeight: 600 }}>Loading Location</td>
-                  <td style={{ width: '25%', padding: '8px 12px 8px 0' }}>{trip.loadingLocation || '-'}</td>
-                  <td style={{ width: '25%', padding: '8px 12px 8px 0', fontWeight: 600 }}>Loading Date</td>
-                  <td style={{ width: '25%', padding: '8px 0' }}>{trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}</td>
+                  <td style={{ width: '10%', padding: '8px 6px 8px 12px', fontWeight: 600 }}>Trip Route</td>
+                  <td colSpan="3" style={{ width: '90%', padding: '8px 6px' }}>
+                    {trip.loadingLocation || '-'} ({trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'})
+                    {' \u2192 '}{trip.unloadingLocation || '-'} ({trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'})
+                    {trip.isDiverted && ` \u2192 ${trip.divertUnloadingLocation || '-'} (${trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'})`}
+                  </td>
                 </tr>
-                <tr>
-                  <td style={{ width: '25%', padding: '8px 12px 8px 0', fontWeight: 600 }}>Unloading Location</td>
-                  <td style={{ width: '25%', padding: '8px 12px 8px 0' }}>{trip.unloadingLocation || '-'}</td>
-                  <td style={{ width: '25%', padding: '8px 12px 8px 0', fontWeight: 600 }}>Unloading Date</td>
-                  <td style={{ width: '25%', padding: '8px 0' }}>{trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}</td>
-                </tr>
-                {trip.isDiverted && (
-                  <tr>
-                    <td style={{ width: '25%', padding: '8px 12px 8px 0', fontWeight: 600 }}>New Unloading Location</td>
-                    <td style={{ width: '25%', padding: '8px 12px 8px 0' }}>{trip.divertUnloadingLocation ? `${trip.divertUnloadingLocation} (Divert)` : '-'}</td>
-                    <td style={{ width: '25%', padding: '8px 12px 8px 0', fontWeight: 600 }}>New Unloading Date</td>
-                    <td style={{ width: '25%', padding: '8px 0' }}>{trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'}</td>
-                  </tr>
-                )}
                 <tr>
                   <td colSpan="4" style={{ padding: '10px 0 8px' }}>
-                    <table className="trip-km-table" style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 8 }}>
+                    <table className="trip-km-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginBottom: 8 }}>
                       <thead>
                         <tr>
-                          <th style={{ textAlign: 'left', padding: '8px 12px', border: '1px solid #1f4d2b' }}>Odometer KM</th>
-                          <th style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #1f4d2b' }}>KM</th>
+                          <th style={{ textAlign: 'left', padding: '8px 12px', border: '1px solid #1f4d2b' }}>Trip KM</th>
+                          <th style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #1f4d2b' }}>Diesel for Trip</th>
                           <th style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #1f4d2b' }}>Mileage</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr>
-                          <td style={{ padding: '8px 12px', border: '1px solid #1f4d2b', fontWeight: 600 }}>Odometer KM</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #1f4d2b', textAlign: 'right' }}>{trip.odometerKm != null ? `${trip.odometerKm} km` : 'NA'}</td>
+                          <td style={{ padding: '8px 12px', border: '1px solid #1f4d2b', textAlign: 'right' }}>{totalDieselLitres > 0 ? `${totalDieselLitres} L` : 'NA'}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #1f4d2b', textAlign: 'right' }}>{formatMileage(trip.odometerKm, totalDieselLitres)}</td>
                         </tr>
                       </tbody>
                     </table>
-                    <table className="trip-km-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <table className="trip-km-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                       <thead>
                         <tr>
-                          <th style={{ textAlign: 'left', padding: '8px 12px', border: '1px solid #1f4d2b' }}>Remaining KM Type</th>
+                          <th style={{ textAlign: 'left', padding: '8px 12px', border: '1px solid #1f4d2b' }}>KM Type</th>
                           <th style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #1f4d2b' }}>KM</th>
                         </tr>
                       </thead>
                       <tbody>
                         {[
-                          ['Corp. KM', corporationKm != null ? `${corporationKm} km` : 'NA'],
                           [`Manual KM (${manualKmRoute})`, trip.manualKm != null && trip.manualKm !== '' ? `${trip.manualKm} km` : 'NA'],
                           ['Driver KM', calculatedCorporationKm != null ? `${calculatedCorporationKm} km` : 'NA'],
                         ].map(([label, value]) => (
@@ -1383,7 +1353,7 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
 
           <div className="card-section" style={{ border: '1px solid #dfeade', borderRadius: 10, overflow: 'hidden' }}>
             <h3 style={{ margin: 0, padding: '10px 12px', background: '#f7faf7', borderBottom: '1px solid #dfeade' }}>Driver Advance Details</h3>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table className="trip-report-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', padding: '8px 12px 8px 0' }}>Date</th>
@@ -1415,18 +1385,20 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
 
           <div className="card-section" style={{ border: '1px solid #dfeade', borderRadius: 10, overflow: 'hidden' }}>
             <h3 style={{ margin: 0, padding: '10px 12px', background: '#f7faf7', borderBottom: '1px solid #dfeade' }}>Diesel Filled Details</h3>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table className="trip-report-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               <thead>
                 <tr>
                   <th style={{ textAlign: 'left', padding: '8px 12px 8px 0' }}>Date</th>
                   <th style={{ textAlign: 'center', padding: '8px 12px 8px 0' }}>Purchase Type</th>
+                  <th style={{ textAlign: 'right', padding: '8px 12px 8px 0' }}>Odometer KM</th>
+                  <th style={{ textAlign: 'center', padding: '8px 12px 8px 0' }}>Tank Fill</th>
                   <th style={{ textAlign: 'right', padding: '8px 0 8px 12px' }}>Amount</th>
                 </tr>
               </thead>
               <tbody>
                 {dieselEntries.length === 0 ? (
                   <tr>
-                    <td colSpan="3" style={{ padding: '8px 0', color: '#666' }}>No diesel entries added yet.</td>
+                    <td colSpan="5" style={{ padding: '8px 0', color: '#666' }}>No diesel entries added yet.</td>
                   </tr>
                 ) : (
                   dieselEntries.map((entry, index) => (
@@ -1437,6 +1409,8 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
                       <td style={{ padding: '8px 12px 8px 0', textAlign: 'center' }}>
                         {entry.paymentMethod === 'cash' ? 'Cash' : 'Diesel Card'}
                       </td>
+                      <td style={{ padding: '8px 12px 8px 0', textAlign: 'right' }}>{entry.odometerKm ?? '-'}</td>
+                      <td style={{ padding: '8px 12px 8px 0', textAlign: 'center' }}>{entry.loadingPointTankFill ? '✓' : '-'}</td>
                       <td style={{ padding: '8px 0', textAlign: 'right' }}>Rs {Number(entry.amount || 0)}</td>
                     </tr>
                   ))
@@ -1444,15 +1418,21 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
                 <tr style={{ borderTop: '1px solid #dfeade' }}>
                   <td style={{ fontWeight: 700, padding: '12px 12px 0 0' }}>Diesel Card</td>
                   <td style={{ fontWeight: 700, padding: '12px 12px 0 0' }}> </td>
+                  <td style={{ fontWeight: 700, padding: '12px 12px 0 0' }}> </td>
+                  <td style={{ fontWeight: 700, padding: '12px 12px 0 0' }}> </td>
                   <td style={{ fontWeight: 700, padding: '12px 0 0 0', textAlign: 'right' }}>Rs {dieselCardTotal}</td>
                 </tr>
                 <tr>
                   <td style={{ fontWeight: 700, padding: '8px 12px 0 0' }}>Cash</td>
                   <td style={{ fontWeight: 700, padding: '8px 12px 0 0' }}> </td>
+                  <td style={{ fontWeight: 700, padding: '8px 12px 0 0' }}> </td>
+                  <td style={{ fontWeight: 700, padding: '8px 12px 0 0' }}> </td>
                   <td style={{ fontWeight: 700, padding: '8px 0 0 0', textAlign: 'right' }}>Rs {dieselCashTotal}</td>
                 </tr>
                 <tr>
                   <td style={{ fontWeight: 700, padding: '8px 12px 0 0' }}>Total</td>
+                  <td style={{ fontWeight: 700, padding: '8px 12px 0 0' }}> </td>
+                  <td style={{ fontWeight: 700, padding: '8px 12px 0 0' }}> </td>
                   <td style={{ fontWeight: 700, padding: '8px 12px 0 0' }}> </td>
                   <td style={{ fontWeight: 700, padding: '8px 0 0 0', textAlign: 'right' }}>Rs {totalDiesel}</td>
                 </tr>
@@ -1462,78 +1442,68 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
 
           <div className="card-section" style={{ border: '1px solid #dfeade', borderRadius: 10, overflow: 'hidden' }}>
             <h3 style={{ margin: 0, padding: '10px 12px', background: '#f7faf7', borderBottom: '1px solid #dfeade' }}>Expenses</h3>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table className="trip-expenses-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               <tbody>
                 <tr>
                   <td colSpan="2" style={{ padding: '8px 12px', fontWeight: 700, background: '#f7faf7' }}>Loading Expenses</td>
-                </tr>
-                <tr>
-                  <td style={{ padding: '8px 12px 8px 0' }}>{trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}</td>
-                  <td style={{ padding: '8px 0', textAlign: 'right' }}>Rs {loadingExpenseTotal}</td>
-                </tr>
-                <tr>
-                  <td style={{ padding: '8px 12px 8px 0', fontWeight: 600 }}>Subtotal</td>
-                  <td style={{ padding: '8px 0', fontWeight: 600, textAlign: 'right' }}>Rs {loadingExpenseTotal}</td>
-                </tr>
-
-                <tr>
-                  <td colSpan="2" style={{ padding: '8px 12px', fontWeight: 700, background: '#f7faf7' }}>RTO Expenses</td>
-                </tr>
-                {rtoEntries.length === 0 ? (
-                  <tr>
-                    <td colSpan="2" style={{ padding: '8px 12px', color: '#666' }}>No RTO entries added.</td>
-                  </tr>
-                ) : (
-                  rtoEntries.map((entry, index) => (
-                    <tr key={index}>
-                      <td style={{ padding: '8px 12px 8px 0' }}>{entry.date ? new Date(entry.date).toLocaleDateString('en-IN') : '-'}</td>
-                      <td style={{ padding: '8px 0', textAlign: 'right' }}>Rs {Number(entry.amount || 0)}</td>
-                    </tr>
-                  ))
-                )}
-                <tr>
-                  <td style={{ padding: '8px 12px 8px 0', fontWeight: 600 }}>Subtotal</td>
-                  <td style={{ padding: '8px 0', fontWeight: 600, textAlign: 'right' }}>Rs {rtoExpenseTotal}</td>
-                </tr>
-
-                <tr>
                   <td colSpan="2" style={{ padding: '8px 12px', fontWeight: 700, background: '#f7faf7' }}>Unloading Expenses</td>
                 </tr>
                 <tr>
+                  <td style={{ padding: '8px 12px 8px 0' }}>{trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}</td>
+                  <td style={{ padding: '8px 12px 8px 0', textAlign: 'right' }}>Rs {loadingExpenseTotal}</td>
                   <td style={{ padding: '8px 12px 8px 0' }}>{trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}</td>
                   <td style={{ padding: '8px 0', textAlign: 'right' }}>Rs {unloadingExpenseTotal}</td>
                 </tr>
                 <tr>
                   <td style={{ padding: '8px 12px 8px 0', fontWeight: 600 }}>Subtotal</td>
+                  <td style={{ padding: '8px 12px 8px 0', fontWeight: 600, textAlign: 'right' }}>Rs {loadingExpenseTotal}</td>
+                  <td style={{ padding: '8px 12px 8px 0', fontWeight: 600 }}>Subtotal</td>
                   <td style={{ padding: '8px 0', fontWeight: 600, textAlign: 'right' }}>Rs {unloadingExpenseTotal}</td>
                 </tr>
 
                 <tr>
+                  <td colSpan="2" style={{ padding: '8px 12px', fontWeight: 700, background: '#f7faf7' }}>RTO Expenses</td>
                   <td colSpan="2" style={{ padding: '8px 12px', fontWeight: 700, background: '#f7faf7' }}>Other Expenses</td>
                 </tr>
-                {otherExpenses.length === 0 ? (
-                  <tr>
-                    <td colSpan="2" style={{ padding: '8px 12px', color: '#666' }}>No other expenses added.</td>
-                  </tr>
-                ) : (
-                  otherExpenses.map((entry, index) => (
-                    <tr key={index}>
-                      <td style={{ padding: '8px 12px 8px 0' }}>{entry.date ? new Date(entry.date).toLocaleDateString('en-IN') : '-'}</td>
-                      <td style={{ padding: '8px 0', textAlign: 'right' }}>Rs {Number(entry.amount || 0)}</td>
-                    </tr>
-                  ))
-                )}
                 <tr>
-                  <td style={{ padding: '8px 12px 8px 0', fontWeight: 600 }}>Subtotal</td>
-                  <td style={{ padding: '8px 0', fontWeight: 600, textAlign: 'right' }}>Rs {otherExpenseTotal}</td>
+                  <td colSpan="2" style={{ padding: '0 12px 8px 0', verticalAlign: 'top' }}>
+                    <table className="trip-detail-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                      <tbody>
+                        {rtoEntries.length === 0 ? (
+                          <tr><td colSpan="2" style={{ padding: '8px 0', color: '#666' }}>No RTO entries added.</td></tr>
+                        ) : rtoEntries.map((entry, index) => (
+                          <tr key={index}>
+                            <td style={{ padding: '8px 12px 8px 0' }}>{entry.date ? new Date(entry.date).toLocaleDateString('en-IN') : '-'}</td>
+                            <td style={{ padding: '8px 0', textAlign: 'right' }}>Rs {Number(entry.amount || 0)}</td>
+                          </tr>
+                        ))}
+                        <tr><td style={{ padding: '8px 12px 8px 0', fontWeight: 600 }}>Subtotal</td><td style={{ padding: '8px 0', fontWeight: 600, textAlign: 'right' }}>Rs {rtoExpenseTotal}</td></tr>
+                      </tbody>
+                    </table>
+                  </td>
+                  <td colSpan="2" style={{ padding: '0 0 8px 12px', verticalAlign: 'top' }}>
+                    <table className="trip-detail-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                      <tbody>
+                        {otherExpenses.length === 0 ? (
+                          <tr><td colSpan="2" style={{ padding: '8px 0', color: '#666' }}>No other expenses added.</td></tr>
+                        ) : otherExpenses.map((entry, index) => (
+                          <tr key={index}>
+                            <td style={{ padding: '8px 12px 8px 0' }}>{entry.date ? new Date(entry.date).toLocaleDateString('en-IN') : '-'}</td>
+                            <td style={{ padding: '8px 0', textAlign: 'right' }}>Rs {Number(entry.amount || 0)}</td>
+                          </tr>
+                        ))}
+                        <tr><td style={{ padding: '8px 12px 8px 0', fontWeight: 600 }}>Subtotal</td><td style={{ padding: '8px 0', fontWeight: 600, textAlign: 'right' }}>Rs {otherExpenseTotal}</td></tr>
+                      </tbody>
+                    </table>
+                  </td>
                 </tr>
 
                 <tr style={{ borderTop: '1px solid #dfeade' }}>
-                  <td style={{ fontWeight: 700, padding: '12px 12px 0 0' }}>Total</td>
+                  <td colSpan="3" style={{ fontWeight: 700, padding: '12px 12px 0 0' }}>Total</td>
                   <td style={{ fontWeight: 700, padding: '12px 0 0 0', textAlign: 'right' }}>Rs {totalExpenses}</td>
                 </tr>
                 <tr>
-                  <td style={{ padding: '8px 12px 0 0' }}>
+                  <td colSpan="3" style={{ padding: '8px 12px 0 0' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
                       <span style={{ fontWeight: 800, fontSize: 15, color: '#1f2d1f' }}>Balance</span>
                       <span style={{ fontWeight: 500, color: '#4a5f52', fontSize: 11 }}>(Driver Advance - (Cash Diesel + Expenses Total))</span>
