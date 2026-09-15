@@ -27,7 +27,7 @@ function loadRouteKmTable() {
 
 function getSalaryAvailability(month, now = new Date()) {
   const [year, monthNumber] = month.split('-').map(Number);
-  const availableOn = new Date(year, monthNumber, 7);
+  const availableOn = new Date(year, monthNumber, 25);
   return { available: now >= availableOn, availableOn };
 }
 

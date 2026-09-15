@@ -54,9 +54,9 @@ test('customerController exposes updateVehicleUser endpoint', () => {
   assert.equal(typeof customerController.updateVehicleUser, 'function');
 });
 
-test('monthly salary is available from the 7th of the following month', () => {
-  const unavailable = customerController.getSalaryAvailability('2026-08', new Date(2026, 8, 4));
-  const available = customerController.getSalaryAvailability('2026-08', new Date(2026, 8, 7));
+test('monthly salary is available from the 25th of the following month', () => {
+  const unavailable = customerController.getSalaryAvailability('2026-08', new Date(2026, 8, 24));
+  const available = customerController.getSalaryAvailability('2026-08', new Date(2026, 8, 25));
 
   assert.equal(unavailable.available, false);
   assert.equal(available.available, true);
