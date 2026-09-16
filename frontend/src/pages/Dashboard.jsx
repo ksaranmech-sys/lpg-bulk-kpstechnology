@@ -710,7 +710,9 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, driverUsers.length, salaryMonth]);
 
-  const openTrips = closedTrips.filter((trip) => trip.status === 'open');
+  // Include pending_close trips here too - they must stay visible to the driver/admin
+  // even before the customer admin confirms/closes them via the salary calculation screen.
+  const openTrips = closedTrips.filter((trip) => trip.status !== 'closed');
   const closedTripHistory = closedTrips.filter((trip) => trip.status === 'closed');
   const archivedTrips = closedTripHistory.filter((trip) => !isCurrentOrPreviousMonth(tripHistoryMonthKey(trip)));
   const visibleClosedTrips = showArchivedTrips
@@ -1201,6 +1203,9 @@ export default function Dashboard() {
                   <div key={trip._id} className="list-item" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <Link to={`/trips/${trip._id}`} style={{ flex: 1, color: 'inherit', textDecoration: 'none' }}>
                       <strong>{formatTripRoute(trip)}</strong>
+                      {trip.status === 'pending_close' && (
+                        <div style={{ color: '#666', fontSize: 12, marginTop: 4 }}>Pending customer close</div>
+                      )}
                     </Link>
                     <Link className="btn secondary" to={`/trips/${trip._id}`}>Edit</Link>
                   </div>
