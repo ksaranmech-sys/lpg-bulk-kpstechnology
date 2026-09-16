@@ -67,6 +67,16 @@ export const addAdvance = (tripId, data) => api.post(`/trips/${tripId}/advances`
 export const updateAdvance = (tripId, index, data) => api.patch(`/trips/${tripId}/advances/${index}`, data);
 export const deleteAdvance = (tripId, index) => api.delete(`/trips/${tripId}/advances/${index}`);
 export const setLoadingDetails = (tripId, data) => api.patch(`/trips/${tripId}/loading`, data);
+export const setLoadingDetailsWithPhoto = (tripId, fields, file) => {
+  const fd = new FormData();
+  Object.entries(fields).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== '') fd.append(k, v);
+  });
+  if (file) fd.append('parkingPhoto', file);
+  return api.patch(`/trips/${tripId}/loading`, fd, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
 export const deleteLoadingExpense = (tripId) => api.delete(`/trips/${tripId}/loading-expense`);
 export const setUnloading = (tripId, data) => api.patch(`/trips/${tripId}/unloading`, data);
 export const setTurnDetails = (tripId, data) => api.patch(`/trips/${tripId}/turn`, data);

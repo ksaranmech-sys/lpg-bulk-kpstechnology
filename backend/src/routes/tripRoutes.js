@@ -45,7 +45,7 @@ router.post(
 );
 router.patch('/:tripId/other-expenses/:expenseIndex', scopeToOpenTripForUser, ctrl.updateOtherExpense);
 router.delete('/:tripId/other-expenses/:expenseIndex', scopeToOpenTripForUser, ctrl.deleteOtherExpense);
-router.patch('/:tripId/loading', scopeToOpenTripForUser, ctrl.setLoadingDetails);
+router.patch('/:tripId/loading', scopeToOpenTripForUser, upload.single('parkingPhoto'), ctrl.setLoadingDetails);
 router.delete('/:tripId/loading-expense', scopeToOpenTripForUser, ctrl.deleteLoadingExpense);
 router.patch('/:tripId/unloading', scopeToOpenTripForUser, ctrl.setUnloading);
 router.patch('/:tripId/turn', scopeToOpenTripForUser, ctrl.setTurnDetails);

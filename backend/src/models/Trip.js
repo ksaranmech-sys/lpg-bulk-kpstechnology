@@ -67,6 +67,9 @@ const tripSchema = new mongoose.Schema(
     loadingLocation: { type: String, trim: true },
     loadingDate: { type: Date },
     loadingExpense: { type: Number, default: 0, min: 0 },
+    parkingExpense: { type: Number, default: 0, min: 0 },
+    parkingPhoto: photoSchema,
+    turnExpense: { type: Number, default: 0, min: 0 },
 
     dieselEntries: { type: [dieselEntrySchema], default: [] },
 

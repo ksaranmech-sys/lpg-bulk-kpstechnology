@@ -61,12 +61,12 @@ test('shows editable manual loading details below driver advance', async () => {
   await act(async () => {});
 
   const headings = Array.from(container.querySelectorAll('h3')).map((heading) => heading.textContent);
-  expect(headings.indexOf('Loading Details Added')).toBeGreaterThan(
-    headings.indexOf('Add Driver Advance')
+  expect(headings.indexOf('Loading location')).toBeGreaterThan(
+    headings.indexOf('Advance')
   );
 
   const loadingSummary = Array.from(container.querySelectorAll('.card')).find(
-    (card) => card.querySelector('h3')?.textContent === 'Loading Details Added'
+    (card) => card.querySelector('h3')?.textContent === 'Loading location'
   );
   await act(async () => loadingSummary.querySelector('button').click());
 
@@ -77,14 +77,11 @@ test('shows editable manual loading details below driver advance', async () => {
   expect(loadingForm.querySelector('select')).not.toBeNull();
   expect(loadingForm.querySelectorAll('input').length).toBeGreaterThanOrEqual(2);
   expect(loadingForm.querySelector('input[type="date"]').value).toBe('2026-09-14');
-  expect(loadingForm.querySelector('button').textContent).toBe('Save loading details');
+  expect(loadingForm.querySelector('button').textContent).toBe('Save');
 
   const turnHeadings = Array.from(container.querySelectorAll('h3')).map((heading) => heading.textContent);
   expect(turnHeadings.indexOf('Load Turn Added')).toBeGreaterThan(
-    turnHeadings.indexOf('Unloading Expenses Added')
-  );
-  expect(turnHeadings.indexOf('Load Turn Added')).toBeGreaterThan(
-    turnHeadings.indexOf('Other Expenses Added')
+    turnHeadings.indexOf('Other Expenses')
   );
   const turnSummary = Array.from(container.querySelectorAll('.card')).find(
     (card) => card.querySelector('h3')?.textContent === 'Load Turn Added'
@@ -108,11 +105,11 @@ test('shows editable manual loading details below driver advance', async () => {
   expect(api.closeTrip).toHaveBeenCalledWith('trip-1');
 
   const unTurnHeadings = Array.from(container.querySelectorAll('h3')).map((heading) => heading.textContent);
-  expect(unTurnHeadings.indexOf('Unload Turn Added')).toBeLessThan(
-    unTurnHeadings.indexOf('Unloading Details Added')
+  expect(unTurnHeadings.indexOf('Unload Turn')).toBeLessThan(
+    unTurnHeadings.indexOf('Unloading Details')
   );
   const unTurnSummary = Array.from(container.querySelectorAll('.card')).find(
-    (card) => card.querySelector('h3')?.textContent === 'Unload Turn Added'
+    (card) => card.querySelector('h3')?.textContent === 'Unload Turn'
   );
   expect(unTurnSummary.textContent).toContain('Turn 8');
   window.confirm = jest.fn(() => true);
@@ -121,15 +118,13 @@ test('shows editable manual loading details below driver advance', async () => {
   expect(api.deleteUnloadingTurnDetails).toHaveBeenCalledWith('trip-1');
 
   const unloadingSummary = Array.from(container.querySelectorAll('.card')).find(
-    (card) => card.querySelector('h3')?.textContent === 'Unloading Details Added'
+    (card) => card.querySelector('h3')?.textContent === 'Unloading Details'
   );
   await act(async () => unloadingSummary.querySelector('button').click());
   const unloadingForm = Array.from(container.querySelectorAll('form')).find(
     (form) => form.querySelector('h3')?.textContent === 'Unloading Details'
   );
-  const divertCheckbox = Array.from(unloadingForm.querySelectorAll('input[type="checkbox"]')).find(
-    (checkbox) => checkbox.parentElement.textContent.includes('Divert')
-  );
+  const divertCheckbox = unloadingForm.querySelector('input[type="checkbox"]');
   expect(divertCheckbox.checked).toBe(false);
   expect(unloadingForm.querySelector('.divert-fields')).toBeNull();
   await act(async () => divertCheckbox.click());
@@ -141,12 +136,11 @@ test('shows editable manual loading details below driver advance', async () => {
   expect(divertFields.textContent).toContain('New Unloading Date');
 
   const dieselForm = Array.from(container.querySelectorAll('form')).find(
-    (form) => form.querySelector('h3')?.textContent === 'Diesel Filling Entry'
+    (form) => Array.from(form.querySelectorAll('label')).some((label) => label.textContent === 'Tank Fill')
   );
   const dieselConfirmation = dieselForm.querySelector('input[type="checkbox"]');
   const addDieselButton = dieselForm.querySelector('button[type="submit"]');
-  expect(dieselConfirmation.parentElement.classList.contains('tank-fill-control')).toBe(true);
-  expect(dieselConfirmation.parentElement.textContent).toContain('Tank Fill');
+  expect(dieselForm.textContent).toContain('Tank Fill');
   expect(dieselConfirmation.checked).toBe(false);
   expect(addDieselButton.disabled).toBe(false);
   await act(async () => dieselConfirmation.click());

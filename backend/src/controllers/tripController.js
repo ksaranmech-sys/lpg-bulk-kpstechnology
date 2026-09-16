@@ -34,6 +34,24 @@ function getTripCloseDate(trip) {
   return getClosingDieselDate(trip);
 }
 
+// Loading/unloading location + date are compulsory before a trip can close.
+const REQUIRED_CLOSE_FIELDS = [
+  ['loadingLocation', 'loading location'],
+  ['loadingDate', 'loading date'],
+  ['unloadingLocation', 'unloading location'],
+  ['unloadingDate', 'unloading date'],
+];
+
+function getMissingTripRouteFields(trip) {
+  return REQUIRED_CLOSE_FIELDS
+    .filter(([field]) => {
+      const value = trip?.[field];
+      if (typeof value === 'string') return value.trim() === '';
+      return value == null;
+    })
+    .map(([, label]) => label);
+}
+
 // POST /api/v1/vehicles/:vehicleId/trips
 // body: { loadingLocation, loadingExpense, driverAdvances: [{amount,date}] }
 async function createTrip(req, res) {
@@ -55,15 +73,37 @@ async function createTrip(req, res) {
     return res.status(400).json({ error: 'Driver must be assigned before starting a trip' });
   }
 
-  const existingOpenTrip = await Trip.findOne({
+  const existingUnfinishedTrip = await Trip.findOne({
     vehicle: vehicle._id,
     status: { $in: [TRIP_STATUS.OPEN, TRIP_STATUS.PENDING_CLOSE] },
   }).sort({ createdAt: -1 });
 
-  if (existingOpenTrip) {
+  if (existingUnfinishedTrip?.status === TRIP_STATUS.OPEN) {
     return res.status(400).json({
-      error: 'This vehicle already has an open trip. Close or settle the current trip before creating a new one.',
+      error: 'This vehicle already has an open trip. Close the current trip before creating a new one.',
     });
+  }
+
+  // A trip awaiting customer close (pending_close) no longer blocks the
+  // driver: the vehicle is physically free, so the next trip can start.
+  // Try to settle it now (route details + next trip's first fill may exist);
+  // the driver sees the outcome in the response message.
+  let previousTripNotice = null;
+  if (existingUnfinishedTrip?.status === TRIP_STATUS.PENDING_CLOSE) {
+    const canAutoClose = getMissingTripRouteFields(existingUnfinishedTrip).length === 0;
+    if (canAutoClose) {
+      const result = computeTripSettlement(existingUnfinishedTrip, null);
+      if (result.ready) {
+        existingUnfinishedTrip.settlement = result.settlement;
+        existingUnfinishedTrip.status = TRIP_STATUS.CLOSED;
+        existingUnfinishedTrip.closedAt = getTripCloseDate(existingUnfinishedTrip);
+        await existingUnfinishedTrip.save();
+        previousTripNotice = 'Previous trip settled and closed.';
+      }
+    }
+    if (!previousTripNotice) {
+      previousTripNotice = 'Previous trip is still awaiting customer close.';
+    }
   }
 
   const trip = await Trip.create({
@@ -75,15 +115,15 @@ async function createTrip(req, res) {
     createdBy: req.user.id,
   });
 
-  res.status(201).json({ trip });
+  res.status(201).json({ trip, ...(previousTripNotice ? { message: previousTripNotice } : {}) });
 }
 
-// PATCH /api/v1/trips/:tripId/loading   body: { loadingLocation, loadingDate, loadingExpense }
+// PATCH /api/v1/trips/:tripId/loading   body: { loadingLocation, loadingDate, loadingExpense, parkingExpense, turnExpense }
 async function setLoadingDetails(req, res) {
   const trip = await getOpenTripOr404(req, res);
   if (!trip) return;
 
-  const { loadingLocation, loadingDate, loadingExpense, manualKm } = req.body;
+  const { loadingLocation, loadingDate, loadingExpense, parkingExpense, turnExpense } = req.body;
   if (loadingLocation != null) {
     const value = String(loadingLocation).trim();
     if (!value) return res.status(400).json({ error: 'loadingLocation cannot be empty' });
@@ -101,14 +141,25 @@ async function setLoadingDetails(req, res) {
     }
     trip.loadingExpense = expense;
   }
-  if (manualKm !== undefined && manualKm !== '') {
-    const km = Number(manualKm);
-    if (!Number.isFinite(km) || km < 0) {
-      return res.status(400).json({ error: 'manualKm must be a non-negative number' });
+  if (parkingExpense != null) {
+    const expense = Number(parkingExpense);
+    if (!Number.isFinite(expense) || expense < 0) {
+      return res.status(400).json({ error: 'parkingExpense must be a non-negative number' });
     }
-    trip.manualKm = km;
+    trip.parkingExpense = expense;
   }
-  if (rejectMissingManualKm(trip, res)) return;
+  if (req.file) {
+    const { lat, lng } = req.body;
+    const url = await saveUploadedFile(req.file);
+    trip.parkingPhoto = { url, gps: lat && lng ? { lat: Number(lat), lng: Number(lng) } : undefined };
+  }
+  if (turnExpense != null) {
+    const expense = Number(turnExpense);
+    if (!Number.isFinite(expense) || expense < 0) {
+      return res.status(400).json({ error: 'turnExpense must be a non-negative number' });
+    }
+    trip.turnExpense = expense;
+  }
   await trip.save();
   res.json({ trip });
 }
@@ -555,6 +606,10 @@ async function tryCloseVehiclePreviousTrip(newTrip) {
 
   if (!previousTrip) return; // this is the very first trip ever for the vehicle
 
+  // Never auto-close a trip whose route details are incomplete - leave it
+  // open so someone can fill in loading/unloading info and close it manually.
+  if (getMissingTripRouteFields(previousTrip).length > 0) return;
+
   const result = computeTripSettlement(previousTrip, newTrip);
   if (!result.ready) return; // not enough data yet - leave open
 
@@ -598,6 +653,13 @@ async function closeTrip(req, res) {
   const trip = await getOpenTripOr404(req, res);
   if (!trip) return;
   if (rejectMissingManualKm(trip, res)) return;
+
+  const missingRouteFields = getMissingTripRouteFields(trip);
+  if (missingRouteFields.length > 0) {
+    return res.status(400).json({
+      error: `Cannot close trip: ${missingRouteFields.join(', ')} ${missingRouteFields.length === 1 ? 'is' : 'are'} required. Update the trip details and try again.`,
+    });
+  }
 
   const nextTrip = await Trip.findOne({
     vehicle: trip.vehicle,
@@ -729,6 +791,7 @@ async function deleteTrip(req, res) {
 module.exports = {
   getClosingDieselDate,
   rejectMissingManualKm,
+  getMissingTripRouteFields,
   createTrip,
   listTripsForVehicle,
   getTrip,

@@ -14,6 +14,7 @@ const REMINDER_DEFINITIONS = {
   explosive: { label: 'Explosive', reminderDays: 15 },
   pli: { label: 'PLI', reminderDays: 15 },
   vehicleInsurance: { label: 'Vehicle Insurance', reminderDays: 15 },
+  cllInsurance: { label: 'CLL Insurance', reminderDays: 15 },
   hydroCertificate: { label: 'Hydro certificate', reminderDays: 15 },
 };
 

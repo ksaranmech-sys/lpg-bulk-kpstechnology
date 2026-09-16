@@ -25,6 +25,7 @@ const vehicleSchema = new mongoose.Schema(
       explosive: { type: reminderDocumentSchema, default: () => ({}) },
       pli: { type: reminderDocumentSchema, default: () => ({}) },
       vehicleInsurance: { type: reminderDocumentSchema, default: () => ({}) },
+      cllInsurance: { type: reminderDocumentSchema, default: () => ({}) },
       hydroCertificate: { type: reminderDocumentSchema, default: () => ({}) },
     },
   },
