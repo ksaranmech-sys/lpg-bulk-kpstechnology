@@ -381,7 +381,7 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
   const [turnDate, setTurnDate] = useState(trip.turnDate ? new Date(trip.turnDate).toISOString().slice(0, 10) : '');
   const [fillingOrderLocation, setFillingOrderLocation] = useState(trip.fillingOrderLocation || '');
   const [manualKm, setManualKm] = useState(trip.manualKm != null ? String(trip.manualKm) : '');
-  const [showManualKmModal, setShowManualKmModal] = useState(false);
+  const [showManualKmForm, setShowManualKmForm] = useState(false);
   const [missingLegs, setMissingLegs] = useState([]);
   const [manualKmError, setManualKmError] = useState('');
   const [error, setError] = useState('');
@@ -422,7 +422,7 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
     if (missing.length && !isValidManualKm(manualKm)) {
       setMissingLegs(missing);
       setManualKmError('');
-      setShowManualKmModal(true);
+      setShowManualKmForm(true);
       return;
     }
     saveTurn();
@@ -433,7 +433,7 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
       setManualKmError('Enter a valid non-negative Manual KM.');
       return;
     }
-    setShowManualKmModal(false);
+    setShowManualKmForm(false);
     saveTurn();
   }
 
@@ -479,20 +479,20 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
             className="btn secondary"
             onClick={() => {
               setMissingLegs(findMissingRouteLegs({ ...trip, fillingOrderLocation }, meta.routeKmTable));
-              setShowManualKmModal(true);
+              setShowManualKmForm(true);
             }}
           >
             Edit Manual KM
           </button>
         </div>
       )}
-      {showManualKmModal && (
-        <ManualKmModal
+      {showManualKmForm && (
+        <ManualKmForm
           missingLegs={missingLegs}
           value={manualKm}
           error={manualKmError}
           onChange={(value) => { setManualKm(value); setManualKmError(''); }}
-          onCancel={() => setShowManualKmModal(false)}
+          onCancel={() => setShowManualKmForm(false)}
           onContinue={continueWithManualKm}
         />
       )}
@@ -1071,40 +1071,42 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
   );
 }
 
-function ManualKmModal({ missingLegs, value, error, onChange, onCancel, onContinue }) {
+function ManualKmForm({ missingLegs, value, error, onChange, onCancel, onContinue }) {
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="manual-km-title">
-      <div className="card modal-panel" style={{ width: '100%', maxWidth: 460, margin: 20 }}>
-        <h3 id="manual-km-title" className="section-title">Manual KM required</h3>
-        <p>The following route {missingLegs.length === 1 ? 'is' : 'legs are'} missing from the route KM table:</p>
-        {missingLegs.map((leg, index) => (
-          <div className="grid-2" key={`${leg.from}-${leg.to}-${index}`}>
-            <div className="field">
-              <label>Loading Location</label>
-              <input value={leg.from} readOnly />
-            </div>
-            <div className="field">
-              <label>Unloading Location</label>
-              <input value={leg.to} readOnly />
-            </div>
+    <div
+      role="region"
+      aria-labelledby="manual-km-title"
+      style={{ marginTop: 16, padding: 16, border: '1px solid #b9d8d3', borderRadius: 12, background: '#f4fbfa' }}
+    >
+      <h3 id="manual-km-title" className="section-title">Manual KM required</h3>
+      <p>The following route {missingLegs.length === 1 ? 'is' : 'legs are'} missing from the route KM table:</p>
+      {missingLegs.map((leg, index) => (
+        <div className="grid-2" key={`${leg.from}-${leg.to}-${index}`}>
+          <div className="field">
+            <label>Loading Location</label>
+            <input value={leg.from} readOnly />
           </div>
-        ))}
-        <div className="field">
-          <label htmlFor="manual-km-input">Manual KM (Round-trip)</label>
-          <input
-            id="manual-km-input"
-            type="number"
-            min="0"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            autoFocus
-          />
+          <div className="field">
+            <label>Unloading Location</label>
+            <input value={leg.to} readOnly />
+          </div>
         </div>
-        {error && <div className="error-text">{error}</div>}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button type="button" className="btn secondary" onClick={onCancel}>Cancel</button>
-          <button type="button" className="btn" onClick={onContinue}>Continue save</button>
-        </div>
+      ))}
+      <div className="field">
+        <label htmlFor="manual-km-input">Manual KM (Round-trip)</label>
+        <input
+          id="manual-km-input"
+          type="number"
+          min="0"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          autoFocus
+        />
+      </div>
+      {error && <div className="error-text">{error}</div>}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <button type="button" className="btn secondary" onClick={onCancel}>Cancel</button>
+        <button type="button" className="btn" onClick={onContinue}>Continue save</button>
       </div>
     </div>
   );

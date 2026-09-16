@@ -157,7 +157,7 @@ test('shows editable manual loading details below driver advance', async () => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = false;
 });
 
-test('requires Manual KM in a modal and lists the unresolved route before saving turn details', async () => {
+test('requires Manual KM inside Load Turn and lists the unresolved route before saving', async () => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   jest.clearAllMocks();
   api.getTrip.mockResolvedValue({
@@ -221,19 +221,20 @@ test('requires Manual KM in a modal and lists the unresolved route before saving
   });
   await act(async () => turnForm.requestSubmit());
 
-  const dialog = container.querySelector('[role="dialog"]');
-  expect(dialog).not.toBeNull();
-  const routeInputs = Array.from(dialog.querySelectorAll('input[readonly]'));
+  const manualKmForm = container.querySelector('[role="region"][aria-labelledby="manual-km-title"]');
+  expect(manualKmForm).not.toBeNull();
+  expect(turnForm.contains(manualKmForm)).toBe(true);
+  const routeInputs = Array.from(manualKmForm.querySelectorAll('input[readonly]'));
   expect(routeInputs.map((input) => input.value)).toEqual(['Filling Plant', 'Depot']);
   expect(api.setTurnDetails).not.toHaveBeenCalled();
 
-  const manualInput = dialog.querySelector('#manual-km-input');
+  const manualInput = manualKmForm.querySelector('#manual-km-input');
   await act(async () => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(manualInput, '250');
     manualInput.dispatchEvent(new Event('input', { bubbles: true }));
   });
   await act(async () => {
-    Array.from(dialog.querySelectorAll('button')).find((button) => button.textContent === 'Continue save').click();
+    Array.from(manualKmForm.querySelectorAll('button')).find((button) => button.textContent === 'Continue save').click();
   });
 
   expect(api.setTurnDetails).toHaveBeenCalledWith('trip-2', {
