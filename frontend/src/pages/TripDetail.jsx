@@ -23,7 +23,6 @@ export default function TripDetail() {
   const hasLoadingDetails = Boolean(trip.loadingLocation && trip.loadingDate);
   const hasLoadingExpense = Number(trip.loadingExpense) > 0 || Number(trip.parkingExpense) > 0 || Number(trip.turnExpense) > 0;
   const hasUnloadingDetails = Boolean(trip.unloadingLocation && trip.unloadingDate);
-  const hasUnloadingExpense = Number(trip.unloadingExpense) > 0;
   const hasTurnDetails = trip.turnNumber != null && trip.turnDate;
   const hasUnloadingTurnDetails = trip.unTurnNumber != null && trip.unTurnDate;
   const formatDate = (value) => (value ? new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '');
