@@ -2,6 +2,7 @@ import React, { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import TripDetail from './TripDetail';
+import { findMissingRouteLegs } from './TripDetail';
 import * as api from '../api/api';
 
 jest.mock('../api/api', () => ({
@@ -154,4 +155,109 @@ test('shows editable manual loading details below driver advance', async () => {
 
   await act(async () => root.unmount());
   globalThis.IS_REACT_ACT_ENVIRONMENT = false;
+});
+
+test('requires Manual KM in a modal and lists the unresolved route before saving turn details', async () => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  jest.clearAllMocks();
+  api.getTrip.mockResolvedValue({
+    data: {
+      trip: {
+        _id: 'trip-2',
+        status: 'open',
+        customer: { companyName: 'Customer' },
+        driverAdvances: [],
+        dieselEntries: [],
+        rtoEntries: [],
+        otherExpenses: [],
+        loadingLocation: 'Plant',
+        loadingDate: '2026-09-14T00:00:00.000Z',
+        loadingExpense: 1,
+        unloadingLocation: 'Depot',
+        unloadingDate: '2026-09-15T00:00:00.000Z',
+        unloadingExpense: 1,
+        turnNumber: 7,
+        turnDate: '2026-09-16T00:00:00.000Z',
+      },
+    },
+  });
+  api.getMeta.mockResolvedValue({
+    data: {
+      routeKmTable: [
+        { loadingLocation: 'Plant', unloadingLocation: 'Depot', km: 100 },
+        { loadingLocation: 'Filling Plant', unloadingLocation: 'Elsewhere', km: 200 },
+      ],
+    },
+  });
+  api.setTurnDetails.mockResolvedValue({ data: { trip: {} } });
+  api.closeTrip.mockResolvedValue({ data: { trip: { status: 'closed' } } });
+
+  const container = document.createElement('div');
+  const root = createRoot(container);
+  await act(async () => {
+    root.render(
+      <MemoryRouter initialEntries={['/trips/trip-2']}>
+        <Routes>
+          <Route path="/trips/:tripId" element={<TripDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+  });
+  await act(async () => {});
+
+  const turnSummary = Array.from(container.querySelectorAll('.card')).find(
+    (card) => card.querySelector('h3')?.textContent === 'Load Turn Added'
+  );
+  await act(async () => turnSummary.querySelector('button').click());
+  const turnForm = Array.from(container.querySelectorAll('form')).find(
+    (form) => form.querySelector('h3')?.textContent === 'Load Turn'
+  );
+  const fillingInput = Array.from(turnForm.querySelectorAll('input')).find(
+    (input) => input.placeholder === 'Enter filling order location'
+  );
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(fillingInput, 'Filling Plant');
+    fillingInput.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await act(async () => turnForm.requestSubmit());
+
+  const dialog = container.querySelector('[role="dialog"]');
+  expect(dialog).not.toBeNull();
+  const routeInputs = Array.from(dialog.querySelectorAll('input[readonly]'));
+  expect(routeInputs.map((input) => input.value)).toEqual(['Filling Plant', 'Depot']);
+  expect(api.setTurnDetails).not.toHaveBeenCalled();
+
+  const manualInput = dialog.querySelector('#manual-km-input');
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(manualInput, '250');
+    manualInput.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await act(async () => {
+    Array.from(dialog.querySelectorAll('button')).find((button) => button.textContent === 'Continue save').click();
+  });
+
+  expect(api.setTurnDetails).toHaveBeenCalledWith('trip-2', {
+    turnNumber: 7,
+    turnDate: '2026-09-16',
+    fillingOrderLocation: 'Filling Plant',
+    manualKm: 250,
+  });
+  expect(api.closeTrip).toHaveBeenCalledWith('trip-2');
+
+  await act(async () => root.unmount());
+  globalThis.IS_REACT_ACT_ENVIRONMENT = false;
+});
+
+test('route leg detection waits for complete route fields and covers diverted trips', () => {
+  expect(findMissingRouteLegs({ loadingLocation: 'A', unloadingLocation: 'B' }, [])).toEqual([]);
+  expect(findMissingRouteLegs({
+    loadingLocation: 'A',
+    unloadingLocation: 'B',
+    fillingOrderLocation: 'C',
+    isDiverted: true,
+    divertUnloadingLocation: 'D',
+  }, [{ loadingLocation: 'A', unloadingLocation: 'B', km: 10 }])).toEqual([
+    { from: 'B', to: 'D' },
+    { from: 'C', to: 'D' },
+  ]);
 });
