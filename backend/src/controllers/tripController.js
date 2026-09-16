@@ -544,7 +544,7 @@ async function setTurnDetails(req, res) {
     trip.manualKm = km;
   }
   const corporationKmDetails = getCorporationKmDetails(trip, metaRoutes.loadRouteKmTable());
-  if (corporationKmDetails.source === 'manual_required' && !Number.isFinite(Number(trip.manualKm))) {
+  if (corporationKmDetails.source === 'manual_required' && trip.manualKm == null) {
     return res.status(400).json({ error: 'Manual Corporation KM is required because automatic calculation is unavailable' });
   }
   await trip.save();

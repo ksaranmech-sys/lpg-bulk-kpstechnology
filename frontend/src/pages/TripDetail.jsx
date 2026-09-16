@@ -401,8 +401,16 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
   ].filter(Boolean);
   const loadingLocations = Array.from(new Set((meta.routeKmTable || []).map((row) => row.loadingLocation).filter(Boolean)));
   const manualKmRequired = trip.corporationKmSource === 'manual_required';
-  const manualKmFromLocation = trip.isDiverted ? trip.unloadingLocation : trip.loadingLocation;
-  const manualKmToLocation = trip.isDiverted ? trip.divertUnloadingLocation : trip.unloadingLocation;
+  // Always show the trip's actual loading/unloading (or final diverted destination), never the
+  // divert leg locations, so the popup matches what the driver/admin entered earlier in the trip.
+  const manualKmFromLocation = trip.loadingLocation;
+  const manualKmToLocation = trip.isDiverted && trip.divertUnloadingLocation ? trip.divertUnloadingLocation : trip.unloadingLocation;
+
+  useEffect(() => {
+    if (manualKmRequired && manualKm === '') setShowManualKmModal(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manualKmRequired]);
+
 
   async function submit(e) {
     e.preventDefault();
@@ -475,6 +483,11 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="manual-km-title">
           <div className="card modal-panel" style={{ width: '100%', maxWidth: 420, margin: 20 }}>
             <h3 id="manual-km-title" className="section-title">Enter Manual KM(Round-trip)</h3>
+            {manualKmRequired && (
+              <p className="error-text" style={{ marginTop: -4 }}>
+                KM for this route was not found in the KM table. Manual KM entry is required.
+              </p>
+            )}
             <div className="grid-2">
               <div className="field">
                 <label>Loading Location</label>
@@ -497,7 +510,14 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
               />
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button type="button" className="btn secondary" onClick={() => setShowManualKmModal(false)}>Done</button>
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={manualKmRequired && !(manualKm !== '' && Number.isFinite(Number(manualKm)) && Number(manualKm) >= 0)}
+                onClick={() => setShowManualKmModal(false)}
+              >
+                Done
+              </button>
             </div>
           </div>
         </div>

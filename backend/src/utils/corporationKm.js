@@ -11,7 +11,8 @@ function getCorporationKmDetails(trip, routeKmTable) {
   const unloadingLocation = String(trip.unloadingLocation || '').trim();
   const fillingOrderLocation = String(trip.fillingOrderLocation || '').trim();
   const divertUnloadingLocation = String(trip.divertUnloadingLocation || '').trim();
-  const manualKm = Number(trip.manualKm);
+  // Number(null) is 0, not NaN, so check for null/undefined explicitly before coercing.
+  const manualKm = trip.manualKm == null ? NaN : Number(trip.manualKm);
   const hasManualKm = Number.isFinite(manualKm) && manualKm >= 0;
 
   if (trip.isDiverted && divertUnloadingLocation) {
