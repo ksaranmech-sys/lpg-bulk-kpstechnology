@@ -62,15 +62,37 @@ async function createTrip(req, res) {
     return res.status(400).json({ error: 'Driver must be assigned before starting a trip' });
   }
 
-  const existingOpenTrip = await Trip.findOne({
+  const existingUnfinishedTrip = await Trip.findOne({
     vehicle: vehicle._id,
     status: { $in: [TRIP_STATUS.OPEN, TRIP_STATUS.PENDING_CLOSE] },
   }).sort({ createdAt: -1 });
 
-  if (existingOpenTrip) {
+  if (existingUnfinishedTrip?.status === TRIP_STATUS.OPEN) {
     return res.status(400).json({
-      error: 'This vehicle already has an open trip. Close or settle the current trip before creating a new one.',
+      error: 'This vehicle already has an open trip. Close the current trip before creating a new one.',
     });
+  }
+
+  // A trip awaiting customer close (pending_close) no longer blocks the
+  // driver: the vehicle is physically free, so the next trip can start.
+  // Try to settle it now (route details + next trip's first fill may exist);
+  // the driver sees the outcome in the response message.
+  let previousTripNotice = null;
+  if (existingUnfinishedTrip?.status === TRIP_STATUS.PENDING_CLOSE) {
+    const canAutoClose = getMissingTripRouteFields(existingUnfinishedTrip).length === 0;
+    if (canAutoClose) {
+      const result = computeTripSettlement(existingUnfinishedTrip, null);
+      if (result.ready) {
+        existingUnfinishedTrip.settlement = result.settlement;
+        existingUnfinishedTrip.status = TRIP_STATUS.CLOSED;
+        existingUnfinishedTrip.closedAt = getTripCloseDate(existingUnfinishedTrip);
+        await existingUnfinishedTrip.save();
+        previousTripNotice = 'Previous trip settled and closed.';
+      }
+    }
+    if (!previousTripNotice) {
+      previousTripNotice = 'Previous trip is still awaiting customer close.';
+    }
   }
 
   const trip = await Trip.create({
@@ -82,15 +104,15 @@ async function createTrip(req, res) {
     createdBy: req.user.id,
   });
 
-  res.status(201).json({ trip });
+  res.status(201).json({ trip, ...(previousTripNotice ? { message: previousTripNotice } : {}) });
 }
 
-// PATCH /api/v1/trips/:tripId/loading   body: { loadingLocation, loadingDate, loadingExpense }
+// PATCH /api/v1/trips/:tripId/loading   body: { loadingLocation, loadingDate, loadingExpense, parkingExpense, turnExpense }
 async function setLoadingDetails(req, res) {
   const trip = await getOpenTripOr404(req, res);
   if (!trip) return;
 
-  const { loadingLocation, loadingDate, loadingExpense } = req.body;
+  const { loadingLocation, loadingDate, loadingExpense, parkingExpense, turnExpense } = req.body;
   if (loadingLocation != null) {
     const value = String(loadingLocation).trim();
     if (!value) return res.status(400).json({ error: 'loadingLocation cannot be empty' });
@@ -107,6 +129,25 @@ async function setLoadingDetails(req, res) {
       return res.status(400).json({ error: 'loadingExpense must be a non-negative number' });
     }
     trip.loadingExpense = expense;
+  }
+  if (parkingExpense != null) {
+    const expense = Number(parkingExpense);
+    if (!Number.isFinite(expense) || expense < 0) {
+      return res.status(400).json({ error: 'parkingExpense must be a non-negative number' });
+    }
+    trip.parkingExpense = expense;
+  }
+  if (req.file) {
+    const { lat, lng } = req.body;
+    const url = await saveUploadedFile(req.file);
+    trip.parkingPhoto = { url, gps: lat && lng ? { lat: Number(lat), lng: Number(lng) } : undefined };
+  }
+  if (turnExpense != null) {
+    const expense = Number(turnExpense);
+    if (!Number.isFinite(expense) || expense < 0) {
+      return res.status(400).json({ error: 'turnExpense must be a non-negative number' });
+    }
+    trip.turnExpense = expense;
   }
   await trip.save();
   res.json({ trip });

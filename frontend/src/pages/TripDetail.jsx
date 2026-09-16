@@ -9,7 +9,6 @@ export default function TripDetail() {
   const [meta, setMeta] = useState({ loadingLocations: [], unloadingLocations: [], routeKmTable: [] });
   const [editingLoadingDetails, setEditingLoadingDetails] = useState(false);
   const [editingUnloadingDetails, setEditingUnloadingDetails] = useState(false);
-  const [editingUnloadingExpense, setEditingUnloadingExpense] = useState(false);
   const [editingTurnDetails, setEditingTurnDetails] = useState(false);
 
   function load() {
@@ -22,7 +21,7 @@ export default function TripDetail() {
 
   const isTripLocked = trip.status !== 'open';
   const hasLoadingDetails = Boolean(trip.loadingLocation && trip.loadingDate);
-  const hasLoadingExpense = Number(trip.loadingExpense) > 0;
+  const hasLoadingExpense = Number(trip.loadingExpense) > 0 || Number(trip.parkingExpense) > 0 || Number(trip.turnExpense) > 0;
   const hasUnloadingDetails = Boolean(trip.unloadingLocation && trip.unloadingDate);
   const hasUnloadingExpense = Number(trip.unloadingExpense) > 0;
   const hasTurnDetails = trip.turnNumber != null && trip.turnDate;
@@ -51,19 +50,7 @@ export default function TripDetail() {
 
       <fieldset disabled={isTripLocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <>
-        {(trip.driverAdvances || []).length > 0 && (
-          <div className="card">
-            <AdvanceSummary trip={trip} onSaved={load} />
-            <div style={{ marginTop: 16 }}>
-              <AdvanceForm tripId={tripId} onSaved={load} />
-            </div>
-          </div>
-        )}
-        {!(trip.driverAdvances || []).length && (
-          <div className="card">
-            <AdvanceForm tripId={tripId} onSaved={load} />
-          </div>
-        )}
+        <AdvanceSection trip={trip} tripId={tripId} onSaved={load} />
         {hasLoadingDetails && (
           <LoadingDetailsSummary trip={trip} onEdit={() => setEditingLoadingDetails(true)} />
         )}
@@ -79,11 +66,15 @@ export default function TripDetail() {
         {!hasLoadingExpense && <LoadingExpenseForm tripId={tripId} trip={trip} onSaved={load} />}
         <div className="card">
           <DieselSummary trip={trip} tripId={tripId} onSaved={load} />
-          <DieselForm tripId={tripId} onSaved={load} />
+          <div style={{ marginTop: 14 }}>
+            <DieselForm tripId={tripId} onSaved={load} title="" />
+          </div>
         </div>
         <div className="card">
           <RtoSummary trip={trip} onSaved={load} />
-          <RtoForm tripId={tripId} onSaved={load} />
+          <div style={{ marginTop: 14 }}>
+            <RtoForm tripId={tripId} onSaved={load} />
+          </div>
         </div>
         {hasUnloadingTurnDetails ? (
           <UnloadingTurnSummary trip={trip} onDeleted={load} />
@@ -100,17 +91,11 @@ export default function TripDetail() {
             onSaved={() => { setEditingUnloadingDetails(false); load(); }}
           />
         )}
-        {hasUnloadingExpense && <UnloadingExpenseSummary trip={trip} onEdit={() => setEditingUnloadingExpense(true)} />}
-        {(!hasUnloadingExpense || editingUnloadingExpense) && (
-          <UnloadingExpenseForm
-            tripId={tripId}
-            trip={trip}
-            onSaved={() => { setEditingUnloadingExpense(false); load(); }}
-          />
-        )}
         <div className="card">
           <OtherExpenseSummary trip={trip} tripId={tripId} onSaved={load} />
-          <OtherExpenseForm tripId={tripId} onSaved={load} />
+          <div style={{ marginTop: 14 }}>
+            <OtherExpenseForm tripId={tripId} onSaved={load} />
+          </div>
         </div>
         {hasTurnDetails && <TurnDetailsSummary trip={trip} onEdit={() => setEditingTurnDetails(true)} />}
         {(!hasTurnDetails || editingTurnDetails) && (
@@ -136,44 +121,38 @@ export default function TripDetail() {
   );
 }
 
-function AdvanceForm({ tripId, onSaved }) {
+function AdvanceSection({ trip, tripId, onSaved }) {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [editAmount, setEditAmount] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [error, setError] = useState('');
+  const advances = trip.driverAdvances || [];
+
   async function submit(e) {
     e.preventDefault();
-    await api.addAdvance(tripId, { amount: Number(amount), date: date || undefined });
-    setAmount(''); setDate('');
-    onSaved();
+    setError('');
+    try {
+      await api.addAdvance(tripId, { amount: Number(amount), date: date || undefined });
+      setAmount(''); setDate('');
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to add advance');
+    }
   }
-  return (
-    <form className="card" onSubmit={submit}>
-      <h3 className="section-title">Add Driver Advance</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 12, alignItems: 'end' }}>
-        <div className="field"><label>Amount (Rs)</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
-        <div className="field"><label>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-        <button className="btn">Add Advance</button>
-      </div>
-    </form>
-  );
-}
-
-function AdvanceSummary({ trip, onSaved }) {
-  const [editingIndex, setEditingIndex] = useState(null);
-  const [amount, setAmount] = useState('');
-  const [date, setDate] = useState('');
-  const [error, setError] = useState('');
 
   function startEdit(index, advance) {
     setEditingIndex(index);
-    setAmount(String(advance.amount));
-    setDate(new Date(advance.date).toISOString().slice(0, 10));
+    setEditAmount(String(advance.amount));
+    setEditDate(new Date(advance.date).toISOString().slice(0, 10));
     setError('');
   }
 
   async function saveEdit(index) {
     setError('');
     try {
-      await api.updateAdvance(trip._id, index, { amount: Number(amount), date });
+      await api.updateAdvance(trip._id, index, { amount: Number(editAmount), date: editDate });
       setEditingIndex(null);
       onSaved();
     } catch (err) {
@@ -183,20 +162,18 @@ function AdvanceSummary({ trip, onSaved }) {
 
   return (
     <div className="card">
-      <h3 className="section-title">Driver Advances Added</h3>
+      <h3 className="section-title">Advance</h3>
       {error && <div className="error-text">{error}</div>}
-      {(trip.driverAdvances || []).length === 0 ? (
-        <p style={{ margin: 0, color: '#666' }}>No advances added yet.</p>
-      ) : (
+      {advances.length > 0 && (
         <table>
           <thead><tr><th>Amount</th><th style={{ textAlign: 'center' }}>Date</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
           <tbody>
-            {trip.driverAdvances.map((advance, i) => (
+            {advances.map((advance, i) => (
               <tr key={i}>
                 {editingIndex === i ? (
                   <>
-                    <td><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} min="0" /></td>
-                    <td style={{ textAlign: 'center' }}><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></td>
+                    <td><input type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} min="0" /></td>
+                    <td style={{ textAlign: 'center' }}><input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} /></td>
                     <td style={{ textAlign: 'right' }}>
                       <button type="button" className="btn" onClick={() => saveEdit(i)}>Save</button>{' '}
                       <button type="button" className="btn secondary" onClick={() => setEditingIndex(null)}>Cancel</button>
@@ -216,6 +193,13 @@ function AdvanceSummary({ trip, onSaved }) {
           </tbody>
         </table>
       )}
+      <form onSubmit={submit} style={{ border: 0, background: 'transparent', padding: 0, borderRadius: 0, marginTop: advances.length ? 16 : 0 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end' }}>
+          <div className="field" style={{ margin: 0 }}><label>Amount (Rs)</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
+          <div className="field" style={{ margin: 0 }}><label>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }}>Add</button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -234,8 +218,8 @@ function LoadingDetailsForm({ tripId, trip, meta, onSaved }) {
   return (
     <form className="card" onSubmit={submit}>
       <h3 className="section-title">Loading Details</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'end' }}>
-        <div className="field" style={{ marginBottom: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end' }}>
+        <div className="field" style={{ margin: 0 }}>
           <label>Loading Location</label>
           <select value={loadingLocation} onChange={(e) => setLocation(e.target.value)}>
             <option value="">Select Loading location</option>
@@ -244,21 +228,19 @@ function LoadingDetailsForm({ tripId, trip, meta, onSaved }) {
             ))}
           </select>
         </div>
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label>Enter Loading Location (Optional)</label>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Or Enter Manually</label>
           <input
             value={loadingLocation}
             onChange={(e) => setLocation(e.target.value)}
             placeholder="Enter loading location"
           />
         </div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginTop: 12 }}>
-        <div className="field" style={{ marginBottom: 0 }}>
+        <div className="field" style={{ margin: 0 }}>
           <label>Date of loading</label>
           <input type="date" value={loadingDate} onChange={(e) => setDate(e.target.value)} required />
         </div>
-        <button className="btn" style={{ marginBottom: 0 }}>Save loading details</button>
+        <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }}>Save</button>
       </div>
     </form>
   );
@@ -267,11 +249,16 @@ function LoadingDetailsForm({ tripId, trip, meta, onSaved }) {
 function LoadingDetailsSummary({ trip, onEdit }) {
   return (
     <div className="card">
-      <h3 className="section-title">Loading Details Added</h3>
+      <h3 className="section-title">Loading location</h3>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
-        <p style={{ margin: 0 }}>
-          {trip.loadingLocation || '-'} • {trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}
-        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 }}>
+            <strong>{trip.loadingLocation || '-'}</strong>
+          </span>
+          <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14, color: '#64748b' }}>
+            {trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}
+          </span>
+        </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button type="button" className="btn secondary" onClick={onEdit}>Edit</button>
         </div>
@@ -282,22 +269,46 @@ function LoadingDetailsSummary({ trip, onEdit }) {
 
 function LoadingExpenseForm({ tripId, trip, onSaved }) {
   const [amount, setAmount] = useState(trip.loadingExpense || '');
+  const [parking, setParking] = useState(trip.parkingExpense || '');
+  const [turn, setTurn] = useState(trip.turnExpense || '');
+  const [photo, setPhoto] = useState(null);
 
   async function submit(e) {
     e.preventDefault();
-    await api.setLoadingDetails(tripId, { loadingExpense: Number(amount || 0) });
+    await api.setLoadingDetailsWithPhoto(
+      tripId,
+      {
+        loadingExpense: Number(amount || 0),
+        parkingExpense: Number(parking || 0),
+        turnExpense: Number(turn || 0),
+      },
+      photo
+    );
+    setPhoto(null);
     onSaved();
   }
 
   return (
     <form className="card" onSubmit={submit}>
-      <h3 className="section-title">Loading Expenses</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end' }}>
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label>Cleaner Expense (Rs)</label>
-          <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
+      <h3 className="section-title">Expenses</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end' }}>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Loading Cleaner Expense (Rs)</label>
+          <input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
         </div>
-        <button className="btn" style={{ marginBottom: 0 }}>Save Loading Expense</button>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Parking (Rs)</label>
+          <input type="number" min="0" value={parking} onChange={(e) => setParking(e.target.value)} />
+        </div>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Parking Photo</label>
+          <input type="file" accept="image/*" capture="environment" onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
+        </div>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Turn (Rs)</label>
+          <input type="number" min="0" value={turn} onChange={(e) => setTurn(e.target.value)} />
+        </div>
+        <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }}>Save</button>
       </div>
     </form>
   );
@@ -306,12 +317,18 @@ function LoadingExpenseForm({ tripId, trip, onSaved }) {
 function LoadingExpenseSummary({ trip, tripId, onSaved }) {
   const [editing, setEditing] = useState(false);
   const [amount, setAmount] = useState(String(trip.loadingExpense || ''));
+  const [parking, setParking] = useState(String(trip.parkingExpense || ''));
+  const [turn, setTurn] = useState(String(trip.turnExpense || ''));
   const [error, setError] = useState('');
 
   async function saveEdit() {
     setError('');
     try {
-      await api.setLoadingDetails(tripId, { loadingExpense: Number(amount || 0) });
+      await api.setLoadingDetails(tripId, {
+        loadingExpense: Number(amount || 0),
+        parkingExpense: Number(parking || 0),
+        turnExpense: Number(turn || 0),
+      });
       setEditing(false);
       onSaved();
     } catch (err) {
@@ -321,20 +338,46 @@ function LoadingExpenseSummary({ trip, tripId, onSaved }) {
 
   return (
     <div className="card">
-      <h3 className="section-title">Loading Expenses Added</h3>
+      <h3 className="section-title">Expenses</h3>
       {error && <div className="error-text">{error}</div>}
       {editing ? (
-        <div className="field">
-          <label>Cleaner Expense (Rs)</label>
-          <input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          <div style={{ marginTop: 8 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+          <div className="field" style={{ margin: 0 }}>
+            <label>Loading Cleaner Expense (Rs)</label>
+            <input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          </div>
+          <div className="field" style={{ margin: 0 }}>
+            <label>Parking (Rs)</label>
+            <input type="number" min="0" value={parking} onChange={(e) => setParking(e.target.value)} />
+          </div>
+          <div className="field" style={{ margin: 0 }}>
+            <label>Turn (Rs)</label>
+            <input type="number" min="0" value={turn} onChange={(e) => setTurn(e.target.value)} />
+          </div>
+          <div style={{ gridColumn: '1 / -1', marginTop: 4 }}>
             <button type="button" className="btn" onClick={saveEdit}>Save</button>{' '}
             <button type="button" className="btn secondary" onClick={() => setEditing(false)}>Cancel</button>
           </div>
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
-          <p style={{ margin: 0 }}>Cleaner: Rs {trip.loadingExpense || 0}</p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 }}>
+              <span style={{ color: '#64748b' }}>Cleaner</span> <strong>Rs {trip.loadingExpense || 0}</strong>
+            </span>
+            <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 }}>
+              <span style={{ color: '#64748b' }}>Parking</span> <strong>Rs {trip.parkingExpense || 0}</strong>
+            </span>
+            <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 }}>
+              <span style={{ color: '#64748b' }}>Turn</span> <strong>Rs {trip.turnExpense || 0}</strong>
+            </span>
+            {trip.parkingPhoto?.url && (
+              <a href={trip.parkingPhoto.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#eef7f4', border: '1px solid #bfe3da', borderRadius: 8, padding: '6px 12px', fontSize: 14, textDecoration: 'none' }}>
+                <img src={trip.parkingPhoto.url} alt="Parking" style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 6 }} />
+                <span>Photo</span>
+              </a>
+            )}
+          </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button type="button" className="btn secondary" onClick={() => setEditing(true)}>Edit</button>
           </div>
@@ -391,50 +434,44 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
     <form className="card" onSubmit={submit}>
       <h3 className="section-title">Load Turn</h3>
       {error && <div className="error-text">{error}</div>}
-      <div className="grid-2">
-        <div className="field">
-          <label>Turn Number</label>
-          <input type="number" min="0" step="1" value={turnNumber} onChange={(e) => setTurnNumber(e.target.value)} required />
-        </div>
-        <div className="field">
-          <label>Turn Date</label>
-          <input type="date" value={turnDate} onChange={(e) => setTurnDate(e.target.value)} required />
-        </div>
-      </div>
-      <div className="grid-2">
-        <div className="field">
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 0.9fr) auto', gap: 14, alignItems: 'end' }}>
+        <div className="field" style={{ margin: 0 }}>
           <label>Filling Order Location</label>
           <select value={fillingOrderLocation} onChange={(e) => setFillingOrderLocation(e.target.value)}>
             <option value="">Select loading location...</option>
             {loadingLocations.map((location) => <option key={location} value={location}>{location}</option>)}
           </select>
         </div>
-        <div className="field">
-          <label>Enter Filling Order Location Manually</label>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Or Enter Manually</label>
           <input
             value={fillingOrderLocation}
             onChange={(e) => setFillingOrderLocation(e.target.value)}
             placeholder="Enter filling order location"
           />
         </div>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Turn Number</label>
+          <input type="number" min="0" step="1" value={turnNumber} onChange={(e) => setTurnNumber(e.target.value)} required />
+        </div>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Turn Date</label>
+          <input type="date" value={turnDate} onChange={(e) => setTurnDate(e.target.value)} required />
+        </div>
+        <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }} disabled={missingCloseFields.length > 0}>Trip close</button>
       </div>
       {missingCloseFields.length > 0 && (
         <p className="error-text" style={{ marginTop: 12 }}>
           Add {missingCloseFields.join(', ')} before closing this trip.
         </p>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginTop: 12 }}>
-        <div style={{ gridColumn: 2, gridRow: 1 }}>
-          <button className="btn" disabled={missingCloseFields.length > 0}>Trip close</button>
+      {manualKm !== '' && (
+        <div style={{ marginTop: 12 }}>
+          <button type="button" className="btn secondary" onClick={() => setShowManualKmModal(true)}>
+            Edit Manual KM
+          </button>
         </div>
-        <div style={{ gridColumn: 1, gridRow: 1 }}>
-          {manualKm !== '' && (
-            <button type="button" className="btn secondary" onClick={() => setShowManualKmModal(true)}>
-              Edit Manual KM
-            </button>
-          )}
-        </div>
-      </div>
+      )}
       {showManualKmModal && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="manual-km-title">
           <div className="card modal-panel" style={{ width: '100%', maxWidth: 420, margin: 20 }}>
@@ -499,18 +536,16 @@ function UnloadingTurnForm({ tripId, trip, onSaved }) {
   return (
     <form className="card" onSubmit={submit}>
       <h3 className="section-title">Unload Turn</h3>
-      <div className="grid-2">
-        <div className="field">
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end' }}>
+        <div className="field" style={{ margin: 0 }}>
           <label>Turn Number</label>
           <input type="number" min="0" step="1" value={turnNumber} onChange={(e) => setTurnNumber(e.target.value)} required />
         </div>
-        <div className="field">
+        <div className="field" style={{ margin: 0 }}>
           <label>Turn Date</label>
           <input type="date" value={turnDate} onChange={(e) => setTurnDate(e.target.value)} required />
         </div>
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button className="btn">Add Unload Turn</button>
+        <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }}>Save</button>
       </div>
     </form>
   );
@@ -525,11 +560,16 @@ function UnloadingTurnSummary({ trip, onDeleted }) {
 
   return (
     <div className="card">
-      <h3 className="section-title">Unload Turn Added</h3>
+      <h3 className="section-title">Unload Turn</h3>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
-        <p style={{ margin: 0 }}>
-          Turn {trip.unTurnNumber} • {new Date(trip.unTurnDate).toLocaleDateString('en-IN')}
-        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 }}>
+            <span style={{ color: '#64748b' }}>Turn</span> <strong>{trip.unTurnNumber}</strong>
+          </span>
+          <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14, color: '#64748b' }}>
+            {new Date(trip.unTurnDate).toLocaleDateString('en-IN')}
+          </span>
+        </div>
         <button type="button" className="btn danger" onClick={deleteTurn}>Delete</button>
       </div>
     </div>
@@ -540,7 +580,7 @@ function DieselForm({
   tripId,
   onSaved,
   title = 'Diesel Filling Entry',
-  submitLabel = 'Add Diesel Entry',
+  submitLabel = 'Add',
   closeAfterSave = false,
 }) {
   const [volumeLitres, setVolume] = useState('');
@@ -568,38 +608,41 @@ function DieselForm({
   }
 
   return (
-    <form onSubmit={submit} style={{ padding: '0', margin: 0 }}>
-      <h3 className="section-title">{title}</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
-        <div className="field"><label>Volume (Litres)</label><input type="number" value={volumeLitres} onChange={(e) => setVolume(e.target.value)} required /></div>
-        <div className="field"><label>Total Value (Rs)</label><input type="number" value={totalValue} onChange={(e) => setTotalValue(e.target.value)} required /></div>
-        <div className="field">
+    <form onSubmit={submit} style={{ padding: '0', margin: 0, border: 0, background: 'transparent', borderRadius: 0 }}>
+      {title ? <h3 className="section-title">{title}</h3> : null}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end' }}>
+        <div className="field" style={{ margin: 0 }}><label>Volume (Litres)</label><input type="number" value={volumeLitres} onChange={(e) => setVolume(e.target.value)} required /></div>
+        <div className="field" style={{ margin: 0 }}><label>Total Value (Rs)</label><input type="number" value={totalValue} onChange={(e) => setTotalValue(e.target.value)} required /></div>
+        <div className="field" style={{ margin: 0 }}>
           <label>Payment Method</label>
           <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
             <option value="diesel_card">Diesel Card</option>
             <option value="cash">Cash</option>
           </select>
         </div>
-        <div className="field"><label>Odometer Reading</label><input type="number" value={odometerKm} onChange={(e) => setOdo(e.target.value)} placeholder="Optional" /></div>
-        <div className="field">
+        <div className="field" style={{ margin: 0 }}>
+          <label>Tank Fill</label>
+          <div style={{ display: 'flex', alignItems: 'center', height: 42, padding: '0 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)' }}>
+            <input
+              type="checkbox"
+              style={{ width: 20, height: 20, margin: 0, accentColor: 'var(--green-500)', cursor: 'pointer' }}
+              checked={dieselFilledConfirmed}
+              onChange={(e) => setDieselFilledConfirmed(e.target.checked)}
+            />
+          </div>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end', marginTop: 12 }}>
+        <div className="field" style={{ margin: 0 }}><label>Odometer Reading</label><input type="number" value={odometerKm} onChange={(e) => setOdo(e.target.value)} placeholder="Optional" /></div>
+        <div className="field" style={{ margin: 0 }}>
           <label>Date</label>
           <input type="date" value={filledAt} onChange={(e) => setFilledAt(e.target.value)} required />
         </div>
-        <label className="tank-fill-control">
-          <input
-            type="checkbox"
-            checked={dieselFilledConfirmed}
-            onChange={(e) => setDieselFilledConfirmed(e.target.checked)}
-          />
-          Tank Fill
-        </label>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginTop: 12 }}>
-        <div className="field">
+        <div className="field" style={{ margin: 0 }}>
           <label>Photo (optional)</label>
           <input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files[0])} />
         </div>
-        <button className="btn" type="submit">{submitLabel}</button>
+        <button className="btn" type="submit" style={{ marginBottom: 1, whiteSpace: 'nowrap' }}>{submitLabel}</button>
       </div>
     </form>
   );
@@ -647,11 +690,9 @@ function DieselSummary({ trip, tripId, onSaved }) {
 
   return (
     <div>
-      <h3 className="section-title">Diesel Filled Added</h3>
+      <h3 className="section-title">Diesel</h3>
       {error && <div className="error-text">{error}</div>}
-      {entries.length === 0 ? (
-        <p style={{ margin: 0, color: '#666' }}>No diesel fills added yet.</p>
-      ) : (
+      {entries.length === 0 ? null : (
         <table>
           <thead><tr><th>Volume (L)</th><th>Total Value</th><th>Odometer KM</th><th>Date</th><th>Payment</th><th>Tank Fill</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
           <tbody>
@@ -738,11 +779,9 @@ function RtoSummary({ trip, onSaved }) {
 
   return (
     <div>
-      <h3 className="section-title">RTO Expenses Added</h3>
+      <h3 className="section-title">RTO Expenses</h3>
       {error && <div className="error-text">{error}</div>}
-      {entries.length === 0 ? (
-        <p style={{ margin: 0, color: '#666' }}>No RTO expenses added yet.</p>
-      ) : (
+      {entries.length === 0 ? null : (
         <table>
           <thead><tr><th>Amount</th><th>Date</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
           <tbody>
@@ -789,51 +828,72 @@ function RtoForm({ tripId, onSaved }) {
   }
 
   return (
-    <form onSubmit={submit}>
-      <h3 className="section-title">RTO Entry</h3>
-      <div className="grid-2">
-        <div className="field"><label>Amount (Rs)</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
-        <div className="field"><label>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end' }}>
-        <div className="field">
-          <label>Photo (with GPS location captured automatically)</label>
+    <form onSubmit={submit} style={{ border: 0, background: 'transparent', padding: 0, borderRadius: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end' }}>
+        <div className="field" style={{ margin: 0 }}><label>Amount (Rs)</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
+        <div className="field" style={{ margin: 0 }}><label>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Photo (GPS auto)</label>
           <input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files[0])} />
         </div>
-        <button className="btn">Add RTO Entry</button>
+        <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }}>Add</button>
       </div>
     </form>
   );
 }
 
+const OTHER_EXPENSE_CATEGORIES = ['Unloading Cleaner', 'AdBlue', 'Puncture', 'Firegun'];
+
 function OtherExpenseForm({ tripId, onSaved }) {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
-  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
+  const [manualDescription, setManualDescription] = useState('');
   const [photo, setPhoto] = useState(null);
+  const [error, setError] = useState('');
 
   async function submit(e) {
     e.preventDefault();
+    const description = category === 'other' ? manualDescription.trim() : category;
+    if (!description) {
+      setError('Select a category or enter a description.');
+      return;
+    }
+    setError('');
     const gps = await api.getCurrentPosition();
     await api.addOtherExpense(tripId, { amount, date: date || undefined, description, lat: gps?.lat, lng: gps?.lng }, photo);
-    setAmount(''); setDate(''); setDescription(''); setPhoto(null);
+    setAmount(''); setDate(''); setCategory(''); setManualDescription(''); setPhoto(null);
     onSaved();
   }
 
   return (
-    <form onSubmit={submit}>
-      <h3 className="section-title">Other Expense</h3>
-      <div className="grid-2">
-        <div className="field"><label>Amount (Rs)</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
-        <div className="field"><label>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-      </div>
-      <div className="field"><label>Description</label><input value={description} onChange={(e) => setDescription(e.target.value)} /></div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end' }}>
-        <div className="field">
+    <form onSubmit={submit} style={{ border: 0, background: 'transparent', padding: 0, borderRadius: 0 }}>
+      {error && <div className="error-text">{error}</div>}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end' }}>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Category</label>
+          <select value={category} onChange={(e) => setCategory(e.target.value)} required>
+            <option value="">Select...</option>
+            {OTHER_EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Or Enter Manually</label>
+          <input
+            value={category === 'other' ? manualDescription : category}
+            onChange={(e) => { setCategory('other'); setManualDescription(e.target.value); }}
+            placeholder="Enter description"
+            disabled={category !== 'other' && category !== ''}
+          />
+        </div>
+        <div className="field" style={{ margin: 0 }}><label>Amount (Rs)</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
+        <div className="field" style={{ margin: 0 }}><label>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+        <div className="field" style={{ margin: 0 }}>
           <label>Photo (optional)</label>
           <input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files[0])} />
         </div>
-        <button className="btn">Add Expense</button>
+        <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }}>Add</button>
       </div>
     </form>
   );
@@ -868,21 +928,21 @@ function OtherExpenseSummary({ trip, tripId, onSaved }) {
 
   return (
     <div>
-      <h3 className="section-title">Other Expenses Added</h3>
+      <h3 className="section-title">Other Expenses</h3>
       {error && <div className="error-text">{error}</div>}
       {entries.length === 0 ? (
         <p style={{ margin: 0, color: '#666' }}>No other expenses added yet.</p>
       ) : (
         <table>
-          <thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Photo</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Description</th><th>Amount</th><th>Date</th><th>Photo</th><th>Actions</th></tr></thead>
           <tbody>
             {entries.map((entry, index) => (
               <tr key={index}>
                 {editingIndex === index ? (
                   <>
-                    <td><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></td>
                     <td><input value={description} onChange={(e) => setDescription(e.target.value)} /></td>
                     <td><input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} /></td>
+                    <td><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></td>
                     <td>{entry.photo?.url ? <a href={entry.photo.url} target="_blank" rel="noreferrer">view</a> : '-'}</td>
                     <td>
                       <button type="button" className="btn" onClick={() => saveEdit(index)}>Save</button>{' '}
@@ -891,9 +951,9 @@ function OtherExpenseSummary({ trip, tripId, onSaved }) {
                   </>
                 ) : (
                   <>
-                    <td>{new Date(entry.date).toLocaleDateString('en-IN')}</td>
                     <td>{entry.description || '-'}</td>
                     <td>Rs {entry.amount}</td>
+                    <td>{new Date(entry.date).toLocaleDateString('en-IN')}</td>
                     <td>{entry.photo?.url ? <a href={entry.photo.url} target="_blank" rel="noreferrer">view</a> : '-'}</td>
                     <td style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                       <button type="button" className="btn secondary" onClick={() => startEdit(index, entry)}>Edit</button>
@@ -967,8 +1027,8 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
   return (
     <form className="card" onSubmit={submit}>
       <h3 className="section-title">Unloading Details</h3>
-      <div className="grid-2">
-        <div className="field">
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto auto', gap: 14, alignItems: 'end' }}>
+        <div className="field" style={{ margin: 0 }}>
           <label>Corporation</label>
           <select
             value={selectedCorporation}
@@ -990,7 +1050,7 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
             ))}
           </select>
         </div>
-        <div className="field">
+        <div className="field" style={{ margin: 0 }}>
           <label>Unloading Location</label>
           <select
             value={unloadingLocation}
@@ -1000,31 +1060,33 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
             {(filteredUnloadingOptions || []).filter(Boolean).map((loc) => <option key={loc} value={loc}>{loc}</option>)}
           </select>
         </div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, alignItems: 'end', marginTop: 12 }}>
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label>Or Enter Unloading Location Manually</label>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Or Enter Manually</label>
           <input
             value={unloadingLocation}
             onChange={(e) => setLoc(e.target.value)}
             placeholder="Enter unloading location"
           />
         </div>
-        <div className="field" style={{ marginBottom: 0 }}>
-          <label>Unloading Date</label>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Date</label>
           <input type="date" value={unloadingDate} onChange={(e) => setDate(e.target.value)} required />
         </div>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Divert</label>
+          <div style={{ display: 'flex', alignItems: 'center', height: 42, padding: '0 12px', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)' }}>
+            <input
+              type="checkbox"
+              style={{ width: 20, height: 20, margin: 0, accentColor: 'var(--green-500)', cursor: 'pointer' }}
+              checked={isDiverted}
+              onChange={(e) => setIsDiverted(e.target.checked)}
+            />
+          </div>
+        </div>
+        <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }}>Save</button>
       </div>
-      <label className="divert-control">
-        <input
-          type="checkbox"
-          checked={isDiverted}
-          onChange={(e) => setIsDiverted(e.target.checked)}
-        />
-        Divert
-      </label>
       {isDiverted && (
-        <div className="divert-fields">
+        <div className="divert-fields" style={{ marginTop: 12 }}>
           <div className="field">
             <label>New Unloading Location</label>
             <select
@@ -1042,10 +1104,6 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
           </div>
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginTop: 12 }}>
-        <div />
-        <button className="btn" style={{ marginBottom: 0 }}>Save Unloading Details</button>
-      </div>
       {showDivertKmModal && (
         <div
           role="dialog"
@@ -1082,55 +1140,24 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
 }
 
 function UnloadingDetailsSummary({ trip, onEdit }) {
+  const chip = { background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 };
   return (
     <div className="card">
-      <h3 className="section-title">Unloading Details Added</h3>
+      <h3 className="section-title">Unloading Details</h3>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
-        <p style={{ margin: 0 }}>
-          {trip.unloadingLocation || '-'} • {trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}
-          {trip.isDiverted ? ` • Divert: ${trip.divertUnloadingLocation || '-'} • ${trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'}` : ''}
-        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          <span style={chip}><strong>{trip.unloadingLocation || '-'}</strong></span>
+          <span style={{ ...chip, color: '#64748b' }}>{trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}</span>
+          {trip.isDiverted ? (
+            <>
+              <span style={chip}><span style={{ color: '#64748b' }}>Divert</span> <strong>{trip.divertUnloadingLocation || '-'}</strong></span>
+              <span style={{ ...chip, color: '#64748b' }}>{trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'}</span>
+            </>
+          ) : null}
+        </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button type="button" className="btn secondary" onClick={onEdit}>Edit</button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function UnloadingExpenseForm({ tripId, trip, onSaved }) {
-  const [amount, setAmount] = useState(trip.unloadingExpense || '');
-
-  async function submit(e) {
-    e.preventDefault();
-    await api.setUnloading(tripId, {
-      unloadingDate: trip.unloadingDate,
-      unloadingExpense: Number(amount || 0),
-    });
-    onSaved();
-  }
-
-  return (
-    <form className="card" onSubmit={submit}>
-      <h3 className="section-title">Unloading Expenses</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end' }}>
-        <div className="field">
-          <label>Unloading Expense - Cleaner (Rs)</label>
-          <input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} />
-        </div>
-        <button className="btn">Save Unloading Expense</button>
-      </div>
-    </form>
-  );
-}
-
-function UnloadingExpenseSummary({ trip, onEdit }) {
-  return (
-    <div className="card">
-      <h3 className="section-title">Unloading Expenses Added</h3>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <p style={{ margin: 0 }}>Cleaner: Rs {trip.unloadingExpense || 0}</p>
-        <button type="button" className="btn secondary" onClick={onEdit}>Edit</button>
       </div>
     </div>
   );
@@ -1158,12 +1185,13 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
     ? Number(trip.settlement.totalDieselLitres)
     : null;
   const loadingExpenseTotal = Number(trip.loadingExpense || 0);
+  const parkingExpenseTotal = Number(trip.parkingExpense || 0);
+  const turnExpenseTotal = Number(trip.turnExpense || 0);
   const rtoEntries = trip.rtoEntries || [];
   const rtoExpenseTotal = rtoEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-  const unloadingExpenseTotal = Number(trip.unloadingExpense || 0);
   const otherExpenses = trip.otherExpenses || [];
   const otherExpenseTotal = otherExpenses.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-  const totalExpenses = loadingExpenseTotal + rtoExpenseTotal + unloadingExpenseTotal + otherExpenseTotal;
+  const totalExpenses = loadingExpenseTotal + parkingExpenseTotal + turnExpenseTotal + rtoExpenseTotal + otherExpenseTotal;
   const balance = totalAdvance - (dieselCashTotal + totalExpenses);
   const manualKmRoute = trip.isDiverted && trip.divertUnloadingLocation
     ? `${trip.unloadingLocation || '-'} to ${trip.divertUnloadingLocation}`
@@ -1460,54 +1488,46 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
             <table className="trip-expenses-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               <tbody>
                 <tr>
-                  <td colSpan="2" style={{ padding: '8px 12px', fontWeight: 700, background: '#f7faf7' }}>Loading Expenses</td>
-                  <td colSpan="2" style={{ padding: '8px 12px', fontWeight: 700, background: '#f7faf7' }}>Unloading Expenses</td>
+                  <td colSpan="4" style={{ padding: '8px 12px', fontWeight: 700, background: '#f7faf7' }}>Expenses</td>
                 </tr>
                 <tr>
-                  <td style={{ padding: '8px 12px 8px 0' }}>{trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}</td>
-                  <td style={{ padding: '8px 12px 8px 0', textAlign: 'right' }}>Rs {loadingExpenseTotal}</td>
-                  <td style={{ padding: '8px 12px 8px 0' }}>{trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}</td>
-                  <td style={{ padding: '8px 0', textAlign: 'right' }}>Rs {unloadingExpenseTotal}</td>
-                </tr>
-                <tr>
-                  <td style={{ padding: '8px 12px 8px 0', fontWeight: 600 }}>Subtotal</td>
-                  <td style={{ padding: '8px 12px 8px 0', fontWeight: 600, textAlign: 'right' }}>Rs {loadingExpenseTotal}</td>
-                  <td style={{ padding: '8px 12px 8px 0', fontWeight: 600 }}>Subtotal</td>
-                  <td style={{ padding: '8px 0', fontWeight: 600, textAlign: 'right' }}>Rs {unloadingExpenseTotal}</td>
-                </tr>
-
-                <tr>
-                  <td colSpan="2" style={{ padding: '8px 12px', fontWeight: 700, background: '#f7faf7' }}>RTO Expenses</td>
-                  <td colSpan="2" style={{ padding: '8px 12px', fontWeight: 700, background: '#f7faf7' }}>Other Expenses</td>
-                </tr>
-                <tr>
-                  <td colSpan="2" style={{ padding: '0 12px 8px 0', verticalAlign: 'top' }}>
+                  <td colSpan="4" style={{ padding: 0 }}>
                     <table className="trip-detail-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                       <tbody>
-                        {rtoEntries.length === 0 ? (
-                          <tr><td colSpan="2" style={{ padding: '8px 0', color: '#666' }}>No RTO entries added.</td></tr>
-                        ) : rtoEntries.map((entry, index) => (
-                          <tr key={index}>
-                            <td style={{ padding: '8px 12px 8px 0' }}>{entry.date ? new Date(entry.date).toLocaleDateString('en-IN') : '-'}</td>
-                            <td style={{ padding: '8px 0', textAlign: 'right' }}>Rs {Number(entry.amount || 0)}</td>
+                        <tr>
+                          <td style={{ padding: '8px 12px 8px 12px' }}>Cleaner Loading</td>
+                          <td style={{ padding: '8px 12px 8px 0', color: '#666' }}>{trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}</td>
+                          <td style={{ padding: '8px 12px 8px 0', textAlign: 'right' }}>Rs {loadingExpenseTotal}</td>
+                        </tr>
+                        <tr>
+                          <td style={{ padding: '8px 12px 8px 12px' }}>Turn</td>
+                          <td style={{ padding: '8px 12px 8px 0', color: '#666' }}>{trip.turnDate ? new Date(trip.turnDate).toLocaleDateString('en-IN') : '-'}</td>
+                          <td style={{ padding: '8px 12px 8px 0', textAlign: 'right' }}>Rs {turnExpenseTotal}</td>
+                        </tr>
+                        <tr>
+                          <td style={{ padding: '8px 12px 8px 12px' }}>Parking</td>
+                          <td style={{ padding: '8px 12px 8px 0', color: '#666' }}>{trip.parkingPhoto?.url ? <a href={trip.parkingPhoto.url} target="_blank" rel="noreferrer">photo</a> : '-'}</td>
+                          <td style={{ padding: '8px 12px 8px 0', textAlign: 'right' }}>Rs {parkingExpenseTotal}</td>
+                        </tr>
+                        {rtoEntries.map((entry, index) => (
+                          <tr key={`rto-${index}`}>
+                            <td style={{ padding: '8px 12px 8px 12px' }}>RTO</td>
+                            <td style={{ padding: '8px 12px 8px 0', color: '#666' }}>{entry.date ? new Date(entry.date).toLocaleDateString('en-IN') : '-'}</td>
+                            <td style={{ padding: '8px 12px 8px 0', textAlign: 'right' }}>Rs {Number(entry.amount || 0)}</td>
                           </tr>
                         ))}
-                        <tr><td style={{ padding: '8px 12px 8px 0', fontWeight: 600 }}>Subtotal</td><td style={{ padding: '8px 0', fontWeight: 600, textAlign: 'right' }}>Rs {rtoExpenseTotal}</td></tr>
-                      </tbody>
-                    </table>
-                  </td>
-                  <td colSpan="2" style={{ padding: '0 0 8px 12px', verticalAlign: 'top' }}>
-                    <table className="trip-detail-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                      <tbody>
-                        {otherExpenses.length === 0 ? (
-                          <tr><td colSpan="2" style={{ padding: '8px 0', color: '#666' }}>No other expenses added.</td></tr>
-                        ) : otherExpenses.map((entry, index) => (
-                          <tr key={index}>
-                            <td style={{ padding: '8px 12px 8px 0' }}>{entry.date ? new Date(entry.date).toLocaleDateString('en-IN') : '-'}</td>
-                            <td style={{ padding: '8px 0', textAlign: 'right' }}>Rs {Number(entry.amount || 0)}</td>
+                        {otherExpenses.map((entry, index) => (
+                          <tr key={`other-${index}`}>
+                            <td style={{ padding: '8px 12px 8px 12px' }}>{entry.description || 'Other'}</td>
+                            <td style={{ padding: '8px 12px 8px 0', color: '#666' }}>{entry.date ? new Date(entry.date).toLocaleDateString('en-IN') : '-'}</td>
+                            <td style={{ padding: '8px 12px 8px 0', textAlign: 'right' }}>Rs {Number(entry.amount || 0)}</td>
                           </tr>
                         ))}
-                        <tr><td style={{ padding: '8px 12px 8px 0', fontWeight: 600 }}>Subtotal</td><td style={{ padding: '8px 0', fontWeight: 600, textAlign: 'right' }}>Rs {otherExpenseTotal}</td></tr>
+                        <tr style={{ borderTop: '1px solid #dfeade' }}>
+                          <td style={{ padding: '8px 12px 8px 12px', fontWeight: 600 }}>Subtotal</td>
+                          <td style={{ padding: '8px 12px 8px 0' }}> </td>
+                          <td style={{ padding: '8px 12px 8px 0', fontWeight: 600, textAlign: 'right' }}>Rs {totalExpenses}</td>
+                        </tr>
                       </tbody>
                     </table>
                   </td>
