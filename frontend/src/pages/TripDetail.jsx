@@ -12,19 +12,22 @@ export function findMissingRouteLegs(trip, routeKmTable) {
 
   const legs = trip.isDiverted
     ? [
-        { from: loading, to: unloading },
-        { from: unloading, to: diverted },
-        { from: filling, to: diverted },
+        { from: loading, to: unloading, manualField: 'manualKm' },
+        { from: unloading, to: diverted, manualField: 'divertKm' },
+        { from: filling, to: diverted, manualField: 'manualKm' },
       ]
     : [
-        { from: loading, to: unloading },
-        { from: filling, to: unloading },
+        { from: loading, to: unloading, manualField: 'manualKm' },
+        { from: filling, to: unloading, manualField: 'manualKm' },
       ];
-  return legs.filter((leg) => !(routeKmTable || []).some((row) => (
-    String(row.loadingLocation || '').trim() === leg.from &&
-    String(row.unloadingLocation || '').trim() === leg.to &&
-    Number.isFinite(Number(row.km))
-  )));
+  return legs.filter((leg) => {
+    const hasTableKm = (routeKmTable || []).some((row) => (
+      String(row.loadingLocation || '').trim() === leg.from &&
+      String(row.unloadingLocation || '').trim() === leg.to &&
+      Number.isFinite(Number(row.km))
+    ));
+    return !hasTableKm && !isValidManualKm(trip[leg.manualField]);
+  });
 }
 
 function isValidManualKm(value) {
@@ -423,6 +426,7 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
   const [turnDate, setTurnDate] = useState(trip.turnDate ? new Date(trip.turnDate).toISOString().slice(0, 10) : '');
   const [fillingOrderLocation, setFillingOrderLocation] = useState(trip.fillingOrderLocation || '');
   const [manualKm, setManualKm] = useState(trip.manualKm != null ? String(trip.manualKm) : '');
+  const [divertKm, setDivertKm] = useState(trip.divertKm != null ? String(trip.divertKm) : '');
   const [showManualKmForm, setShowManualKmForm] = useState(false);
   const [missingLegs, setMissingLegs] = useState([]);
   const [manualKmError, setManualKmError] = useState('');
@@ -443,6 +447,7 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
         turnDate,
         fillingOrderLocation: fillingOrderLocation || undefined,
         manualKm: manualKm === '' ? undefined : Number(manualKm),
+        divertKm: divertKm === '' ? undefined : Number(divertKm),
       });
       await api.closeTrip(tripId);
       onSaved();
@@ -460,8 +465,10 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
     const missing = findMissingRouteLegs({
       ...trip,
       fillingOrderLocation,
+      manualKm,
+      divertKm,
     }, meta.routeKmTable);
-    if (missing.length && !isValidManualKm(manualKm)) {
+    if (missing.length) {
       setMissingLegs(missing);
       setManualKmError('');
       setShowManualKmForm(true);
@@ -471,8 +478,8 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
   }
 
   function continueWithManualKm() {
-    if (!isValidManualKm(manualKm)) {
-      setManualKmError('Enter a valid non-negative Manual KM.');
+    if (missingLegs.some((leg) => !isValidManualKm(leg.manualField === 'divertKm' ? divertKm : manualKm))) {
+      setManualKmError('Enter a valid non-negative Manual KM for every missing route.');
       return;
     }
     setShowManualKmForm(false);
@@ -520,7 +527,12 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
             type="button"
             className="btn secondary"
             onClick={() => {
-              setMissingLegs(findMissingRouteLegs({ ...trip, fillingOrderLocation }, meta.routeKmTable));
+              setMissingLegs(findMissingRouteLegs({
+                ...trip,
+                fillingOrderLocation,
+                manualKm: null,
+                divertKm: null,
+              }, meta.routeKmTable));
               setShowManualKmForm(true);
             }}
           >
@@ -531,9 +543,13 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
       {showManualKmForm && (
         <ManualKmForm
           missingLegs={missingLegs}
-          value={manualKm}
+          values={{ manualKm, divertKm }}
           error={manualKmError}
-          onChange={(value) => { setManualKm(value); setManualKmError(''); }}
+          onChange={(field, value) => {
+            if (field === 'divertKm') setDivertKm(value);
+            else setManualKm(value);
+            setManualKmError('');
+          }}
           onCancel={() => setShowManualKmForm(false)}
           onContinue={continueWithManualKm}
         />
@@ -550,7 +566,12 @@ function TurnDetailsSummary({ trip, onEdit }) {
         <p style={{ margin: 0 }}>
           Turn {trip.turnNumber} • {new Date(trip.turnDate).toLocaleDateString('en-IN')}
           {trip.fillingOrderLocation ? ` • Filling order: ${trip.fillingOrderLocation}` : ''}
-          {trip.manualKm != null && trip.manualKm !== '' ? ` • Manual KM: ${trip.manualKm}` : ''}
+          {trip.isDiverted && trip.divertKm != null && trip.divertKm !== ''
+            ? ` • Manual KM (${trip.unloadingLocation} → ${trip.divertUnloadingLocation}): ${trip.divertKm}`
+            : ''}
+          {trip.manualKm != null && trip.manualKm !== ''
+            ? ` • Manual KM (${trip.isDiverted ? trip.fillingOrderLocation : trip.loadingLocation} → ${trip.isDiverted ? trip.divertUnloadingLocation : trip.unloadingLocation}): ${trip.manualKm}`
+            : ''}
         </p>
         <button type="button" className="btn secondary" onClick={onEdit}>Edit</button>
       </div>
@@ -1019,8 +1040,6 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
   const [isDiverted, setIsDiverted] = useState(Boolean(trip.isDiverted));
   const [divertUnloadingLocation, setDivertUnloadingLocation] = useState(trip.divertUnloadingLocation || '');
   const [divertDate, setDivertDate] = useState(trip.divertDate ? new Date(trip.divertDate).toISOString().slice(0, 10) : '');
-  const [divertKm, setDivertKm] = useState(trip.divertKm == null ? '' : String(trip.divertKm));
-  const [showDivertKmModal, setShowDivertKmModal] = useState(false);
   const [selectedCorporation, setSelectedCorporation] = useState(
     (() => {
       const currentLocation = trip.unloadingLocation || unloadingLocation;
@@ -1040,21 +1059,12 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
 
   async function submit(e) {
     e.preventDefault();
-    const hasSecondLegInTable = (meta.routeKmTable || []).some((row) => (
-      String(row?.loadingLocation || '').trim() === String(unloadingLocation || '').trim() &&
-      String(row?.unloadingLocation || '').trim() === String(divertUnloadingLocation || '').trim()
-    ));
-    if (isDiverted && !hasSecondLegInTable && (!Number.isFinite(Number(divertKm)) || Number(divertKm) < 0)) {
-      setShowDivertKmModal(true);
-      return;
-    }
     await api.setUnloading(tripId, {
       unloadingLocation,
       unloadingDate,
       isDiverted,
       divertUnloadingLocation: isDiverted ? divertUnloadingLocation : undefined,
       divertDate: isDiverted ? divertDate : undefined,
-      divertKm: isDiverted ? Number(divertKm) : undefined,
     });
     onSaved();
   }
@@ -1139,42 +1149,11 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
           </div>
         </div>
       )}
-      {showDivertKmModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="divert-km-title"
-          style={{
-            position: 'fixed', inset: 0, zIndex: 10, display: 'grid', placeItems: 'center',
-            padding: 16, background: 'rgba(0, 0, 0, 0.35)',
-          }}
-        >
-          <div className="card" style={{ width: 'min(100%, 360px)', margin: 0, background: '#fff' }}>
-            <h3 id="divert-km-title" className="section-title">Divert location KM from here</h3>
-            <div className="field">
-              <label htmlFor="divert-km-input">Divert location KM from here</label>
-              <input
-                id="divert-km-input"
-                type="number"
-                min="0"
-                value={divertKm}
-                onChange={(e) => setDivertKm(e.target.value)}
-                autoFocus
-                required
-              />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button type="button" className="btn secondary" onClick={() => setShowDivertKmModal(false)}>Cancel</button>
-              <button type="submit" className="btn">Save KM</button>
-            </div>
-          </div>
-        </div>
-      )}
     </form>
   );
 }
 
-function ManualKmForm({ missingLegs, value, error, onChange, onCancel, onContinue }) {
+function ManualKmForm({ missingLegs, values, error, onChange, onCancel, onContinue }) {
   return (
     <div
       role="region"
@@ -1186,26 +1165,22 @@ function ManualKmForm({ missingLegs, value, error, onChange, onCancel, onContinu
       {missingLegs.map((leg, index) => (
         <div className="grid-2" key={`${leg.from}-${leg.to}-${index}`}>
           <div className="field">
-            <label>Loading Location</label>
-            <input value={leg.from} readOnly />
+            <label>Route</label>
+            <input value={`${leg.from} → ${leg.to}`} readOnly />
           </div>
           <div className="field">
-            <label>Unloading Location</label>
-            <input value={leg.to} readOnly />
+            <label htmlFor={`manual-km-input-${leg.manualField}`}>Manual KM</label>
+            <input
+              id={`manual-km-input-${leg.manualField}`}
+              type="number"
+              min="0"
+              value={values[leg.manualField]}
+              onChange={(e) => onChange(leg.manualField, e.target.value)}
+              autoFocus={index === 0}
+            />
           </div>
         </div>
       ))}
-      <div className="field">
-        <label htmlFor="manual-km-input">Manual KM (Round-trip)</label>
-        <input
-          id="manual-km-input"
-          type="number"
-          min="0"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          autoFocus
-        />
-      </div>
       {error && <div className="error-text">{error}</div>}
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
         <button type="button" className="btn secondary" onClick={onCancel}>Cancel</button>
@@ -1270,8 +1245,9 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
   const totalExpenses = loadingExpenseTotal + parkingExpenseTotal + turnExpenseTotal + rtoExpenseTotal + otherExpenseTotal;
   const balance = totalAdvance - (dieselCashTotal + totalExpenses);
   const manualKmRoute = trip.isDiverted && trip.divertUnloadingLocation
-    ? `${trip.unloadingLocation || '-'} to ${trip.divertUnloadingLocation}`
+    ? `${trip.fillingOrderLocation || '-'} to ${trip.divertUnloadingLocation}`
     : `${trip.loadingLocation || '-'} to ${trip.unloadingLocation || '-'}`;
+  const divertKmRoute = `${trip.unloadingLocation || '-'} to ${trip.divertUnloadingLocation || '-'}`;
 
   function printTripDetails() {
     const printDate = trip.loadingDate || trip.unloadingDate || new Date();
@@ -1454,6 +1430,7 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
                       </thead>
                       <tbody>
                         {[
+                          ...(trip.isDiverted ? [[`Manual KM (${divertKmRoute})`, trip.divertKm != null && trip.divertKm !== '' ? `${trip.divertKm} km` : 'NA']] : []),
                           [`Manual KM (${manualKmRoute})`, trip.manualKm != null && trip.manualKm !== '' ? `${trip.manualKm} km` : 'NA'],
                           ['Driver KM', calculatedCorporationKm != null ? `${calculatedCorporationKm} km` : 'NA'],
                         ].map(([label, value]) => (

@@ -219,10 +219,10 @@ test('requires Manual KM inside Load Turn and lists the unresolved route before 
   expect(manualKmForm).not.toBeNull();
   expect(turnForm.contains(manualKmForm)).toBe(true);
   const routeInputs = Array.from(manualKmForm.querySelectorAll('input[readonly]'));
-  expect(routeInputs.map((input) => input.value)).toEqual(['Filling Plant', 'Depot']);
+  expect(routeInputs.map((input) => input.value)).toEqual(['Filling Plant → Depot']);
   expect(api.setTurnDetails).not.toHaveBeenCalled();
 
-  const manualInput = manualKmForm.querySelector('#manual-km-input');
+  const manualInput = manualKmForm.querySelector('#manual-km-input-manualKm');
   await act(async () => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(manualInput, '250');
     manualInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -236,6 +236,7 @@ test('requires Manual KM inside Load Turn and lists the unresolved route before 
     turnDate: '2026-09-16',
     fillingOrderLocation: 'Filling Plant',
     manualKm: 250,
+    divertKm: undefined,
   });
   expect(api.closeTrip).toHaveBeenCalledWith('trip-2');
 
@@ -252,7 +253,17 @@ test('route leg detection waits for complete route fields and covers diverted tr
     isDiverted: true,
     divertUnloadingLocation: 'D',
   }, [{ loadingLocation: 'A', unloadingLocation: 'B', km: 10 }])).toEqual([
-    { from: 'B', to: 'D' },
-    { from: 'C', to: 'D' },
+    { from: 'B', to: 'D', manualField: 'divertKm' },
+    { from: 'C', to: 'D', manualField: 'manualKm' },
+  ]);
+  expect(findMissingRouteLegs({
+    loadingLocation: 'A',
+    unloadingLocation: 'B',
+    fillingOrderLocation: 'C',
+    isDiverted: true,
+    divertUnloadingLocation: 'D',
+    divertKm: 40,
+  }, [{ loadingLocation: 'A', unloadingLocation: 'B', km: 10 }])).toEqual([
+    { from: 'C', to: 'D', manualField: 'manualKm' },
   ]);
 });

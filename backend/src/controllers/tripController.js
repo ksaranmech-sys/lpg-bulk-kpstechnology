@@ -527,12 +527,12 @@ async function setUnloading(req, res) {
   res.json({ trip });
 }
 
-// PATCH /api/v1/trips/:tripId/turn   body: { turnNumber, turnDate, fillingOrderLocation, manualKm }
+// PATCH /api/v1/trips/:tripId/turn   body: { turnNumber, turnDate, fillingOrderLocation, manualKm, divertKm }
 async function setTurnDetails(req, res) {
   const trip = await getOpenTripOr404(req, res);
   if (!trip) return;
 
-  const { turnNumber, turnDate, fillingOrderLocation, manualKm } = req.body;
+  const { turnNumber, turnDate, fillingOrderLocation, manualKm, divertKm } = req.body;
   if (turnNumber == null || turnNumber === '') {
     return res.status(400).json({ error: 'turnNumber is required' });
   }
@@ -554,6 +554,14 @@ async function setTurnDetails(req, res) {
     }
     trip.manualKm = km;
   }
+  if (divertKm !== undefined && divertKm !== '') {
+    const km = Number(divertKm);
+    if (!Number.isFinite(km) || km < 0) {
+      return res.status(400).json({ error: 'divertKm must be a non-negative number' });
+    }
+    trip.divertKm = km;
+  }
+  if (rejectMissingManualKm(trip, res)) return;
   await trip.save();
   res.json({ trip });
 }

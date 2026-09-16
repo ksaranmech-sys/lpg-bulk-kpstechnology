@@ -41,6 +41,13 @@ function getCorporationKmDetails(trip, routeKmTable) {
     && manualKmValue !== ''
     && Number.isFinite(manualKm)
     && manualKm >= 0;
+  const divertKmValue = trip.divertKm;
+  const divertKm = Number(divertKmValue);
+  const hasDivertKm = divertKmValue !== null
+    && divertKmValue !== undefined
+    && divertKmValue !== ''
+    && Number.isFinite(divertKm)
+    && divertKm >= 0;
   const requiredLegs = getRequiredRouteLegs(trip);
   if (!requiredLegs) {
     if (!hasManualKm || !String(trip.loadingLocation || '').trim() || !String(trip.unloadingLocation || '').trim()) {
@@ -62,18 +69,26 @@ function getCorporationKmDetails(trip, routeKmTable) {
           findRouteKm(routeKmTable, loadingLocation, unloadingLocation),
           findRouteKm(routeKmTable, fillingOrderLocation, unloadingLocation),
         ];
+    const resolvedLegacyLegs = legacyLegs.map((km, index) => {
+      if (km != null) return km;
+      if (trip.isDiverted && index === 1 && hasDivertKm) return divertKm;
+      return manualKm;
+    });
     return {
-      value: legacyLegs.reduce((total, km) => total + ((km == null ? manualKm : km) * 0.5), 0),
+      value: resolvedLegacyLegs.reduce((total, km) => total + (km * 0.5), 0),
       source: trip.isDiverted && divertUnloadingLocation ? 'manual_divert_weighted' : 'manual_weighted',
       missingLegs: [],
     };
   }
 
   const tableLegs = requiredLegs.map((leg) => findRouteKm(routeKmTable, leg.from, leg.to));
-  const missingLegs = requiredLegs.filter((leg, index) => tableLegs[index] == null);
-
   if (trip.isDiverted) {
-    const legs = tableLegs.map((km) => km == null ? (hasManualKm ? manualKm : null) : km);
+    const legs = tableLegs.map((km, index) => {
+      if (km != null) return km;
+      if (index === 1) return hasDivertKm ? divertKm : null;
+      return hasManualKm ? manualKm : null;
+    });
+    const missingLegs = requiredLegs.filter((leg, index) => legs[index] == null);
     const [firstLegKm, secondLegKm, thirdLegKm] = legs;
     if ([firstLegKm, secondLegKm, thirdLegKm].every((km) => km != null)) {
       return {
@@ -82,8 +97,12 @@ function getCorporationKmDetails(trip, routeKmTable) {
         missingLegs,
       };
     }
+    return { value: null, source: 'manual_required', missingLegs };
   } else {
     const [firstLegKm, secondLegKm] = tableLegs.map((km) => km == null ? (hasManualKm ? manualKm : null) : km);
+    const missingLegs = requiredLegs.filter((leg, index) => (
+      tableLegs[index] == null && !hasManualKm
+    ));
     if (firstLegKm != null && secondLegKm != null) {
       return {
         value: (firstLegKm * 0.5) + (secondLegKm * 0.5),
@@ -91,9 +110,8 @@ function getCorporationKmDetails(trip, routeKmTable) {
         missingLegs,
       };
     }
+    return { value: null, source: 'manual_required', missingLegs };
   }
-
-  return { value: null, source: 'manual_required', missingLegs };
 }
 
 module.exports = { findRouteKm, getRequiredRouteLegs, getMissingRouteLegs, getCorporationKmDetails };

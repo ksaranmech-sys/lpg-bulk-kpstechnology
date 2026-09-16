@@ -165,15 +165,28 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
     doc.x = doc.page.margins.left;
 
     styledSectionHeader(doc, 'Manual KM Details');
+    const manualKmRows = trips.flatMap((trip) => {
+      const rows = [];
+      if (trip.isDiverted && trip.divertKm != null) {
+        rows.push([
+          trip.unloadingLocation || '-',
+          trip.divertUnloadingLocation || '-',
+          `${fmtMoney(trip.divertKm)} km`,
+        ]);
+      }
+      if (trip.manualKm != null) {
+        rows.push([
+          trip.isDiverted ? trip.fillingOrderLocation || '-' : trip.loadingLocation || '-',
+          trip.isDiverted ? trip.divertUnloadingLocation || '-' : trip.unloadingLocation || '-',
+          `${fmtMoney(trip.manualKm)} km`,
+        ]);
+      }
+      return rows;
+    });
     renderSalaryTripsTable(doc, ['S.No', 'Manual KM Loading', 'Manual KM Unloading', 'Manual KM'],
-      trips.filter((trip) => trip.manualKm != null).length ? trips.filter((trip) => trip.manualKm != null).map((trip, index) => [
-        String(index + 1),
-        trip.isDiverted ? trip.unloadingLocation || '-' : trip.loadingLocation || '-',
-        trip.isDiverted ? trip.divertUnloadingLocation || '-' : trip.unloadingLocation || '-',
-        `${fmtMoney(trip.manualKm)} km`,
-      ]) : [['-', 'No manual KM entries for this month', '-', '-']], {
+      manualKmRows.length ? manualKmRows.map((row, index) => [String(index + 1), ...row]) : [['-', 'No manual KM entries for this month', '-', '-']], {
         totalLabel: 'Total Manual KM',
-        totalValue: `${fmtMoney(trips.reduce((sum, trip) => sum + Number(trip.manualKm || 0), 0))} km`,
+        totalValue: `${fmtMoney(trips.reduce((sum, trip) => sum + Number(trip.manualKm || 0) + Number(trip.divertKm || 0), 0))} km`,
       });
     doc.moveDown(0.12);
     doc.x = doc.page.margins.left;
@@ -264,8 +277,9 @@ function renderTripOverview(doc, trip, customer, driver, vehicle, odometerKm = n
   const y = doc.y;
   const rowHeight = 18;
   const manualKmRoute = trip.isDiverted && trip.divertUnloadingLocation
-    ? `${trip.unloadingLocation || '-'} to ${trip.divertUnloadingLocation}`
+    ? `${trip.fillingOrderLocation || '-'} to ${trip.divertUnloadingLocation}`
     : `${trip.loadingLocation || '-'} to ${trip.unloadingLocation || '-'}`;
+  const divertKmRoute = `${trip.unloadingLocation || '-'} to ${trip.divertUnloadingLocation || '-'}`;
   const rows = [
     ['Customer', customer?.companyName || '-', 'Driver', driver?.name || driver?.username || '-'],
     ['Trip Route', `${trip.loadingLocation || '-'} (${fmtDate(trip.loadingDate)}) -> ${trip.unloadingLocation || '-'} (${fmtDate(trip.unloadingDate)})${trip.isDiverted ? ` -> ${trip.divertUnloadingLocation || '-'} (${fmtDate(trip.divertDate)})` : ''}`, '', ''],
@@ -324,6 +338,7 @@ function renderTripOverview(doc, trip, customer, driver, vehicle, odometerKm = n
   ], threeColumnWidths);
   doc.y = drawKmTable(remainingTableY, ['KM Type', 'KM'], [
     ['Corp. KM', trip.corpKm != null ? `${fmtMoney(trip.corpKm)} km` : 'NA'],
+    ...(trip.isDiverted ? [[`Manual KM (${divertKmRoute})`, trip.divertKm != null ? `${fmtMoney(trip.divertKm)} km` : 'NA']] : []),
     [`Manual KM (${manualKmRoute})`, trip.manualKm != null ? `${fmtMoney(trip.manualKm)} km` : 'NA'],
     ['Driver KM', trip.corporationKm != null ? `${fmtMoney(trip.corporationKm)} km` : 'NA'],
   ], twoColumnWidths);

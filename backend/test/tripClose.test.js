@@ -400,6 +400,7 @@ test('diverted Driver KM uses Manual KM for a missing automatic leg', () => {
     isDiverted: true,
     divertUnloadingLocation: 'New Unloading',
     manualKm: 300,
+    divertKm: 300,
   };
   const routes = [
     { loadingLocation: 'Loading', unloadingLocation: 'Unloading', km: 100 },
@@ -408,6 +409,26 @@ test('diverted Driver KM uses Manual KM for a missing automatic leg', () => {
 
   assert.equal(getCorporationKmDetails(trip, routes).value, 230);
   assert.equal(getCorporationKmDetails(trip, routes).source, 'manual_divert_weighted');
+});
+
+test('diverted Driver KM uses separate values for both missing diverted legs', () => {
+  const trip = {
+    loadingLocation: 'Loading',
+    unloadingLocation: 'Unloading',
+    fillingOrderLocation: 'Filling Order',
+    isDiverted: true,
+    divertUnloadingLocation: 'New Unloading',
+    divertKm: 400,
+    manualKm: 600,
+  };
+  const routes = [
+    { loadingLocation: 'Loading', unloadingLocation: 'Unloading', km: 100 },
+  ];
+
+  const details = getCorporationKmDetails(trip, routes);
+  assert.equal(details.value, 550);
+  assert.equal(details.source, 'manual_divert_weighted');
+  assert.deepEqual(details.missingLegs, []);
 });
 
 test('diverted Driver KM requires Manual KM when any route-table leg is missing', () => {
@@ -499,6 +520,11 @@ test('diverted Driver KM reports all unresolved weighted legs', () => {
 
   assert.deepEqual(getCorporationKmDetails(trip, routes).missingLegs, [
     { from: 'Unloading', to: 'Diverted' },
+    { from: 'Filling Order', to: 'Diverted' },
+  ]);
+
+  trip.divertKm = 250;
+  assert.deepEqual(getCorporationKmDetails(trip, routes).missingLegs, [
     { from: 'Filling Order', to: 'Diverted' },
   ]);
 });
