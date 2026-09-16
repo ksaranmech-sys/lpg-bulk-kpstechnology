@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import * as api from '../api/api';
 import Layout from '../components/Layout';
+import { useAuth } from '../context/AuthContext';
 
 export default function TripDetail() {
   const { tripId } = useParams();
@@ -25,6 +26,10 @@ export default function TripDetail() {
   const hasUnloadingDetails = Boolean(trip.unloadingLocation && trip.unloadingDate);
   const hasTurnDetails = trip.turnNumber != null && trip.turnDate;
   const hasUnloadingTurnDetails = trip.unTurnNumber != null && trip.unTurnDate;
+  // Keep the editable Load Turn form (and its Manual KM field) visible whenever KM couldn't be
+  // resolved from the table, even if turn number/date were already saved, so it's never hidden
+  // behind the read-only "Load Turn Added" summary.
+  const manualKmMissingForClose = trip.corporationKmSource === 'manual_required' && trip.manualKm == null;
   const formatDate = (value) => (value ? new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '');
   const loadingDateText = formatDate(trip.loadingDate);
   const unloadingDateText = formatDate(trip.unloadingDate);
@@ -96,8 +101,8 @@ export default function TripDetail() {
             <OtherExpenseForm tripId={tripId} onSaved={load} />
           </div>
         </div>
-        {hasTurnDetails && <TurnDetailsSummary trip={trip} onEdit={() => setEditingTurnDetails(true)} />}
-        {(!hasTurnDetails || editingTurnDetails) && (
+        {hasTurnDetails && !manualKmMissingForClose && <TurnDetailsSummary trip={trip} onEdit={() => setEditingTurnDetails(true)} />}
+        {(!hasTurnDetails || editingTurnDetails || manualKmMissingForClose) && (
           <TurnDetailsForm
             tripId={tripId}
             trip={trip}
@@ -387,11 +392,12 @@ function LoadingExpenseSummary({ trip, tripId, onSaved }) {
 }
 
 function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [turnNumber, setTurnNumber] = useState(trip.turnNumber != null ? String(trip.turnNumber) : '');
   const [turnDate, setTurnDate] = useState(trip.turnDate ? new Date(trip.turnDate).toISOString().slice(0, 10) : '');
   const [fillingOrderLocation, setFillingOrderLocation] = useState(trip.fillingOrderLocation || '');
   const [manualKm, setManualKm] = useState(trip.manualKm != null ? String(trip.manualKm) : '');
-  const [showManualKmModal, setShowManualKmModal] = useState(false);
   const [error, setError] = useState('');
   const missingCloseFields = [
     !String(trip.loadingLocation || '').trim() && 'loading location',
@@ -405,12 +411,7 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
   // divert leg locations, so the popup matches what the driver/admin entered earlier in the trip.
   const manualKmFromLocation = trip.loadingLocation;
   const manualKmToLocation = trip.isDiverted && trip.divertUnloadingLocation ? trip.divertUnloadingLocation : trip.unloadingLocation;
-
-  useEffect(() => {
-    if (manualKmRequired && manualKm === '') setShowManualKmModal(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [manualKmRequired]);
-
+  const manualKmMissing = manualKmRequired && manualKm === '';
 
   async function submit(e) {
     e.preventDefault();
@@ -418,8 +419,8 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
       setError(`Add ${missingCloseFields.join(', ')} before closing this trip.`);
       return;
     }
-    if (manualKmRequired && manualKm === '') {
-      setShowManualKmModal(true);
+    if (manualKmMissing) {
+      setError('Manual KM is required because automatic calculation is unavailable for this route.');
       return;
     }
     setError('');
@@ -431,6 +432,13 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
         manualKm: manualKm === '' ? undefined : Number(manualKm),
       });
       await api.closeTrip(tripId);
+      // Driver-side close only locks this trip for customer confirmation - immediately
+      // open the next trip for the same vehicle instead of leaving the driver stranded here.
+      if (user?.role === 'vehicle_user' && trip.vehicle?._id) {
+        const created = await api.createTrip(trip.vehicle._id, {});
+        navigate(`/trips/${created.data.trip._id}`);
+        return;
+      }
       onSaved();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save Turn details or close trip');
@@ -465,62 +473,37 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
           <label>Turn Date</label>
           <input type="date" value={turnDate} onChange={(e) => setTurnDate(e.target.value)} required />
         </div>
-        <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }} disabled={missingCloseFields.length > 0}>Trip close</button>
+        <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }} disabled={missingCloseFields.length > 0 || manualKmMissing}>Trip close</button>
       </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)', gap: 14, marginTop: 14 }}>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Loading Location</label>
+          <input value={manualKmFromLocation || '-'} readOnly />
+        </div>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Unloading Location</label>
+          <input value={manualKmToLocation || '-'} readOnly />
+        </div>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Manual KM {manualKmRequired ? '(required)' : '(optional)'}</label>
+          <input
+            type="number"
+            min="0"
+            value={manualKm}
+            onChange={(e) => setManualKm(e.target.value)}
+            required={manualKmRequired}
+          />
+        </div>
+      </div>
+      {manualKmRequired && (
+        <p className="error-text" style={{ marginTop: 12 }}>
+          KM for this route was not found in the KM table. Manual KM entry is required.
+        </p>
+      )}
       {missingCloseFields.length > 0 && (
         <p className="error-text" style={{ marginTop: 12 }}>
           Add {missingCloseFields.join(', ')} before closing this trip.
         </p>
-      )}
-      {manualKm !== '' && (
-        <div style={{ marginTop: 12 }}>
-          <button type="button" className="btn secondary" onClick={() => setShowManualKmModal(true)}>
-            Edit Manual KM
-          </button>
-        </div>
-      )}
-      {showManualKmModal && (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="manual-km-title">
-          <div className="card modal-panel" style={{ width: '100%', maxWidth: 420, margin: 20 }}>
-            <h3 id="manual-km-title" className="section-title">Enter Manual KM(Round-trip)</h3>
-            {manualKmRequired && (
-              <p className="error-text" style={{ marginTop: -4 }}>
-                KM for this route was not found in the KM table. Manual KM entry is required.
-              </p>
-            )}
-            <div className="grid-2">
-              <div className="field">
-                <label>Loading Location</label>
-                <input value={manualKmFromLocation || '-'} readOnly />
-              </div>
-              <div className="field">
-                <label>Unloading Location</label>
-                <input value={manualKmToLocation || '-'} readOnly />
-              </div>
-            </div>
-            <div className="field">
-              <label>Manual KM</label>
-              <input
-                type="number"
-                min="0"
-                value={manualKm}
-                onChange={(e) => setManualKm(e.target.value)}
-                autoFocus
-                required={manualKmRequired}
-              />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button
-                type="button"
-                className="btn secondary"
-                disabled={manualKmRequired && !(manualKm !== '' && Number.isFinite(Number(manualKm)) && Number(manualKm) >= 0)}
-                onClick={() => setShowManualKmModal(false)}
-              >
-                Done
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </form>
   );
