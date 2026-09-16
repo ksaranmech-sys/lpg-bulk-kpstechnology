@@ -11,7 +11,7 @@ const User = require('../src/models/User');
 const Trip = require('../src/models/Trip');
 const metaRoutes = require('../src/routes/metaRoutes');
 const { calculateClosingOdometerKm, computeTripSettlement } = require('../src/utils/tripCalculations');
-const { getCorporationKmDetails } = require('../src/utils/corporationKm');
+const { getCorporationKmDetails, getMissingRouteLegs } = require('../src/utils/corporationKm');
 
 test('tripController exposes a closeTrip endpoint', () => {
   assert.equal(typeof tripController.closeTrip, 'function');
@@ -408,6 +408,99 @@ test('diverted Driver KM uses Manual KM for a missing automatic leg', () => {
 
   assert.equal(getCorporationKmDetails(trip, routes).value, 230);
   assert.equal(getCorporationKmDetails(trip, routes).source, 'manual_divert_weighted');
+});
+
+test('diverted Driver KM requires Manual KM when any route-table leg is missing', () => {
+  const trip = {
+    loadingLocation: 'Loading',
+    unloadingLocation: 'Unloading',
+    fillingOrderLocation: 'Filling Order',
+    isDiverted: true,
+    divertUnloadingLocation: 'New Unloading',
+    manualKm: null,
+  };
+  const routes = [
+    { loadingLocation: 'Loading', unloadingLocation: 'Unloading', km: 100 },
+  ];
+
+  assert.equal(getCorporationKmDetails(trip, routes).value, null);
+  assert.equal(getCorporationKmDetails(trip, routes).source, 'manual_required');
+});
+
+test('Driver KM reports every missing normal route leg once route fields are complete', () => {
+  const trip = {
+    loadingLocation: 'Loading',
+    unloadingLocation: 'Unloading',
+    fillingOrderLocation: 'Filling Order',
+  };
+
+  assert.deepEqual(getMissingRouteLegs(trip, []), [
+    { from: 'Loading', to: 'Unloading' },
+    { from: 'Filling Order', to: 'Unloading' },
+  ]);
+});
+
+test('Driver KM does not require Manual KM before all required route fields exist', () => {
+  const details = getCorporationKmDetails({
+    loadingLocation: 'Loading',
+    unloadingLocation: 'Unloading',
+  }, []);
+
+  assert.equal(details.value, null);
+  assert.equal(details.source, 'route_incomplete');
+  assert.deepEqual(details.missingLegs, []);
+});
+
+test('trip saves reject missing Manual KM only after required route fields are complete', () => {
+  const responses = [];
+  const res = {
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(body) {
+      responses.push({ statusCode: this.statusCode, body });
+      return this;
+    },
+  };
+  const partialTrip = {
+    loadingLocation: 'Test Missing Load',
+    unloadingLocation: 'Test Missing Unload',
+  };
+  assert.equal(tripController.rejectMissingManualKm(partialTrip, res), false);
+  assert.equal(responses.length, 0);
+
+  const completeTrip = {
+    ...partialTrip,
+    fillingOrderLocation: 'Test Missing Fill',
+  };
+  assert.equal(tripController.rejectMissingManualKm(completeTrip, res), true);
+  assert.equal(responses[0].statusCode, 400);
+  assert.deepEqual(responses[0].body.missingRouteLegs, [
+    { from: 'Test Missing Load', to: 'Test Missing Unload' },
+    { from: 'Test Missing Fill', to: 'Test Missing Unload' },
+  ]);
+
+  completeTrip.manualKm = 0;
+  assert.equal(tripController.rejectMissingManualKm(completeTrip, res), false);
+});
+
+test('diverted Driver KM reports all unresolved weighted legs', () => {
+  const trip = {
+    loadingLocation: 'Loading',
+    unloadingLocation: 'Unloading',
+    fillingOrderLocation: 'Filling Order',
+    isDiverted: true,
+    divertUnloadingLocation: 'Diverted',
+  };
+  const routes = [
+    { loadingLocation: 'Loading', unloadingLocation: 'Unloading', km: 100 },
+  ];
+
+  assert.deepEqual(getCorporationKmDetails(trip, routes).missingLegs, [
+    { from: 'Unloading', to: 'Diverted' },
+    { from: 'Filling Order', to: 'Diverted' },
+  ]);
 });
 
 test('odometer KM uses current and previous trip closing diesel odometers', () => {

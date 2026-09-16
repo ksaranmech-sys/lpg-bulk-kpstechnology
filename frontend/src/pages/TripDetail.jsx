@@ -3,6 +3,35 @@ import { useParams, Link } from 'react-router-dom';
 import * as api from '../api/api';
 import Layout from '../components/Layout';
 
+export function findMissingRouteLegs(trip, routeKmTable) {
+  const loading = String(trip.loadingLocation || '').trim();
+  const unloading = String(trip.unloadingLocation || '').trim();
+  const filling = String(trip.fillingOrderLocation || '').trim();
+  const diverted = String(trip.divertUnloadingLocation || '').trim();
+  if (!loading || !unloading || !filling || (trip.isDiverted && !diverted)) return [];
+
+  const legs = trip.isDiverted
+    ? [
+        { from: loading, to: unloading },
+        { from: unloading, to: diverted },
+        { from: filling, to: diverted },
+      ]
+    : [
+        { from: loading, to: unloading },
+        { from: filling, to: unloading },
+      ];
+  return legs.filter((leg) => !(routeKmTable || []).some((row) => (
+    String(row.loadingLocation || '').trim() === leg.from &&
+    String(row.unloadingLocation || '').trim() === leg.to &&
+    Number.isFinite(Number(row.km))
+  )));
+}
+
+function isValidManualKm(value) {
+  return value !== '' && value !== null && value !== undefined
+    && Number.isFinite(Number(value)) && Number(value) >= 0;
+}
+
 export default function TripDetail() {
   const { tripId } = useParams();
   const [trip, setTrip] = useState(null);
@@ -210,7 +239,10 @@ function LoadingDetailsForm({ tripId, trip, meta, onSaved }) {
 
   async function submit(e) {
     e.preventDefault();
-    await api.setLoadingDetails(tripId, { loadingLocation, loadingDate });
+    await api.setLoadingDetails(tripId, {
+      loadingLocation,
+      loadingDate,
+    });
     onSaved();
   }
 
@@ -391,7 +423,9 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
   const [turnDate, setTurnDate] = useState(trip.turnDate ? new Date(trip.turnDate).toISOString().slice(0, 10) : '');
   const [fillingOrderLocation, setFillingOrderLocation] = useState(trip.fillingOrderLocation || '');
   const [manualKm, setManualKm] = useState(trip.manualKm != null ? String(trip.manualKm) : '');
-  const [showManualKmModal, setShowManualKmModal] = useState(false);
+  const [showManualKmForm, setShowManualKmForm] = useState(false);
+  const [missingLegs, setMissingLegs] = useState([]);
+  const [manualKmError, setManualKmError] = useState('');
   const [error, setError] = useState('');
   const missingCloseFields = [
     !String(trip.loadingLocation || '').trim() && 'loading location',
@@ -400,20 +434,8 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
     !trip.unloadingDate && 'unloading date',
   ].filter(Boolean);
   const loadingLocations = Array.from(new Set((meta.routeKmTable || []).map((row) => row.loadingLocation).filter(Boolean)));
-  const manualKmRequired = trip.corporationKmSource === 'manual_required';
-  const manualKmFromLocation = trip.isDiverted ? trip.unloadingLocation : trip.loadingLocation;
-  const manualKmToLocation = trip.isDiverted ? trip.divertUnloadingLocation : trip.unloadingLocation;
 
-  async function submit(e) {
-    e.preventDefault();
-    if (missingCloseFields.length > 0) {
-      setError(`Add ${missingCloseFields.join(', ')} before closing this trip.`);
-      return;
-    }
-    if (manualKmRequired && manualKm === '') {
-      setShowManualKmModal(true);
-      return;
-    }
+  async function saveTurn() {
     setError('');
     try {
       await api.setTurnDetails(tripId, {
@@ -427,6 +449,34 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save Turn details or close trip');
     }
+  }
+
+  function submit(e) {
+    e.preventDefault();
+    if (missingCloseFields.length > 0) {
+      setError(`Add ${missingCloseFields.join(', ')} before closing this trip.`);
+      return;
+    }
+    const missing = findMissingRouteLegs({
+      ...trip,
+      fillingOrderLocation,
+    }, meta.routeKmTable);
+    if (missing.length && !isValidManualKm(manualKm)) {
+      setMissingLegs(missing);
+      setManualKmError('');
+      setShowManualKmForm(true);
+      return;
+    }
+    saveTurn();
+  }
+
+  function continueWithManualKm() {
+    if (!isValidManualKm(manualKm)) {
+      setManualKmError('Enter a valid non-negative Manual KM.');
+      return;
+    }
+    setShowManualKmForm(false);
+    saveTurn();
   }
 
   return (
@@ -466,41 +516,27 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
       )}
       {manualKm !== '' && (
         <div style={{ marginTop: 12 }}>
-          <button type="button" className="btn secondary" onClick={() => setShowManualKmModal(true)}>
+          <button
+            type="button"
+            className="btn secondary"
+            onClick={() => {
+              setMissingLegs(findMissingRouteLegs({ ...trip, fillingOrderLocation }, meta.routeKmTable));
+              setShowManualKmForm(true);
+            }}
+          >
             Edit Manual KM
           </button>
         </div>
       )}
-      {showManualKmModal && (
-        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="manual-km-title">
-          <div className="card modal-panel" style={{ width: '100%', maxWidth: 420, margin: 20 }}>
-            <h3 id="manual-km-title" className="section-title">Enter Manual KM(Round-trip)</h3>
-            <div className="grid-2">
-              <div className="field">
-                <label>Loading Location</label>
-                <input value={manualKmFromLocation || '-'} readOnly />
-              </div>
-              <div className="field">
-                <label>Unloading Location</label>
-                <input value={manualKmToLocation || '-'} readOnly />
-              </div>
-            </div>
-            <div className="field">
-              <label>Manual KM</label>
-              <input
-                type="number"
-                min="0"
-                value={manualKm}
-                onChange={(e) => setManualKm(e.target.value)}
-                autoFocus
-                required={manualKmRequired}
-              />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button type="button" className="btn secondary" onClick={() => setShowManualKmModal(false)}>Done</button>
-            </div>
-          </div>
-        </div>
+      {showManualKmForm && (
+        <ManualKmForm
+          missingLegs={missingLegs}
+          value={manualKm}
+          error={manualKmError}
+          onChange={(value) => { setManualKm(value); setManualKmError(''); }}
+          onCancel={() => setShowManualKmForm(false)}
+          onContinue={continueWithManualKm}
+        />
       )}
     </form>
   );
@@ -1135,6 +1171,47 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
         </div>
       )}
     </form>
+  );
+}
+
+function ManualKmForm({ missingLegs, value, error, onChange, onCancel, onContinue }) {
+  return (
+    <div
+      role="region"
+      aria-labelledby="manual-km-title"
+      style={{ marginTop: 16, padding: 16, border: '1px solid #b9d8d3', borderRadius: 12, background: '#f4fbfa' }}
+    >
+      <h3 id="manual-km-title" className="section-title">Manual KM required</h3>
+      <p>The following route {missingLegs.length === 1 ? 'is' : 'legs are'} missing from the route KM table:</p>
+      {missingLegs.map((leg, index) => (
+        <div className="grid-2" key={`${leg.from}-${leg.to}-${index}`}>
+          <div className="field">
+            <label>Loading Location</label>
+            <input value={leg.from} readOnly />
+          </div>
+          <div className="field">
+            <label>Unloading Location</label>
+            <input value={leg.to} readOnly />
+          </div>
+        </div>
+      ))}
+      <div className="field">
+        <label htmlFor="manual-km-input">Manual KM (Round-trip)</label>
+        <input
+          id="manual-km-input"
+          type="number"
+          min="0"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          autoFocus
+        />
+      </div>
+      {error && <div className="error-text">{error}</div>}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+        <button type="button" className="btn secondary" onClick={onCancel}>Cancel</button>
+        <button type="button" className="btn" onClick={onContinue}>Continue save</button>
+      </div>
+    </div>
   );
 }
 

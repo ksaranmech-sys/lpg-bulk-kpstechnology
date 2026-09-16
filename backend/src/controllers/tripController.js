@@ -11,6 +11,17 @@ const { removeExpiredClosedTrips } = require('../utils/tripRetention');
 const metaRoutes = require('../routes/metaRoutes');
 const { getCorporationKmDetails, findRouteKm } = require('../utils/corporationKm');
 
+function rejectMissingManualKm(trip, res) {
+  const details = getCorporationKmDetails(trip, metaRoutes.loadRouteKmTable());
+  if (details.source !== 'manual_required') return false;
+  const routes = details.missingLegs.map((leg) => `${leg.from} -> ${leg.to}`).join(', ');
+  res.status(400).json({
+    error: `Manual KM is required because these routes are missing from the route KM table: ${routes}`,
+    missingRouteLegs: details.missingLegs,
+  });
+  return true;
+}
+
 function getClosingDieselDate(trip, fallback = null) {
   const closingEntry = trip.dieselEntries?.[trip.dieselEntries.length - 1];
   const filledAt = closingEntry?.filledAt ? new Date(closingEntry.filledAt) : null;
@@ -543,10 +554,6 @@ async function setTurnDetails(req, res) {
     }
     trip.manualKm = km;
   }
-  const corporationKmDetails = getCorporationKmDetails(trip, metaRoutes.loadRouteKmTable());
-  if (corporationKmDetails.source === 'manual_required' && !Number.isFinite(Number(trip.manualKm))) {
-    return res.status(400).json({ error: 'Manual Corporation KM is required because automatic calculation is unavailable' });
-  }
   await trip.save();
   res.json({ trip });
 }
@@ -645,6 +652,7 @@ async function refreshTripSettlement(trip) {
 async function closeTrip(req, res) {
   const trip = await getOpenTripOr404(req, res);
   if (!trip) return;
+  if (rejectMissingManualKm(trip, res)) return;
 
   const missingRouteFields = getMissingTripRouteFields(trip);
   if (missingRouteFields.length > 0) {
@@ -782,6 +790,7 @@ async function deleteTrip(req, res) {
 
 module.exports = {
   getClosingDieselDate,
+  rejectMissingManualKm,
   getMissingTripRouteFields,
   createTrip,
   listTripsForVehicle,
