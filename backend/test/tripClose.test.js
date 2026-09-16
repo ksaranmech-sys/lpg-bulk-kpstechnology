@@ -17,6 +17,28 @@ test('tripController exposes a closeTrip endpoint', () => {
   assert.equal(typeof tripController.closeTrip, 'function');
 });
 
+test('trip close requires loading and unloading location and date', () => {
+  assert.deepEqual(tripController.getMissingTripRouteFields({}), [
+    'loading location',
+    'loading date',
+    'unloading location',
+    'unloading date',
+  ]);
+
+  assert.deepEqual(tripController.getMissingTripRouteFields({
+    loadingLocation: 'MRPL',
+    loadingDate: new Date('2026-08-01'),
+    unloadingLocation: 'Trichy',
+    unloadingDate: new Date('2026-08-03'),
+  }), []);
+
+  assert.deepEqual(tripController.getMissingTripRouteFields({
+    loadingLocation: '   ',
+    loadingDate: new Date('2026-08-01'),
+    unloadingLocation: 'Trichy',
+  }), ['loading location', 'unloading date']);
+});
+
 test('closed trip month uses the closing diesel filled date', () => {
   const closingDate = new Date('2026-08-31T18:30:00.000Z');
 

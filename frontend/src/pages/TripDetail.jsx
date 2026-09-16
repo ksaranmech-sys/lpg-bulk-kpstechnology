@@ -351,6 +351,12 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
   const [manualKm, setManualKm] = useState(trip.manualKm != null ? String(trip.manualKm) : '');
   const [showManualKmModal, setShowManualKmModal] = useState(false);
   const [error, setError] = useState('');
+  const missingCloseFields = [
+    !String(trip.loadingLocation || '').trim() && 'loading location',
+    !trip.loadingDate && 'loading date',
+    !String(trip.unloadingLocation || '').trim() && 'unloading location',
+    !trip.unloadingDate && 'unloading date',
+  ].filter(Boolean);
   const loadingLocations = Array.from(new Set((meta.routeKmTable || []).map((row) => row.loadingLocation).filter(Boolean)));
   const manualKmRequired = trip.corporationKmSource === 'manual_required';
   const manualKmFromLocation = trip.isDiverted ? trip.unloadingLocation : trip.loadingLocation;
@@ -358,6 +364,10 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
 
   async function submit(e) {
     e.preventDefault();
+    if (missingCloseFields.length > 0) {
+      setError(`Add ${missingCloseFields.join(', ')} before closing this trip.`);
+      return;
+    }
     if (manualKmRequired && manualKm === '') {
       setShowManualKmModal(true);
       return;
@@ -408,9 +418,14 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
           />
         </div>
       </div>
+      {missingCloseFields.length > 0 && (
+        <p className="error-text" style={{ marginTop: 12 }}>
+          Add {missingCloseFields.join(', ')} before closing this trip.
+        </p>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'end', marginTop: 12 }}>
         <div style={{ gridColumn: 2, gridRow: 1 }}>
-          <button className="btn">Trip close</button>
+          <button className="btn" disabled={missingCloseFields.length > 0}>Trip close</button>
         </div>
         <div style={{ gridColumn: 1, gridRow: 1 }}>
           {manualKm !== '' && (

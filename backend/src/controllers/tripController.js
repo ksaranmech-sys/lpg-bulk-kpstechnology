@@ -23,6 +23,24 @@ function getTripCloseDate(trip) {
   return getClosingDieselDate(trip);
 }
 
+// Loading/unloading location + date are compulsory before a trip can close.
+const REQUIRED_CLOSE_FIELDS = [
+  ['loadingLocation', 'loading location'],
+  ['loadingDate', 'loading date'],
+  ['unloadingLocation', 'unloading location'],
+  ['unloadingDate', 'unloading date'],
+];
+
+function getMissingTripRouteFields(trip) {
+  return REQUIRED_CLOSE_FIELDS
+    .filter(([field]) => {
+      const value = trip?.[field];
+      if (typeof value === 'string') return value.trim() === '';
+      return value == null;
+    })
+    .map(([, label]) => label);
+}
+
 // POST /api/v1/vehicles/:vehicleId/trips
 // body: { loadingLocation, loadingExpense, driverAdvances: [{amount,date}] }
 async function createTrip(req, res) {
@@ -540,6 +558,10 @@ async function tryCloseVehiclePreviousTrip(newTrip) {
 
   if (!previousTrip) return; // this is the very first trip ever for the vehicle
 
+  // Never auto-close a trip whose route details are incomplete - leave it
+  // open so someone can fill in loading/unloading info and close it manually.
+  if (getMissingTripRouteFields(previousTrip).length > 0) return;
+
   const result = computeTripSettlement(previousTrip, newTrip);
   if (!result.ready) return; // not enough data yet - leave open
 
@@ -582,6 +604,13 @@ async function refreshTripSettlement(trip) {
 async function closeTrip(req, res) {
   const trip = await getOpenTripOr404(req, res);
   if (!trip) return;
+
+  const missingRouteFields = getMissingTripRouteFields(trip);
+  if (missingRouteFields.length > 0) {
+    return res.status(400).json({
+      error: `Cannot close trip: ${missingRouteFields.join(', ')} ${missingRouteFields.length === 1 ? 'is' : 'are'} required. Update the trip details and try again.`,
+    });
+  }
 
   const nextTrip = await Trip.findOne({
     vehicle: trip.vehicle,
@@ -712,6 +741,7 @@ async function deleteTrip(req, res) {
 
 module.exports = {
   getClosingDieselDate,
+  getMissingTripRouteFields,
   createTrip,
   listTripsForVehicle,
   getTrip,
