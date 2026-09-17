@@ -109,7 +109,6 @@ export default function DriverDetail() {
   const [reminderSaving, setReminderSaving] = useState(false);
   const [salaryMonth, setSalaryMonth] = useState(previousMonth);
   const [salary, setSalary] = useState(null);
-  const [selectedSalaryTrips, setSelectedSalaryTrips] = useState([]);
   const [showArchivedSalary, setShowArchivedSalary] = useState(false);
   const [archivedSalaryMonth, setArchivedSalaryMonth] = useState(previousMonth);
   const [summaryPrinting, setSummaryPrinting] = useState(false);
@@ -258,18 +257,6 @@ export default function DriverDetail() {
     }
   }
 
-  async function closeSelectedSalaryTrips() {
-    if (!selectedSalaryTrips.length) return;
-    try {
-      await Promise.all(selectedSalaryTrips.map((tripId) => api.closeTrip(tripId)));
-      setSelectedSalaryTrips([]);
-      const res = await api.getDriverMonthlySalary(customerId, driverId, salaryMonth);
-      setSalary(res.data);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to close selected trips');
-    }
-  }
-
   return (
     <Layout>
       <Link to="/">&larr; Back to dashboard</Link>
@@ -396,7 +383,6 @@ export default function DriverDetail() {
                   <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                     <thead>
                       <tr>
-                        <th style={{ width: '4%', textAlign: 'center', padding: '8px 6px', border: '1px solid #d0d7de' }}>Select</th>
                         <th style={{ width: '5%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>S.No</th>
                         <th style={{ width: '15%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Location</th>
                         <th style={{ width: '12%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Date</th>
@@ -410,23 +396,9 @@ export default function DriverDetail() {
                     </thead>
                     <tbody>
                       {(salary.trips || []).length === 0 ? (
-                        <tr><td colSpan="10" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No trips for this month.</td></tr>
+                        <tr><td colSpan="9" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No trips for this month.</td></tr>
                       ) : (salary.trips || []).map((trip, index) => (
                         <tr key={trip._id || index}>
-                          <td style={{ textAlign: 'center', padding: '8px 6px', border: '1px solid #d0d7de' }}>
-                            <input
-                              type="checkbox"
-                              checked={selectedSalaryTrips.includes(trip._id)}
-                              disabled={trip.status === 'closed'}
-                              onChange={() => setSelectedSalaryTrips((current) => (
-                                current.includes(trip._id)
-                                  ? current.filter((id) => id !== trip._id)
-                                  : [...current, trip._id]
-                              ))}
-                              aria-label={`Select trip ${trip._id}`}
-                              style={{ width: 'auto' }}
-                            />
-                          </td>
                           <td style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>{index + 1}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingLocation || '-'}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}</td>
@@ -439,21 +411,11 @@ export default function DriverDetail() {
                         </tr>
                       ))}
                       <tr>
-                        <td colSpan="9" style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
+                        <td colSpan="8" style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
                         <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {salary.totalBalance}</td>
                       </tr>
                     </tbody>
                   </table>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12 }}>
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={!selectedSalaryTrips.length}
-                      onClick={closeSelectedSalaryTrips}
-                    >
-                      Confirm Selected Trips
-                    </button>
-                  </div>
                 </div>
                 <div style={{ overflowX: 'auto', marginBottom: 16 }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>

@@ -19,10 +19,6 @@ async function scopeToOpenTripForUser(req, res, next) {
   const trip = await getTripOr404(req, res);
   if (!trip) return;
 
-  if (trip.status !== 'open') {
-    return res.status(400).json({ error: 'Trip is locked after Trip Close and can only be finalized by the customer' });
-  }
-
   if (hasAdministrativeTripAccess(req, trip)) return next();
 
   const currentUser = req.user.role === ROLES.VEHICLE_USER
@@ -38,7 +34,7 @@ async function scopeToOpenTripForUser(req, res, next) {
     return next();
   }
 
-  return res.status(403).json({ error: 'Only the assigned user can edit an open trip' });
+  return res.status(403).json({ error: 'Only the assigned user or customer can edit this trip' });
 }
 
 async function scopeToTripClose(req, res, next) {

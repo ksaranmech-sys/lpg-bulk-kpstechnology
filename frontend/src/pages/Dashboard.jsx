@@ -1563,11 +1563,11 @@ export default function Dashboard() {
               <div className="grid-2">
                 <div className="field">
                   <label>Login Username</label>
-                  <input value={driverEditForm.username} onChange={(e) => setDriverEditForm({ ...driverEditForm, username: e.target.value })} required />
+                  <input autoComplete="off" value={driverEditForm.username} onChange={(e) => setDriverEditForm({ ...driverEditForm, username: e.target.value })} required />
                 </div>
                 <div className="field">
                   <label>Login Password</label>
-                  <input type="password" value={driverEditForm.password} onChange={(e) => setDriverEditForm({ ...driverEditForm, password: e.target.value })} placeholder="Leave blank to keep current password" />
+                  <input type="password" autoComplete="new-password" value={driverEditForm.password} onChange={(e) => setDriverEditForm({ ...driverEditForm, password: e.target.value })} placeholder="Leave blank to keep current password" />
                 </div>
               </div>
               <div className="field">

@@ -1,8 +1,80 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import * as api from '../api/api';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
+
+// Custom combobox so the suggestions dropdown always matches the input's own
+// width - native <input list> + <datalist> popups ignore CSS sizing entirely.
+function ComboBoxInput({ value, onChange, options, placeholder, required }) {
+  const [open, setOpen] = useState(false);
+  // Typing filters by the current text, but opening via the dropdown arrow should
+  // always show every option, even after a value is already selected.
+  const [showAll, setShowAll] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filtered = (options || []).filter((option) => (
+    !value || option.toLowerCase().includes(String(value).toLowerCase())
+  ));
+  const displayedOptions = showAll ? (options || []) : filtered;
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      <input
+        value={value}
+        onChange={(e) => { onChange(e.target.value); setShowAll(false); setOpen(true); }}
+        onFocus={() => { setShowAll(false); setOpen(true); }}
+        placeholder={placeholder}
+        required={required}
+        autoComplete="off"
+        style={{ paddingRight: 32 }}
+      />
+      <span
+        aria-hidden="true"
+        onClick={() => {
+          setOpen((current) => !current);
+          setShowAll(true);
+        }}
+        style={{
+          position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+          display: 'flex', cursor: 'pointer', color: '#64748b',
+        }}
+      >
+        <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1 1.5L6 6.5L11 1.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </span>
+      {open && displayedOptions.length > 0 && (
+        <ul style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20,
+          margin: '4px 0 0', padding: 4, listStyle: 'none',
+          background: '#fff', border: '1px solid var(--border)', borderRadius: 8,
+          boxShadow: '0 8px 20px rgba(15,35,47,0.12)', maxHeight: 220, overflowY: 'auto',
+        }}>
+          {displayedOptions.map((option) => (
+            <li
+              key={option}
+              onMouseDown={() => { onChange(option); setOpen(false); }}
+              style={{ padding: '8px 10px', borderRadius: 6, cursor: 'pointer' }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#f1f5f9'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+            >
+              {option}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export default function TripDetail() {
   const { tripId } = useParams();
@@ -20,16 +92,14 @@ export default function TripDetail() {
 
   if (!trip) return <Layout><p>Loading...</p></Layout>;
 
-  const isTripLocked = trip.status !== 'open';
   const hasLoadingDetails = Boolean(trip.loadingLocation && trip.loadingDate);
-  const hasLoadingExpense = Number(trip.loadingExpense) > 0 || Number(trip.parkingExpense) > 0 || Number(trip.turnExpense) > 0;
   const hasUnloadingDetails = Boolean(trip.unloadingLocation && trip.unloadingDate);
   const hasTurnDetails = trip.turnNumber != null && trip.turnDate;
   const hasUnloadingTurnDetails = trip.unTurnNumber != null && trip.unTurnDate;
-  // Keep the editable Load Turn form (and its Manual KM field) visible whenever KM couldn't be
-  // resolved from the table, even if turn number/date were already saved, so it's never hidden
-  // behind the read-only "Load Turn Added" summary.
-  const manualKmMissingForClose = trip.corporationKmSource === 'manual_required' && trip.manualKm == null;
+  // Keep the editable Load Turn form (and its Manual KM Return field) visible whenever KM
+  // couldn't be resolved from the table, even if turn number/date were already saved, so it's
+  // never hidden behind the read-only "Load Turn Added" summary.
+  const manualKmMissingForClose = trip.corporationKmSource === 'manual_required' && trip.manualKmReturn == null;
   const formatDate = (value) => (value ? new Date(value).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '');
   const loadingDateText = formatDate(trip.loadingDate);
   const unloadingDateText = formatDate(trip.unloadingDate);
@@ -52,22 +122,23 @@ export default function TripDetail() {
         </p>
       </div>
 
-      <fieldset disabled={isTripLocked} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+      <fieldset style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <>
         <AdvanceSection trip={trip} tripId={tripId} onSaved={load} />
-        {hasLoadingDetails && (
-          <LoadingDetailsSummary trip={trip} onEdit={() => setEditingLoadingDetails(true)} />
-        )}
-        {(!hasLoadingDetails || editingLoadingDetails) && (
-          <LoadingDetailsForm
-            tripId={tripId}
-            trip={trip}
-            meta={meta}
-            onSaved={() => { setEditingLoadingDetails(false); load(); }}
-          />
-        )}
-        {hasLoadingExpense && <LoadingExpenseSummary trip={trip} tripId={tripId} onSaved={load} />}
-        {!hasLoadingExpense && <LoadingExpenseForm tripId={tripId} trip={trip} onSaved={load} />}
+        <div className="card">
+          <h3 className="section-title" style={{ marginTop: 0 }}>Loading Details & Expenses</h3>
+          {hasLoadingDetails && (
+            <LoadingDetailsSummary trip={trip} onEdit={() => setEditingLoadingDetails(true)} />
+          )}
+          {(!hasLoadingDetails || editingLoadingDetails) && (
+            <LoadingDetailsForm
+              tripId={tripId}
+              trip={trip}
+              meta={meta}
+              onSaved={() => { setEditingLoadingDetails(false); load(); }}
+            />
+          )}
+        </div>
         <div className="card">
           <DieselSummary trip={trip} tripId={tripId} onSaved={load} />
           <div style={{ marginTop: 14 }}>
@@ -211,80 +282,22 @@ function AdvanceSection({ trip, tripId, onSaved }) {
 function LoadingDetailsForm({ tripId, trip, meta, onSaved }) {
   const [loadingLocation, setLocation] = useState(trip.loadingLocation || '');
   const [loadingDate, setDate] = useState(trip.loadingDate ? new Date(trip.loadingDate).toISOString().slice(0, 10) : '');
-  const loadingOptions = Array.from(new Set((meta.routeKmTable || []).map((row) => row.loadingLocation).filter(Boolean)));
-
-  async function submit(e) {
-    e.preventDefault();
-    await api.setLoadingDetails(tripId, { loadingLocation, loadingDate });
-    onSaved();
-  }
-
-  return (
-    <form className="card" onSubmit={submit}>
-      <h3 className="section-title">Loading Details</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end' }}>
-        <div className="field" style={{ margin: 0 }}>
-          <label>Loading Location</label>
-          <select value={loadingLocation} onChange={(e) => setLocation(e.target.value)}>
-            <option value="">Select Loading location</option>
-            {loadingOptions.map((location) => (
-              <option key={location} value={location}>{location}</option>
-            ))}
-          </select>
-        </div>
-        <div className="field" style={{ margin: 0 }}>
-          <label>Or Enter Manually</label>
-          <input
-            value={loadingLocation}
-            onChange={(e) => setLocation(e.target.value)}
-            placeholder="Enter loading location"
-          />
-        </div>
-        <div className="field" style={{ margin: 0 }}>
-          <label>Date of loading</label>
-          <input type="date" value={loadingDate} onChange={(e) => setDate(e.target.value)} required />
-        </div>
-        <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }}>Save</button>
-      </div>
-    </form>
-  );
-}
-
-function LoadingDetailsSummary({ trip, onEdit }) {
-  return (
-    <div className="card">
-      <h3 className="section-title">Loading location</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-          <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 }}>
-            <strong>{trip.loadingLocation || '-'}</strong>
-          </span>
-          <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14, color: '#64748b' }}>
-            {trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}
-          </span>
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <button type="button" className="btn secondary" onClick={onEdit}>Edit</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function LoadingExpenseForm({ tripId, trip, onSaved }) {
-  const [amount, setAmount] = useState(trip.loadingExpense || '');
-  const [parking, setParking] = useState(trip.parkingExpense || '');
+  const [cleanerExpense, setCleanerExpense] = useState(trip.loadingExpense || '');
   const [turn, setTurn] = useState(trip.turnExpense || '');
+  const [parking, setParking] = useState(trip.parkingExpense || '');
   const [photo, setPhoto] = useState(null);
+  const loadingOptions = Array.from(new Set((meta.routeKmTable || []).map((row) => row.loadingLocation).filter(Boolean)));
 
   async function submit(e) {
     e.preventDefault();
     await api.setLoadingDetailsWithPhoto(
       tripId,
       {
-        loadingExpense: Number(amount || 0),
-        parkingExpense: Number(parking || 0),
+        loadingLocation,
+        loadingDate,
+        loadingExpense: Number(cleanerExpense || 0),
         turnExpense: Number(turn || 0),
+        parkingExpense: Number(parking || 0),
       },
       photo
     );
@@ -293,12 +306,30 @@ function LoadingExpenseForm({ tripId, trip, onSaved }) {
   }
 
   return (
-    <form className="card" onSubmit={submit}>
-      <h3 className="section-title">Expenses</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end' }}>
+    <form onSubmit={submit}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(140px, auto)', gap: 14, alignItems: 'end' }}>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Loading Location</label>
+          <ComboBoxInput
+            value={loadingLocation}
+            onChange={setLocation}
+            options={loadingOptions}
+            placeholder="Select or enter loading location"
+          />
+        </div>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Date of Loading</label>
+          <input type="date" value={loadingDate} onChange={(e) => setDate(e.target.value)} required />
+        </div>
         <div className="field" style={{ margin: 0 }}>
           <label>Loading Cleaner Expense (Rs)</label>
-          <input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <input type="number" min="0" value={cleanerExpense} onChange={(e) => setCleanerExpense(e.target.value)} />
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(140px, auto)', gap: 14, alignItems: 'end', marginTop: 14 }}>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Turn (Rs)</label>
+          <input type="number" min="0" value={turn} onChange={(e) => setTurn(e.target.value)} />
         </div>
         <div className="field" style={{ margin: 0 }}>
           <label>Parking (Rs)</label>
@@ -308,85 +339,41 @@ function LoadingExpenseForm({ tripId, trip, onSaved }) {
           <label>Parking Photo</label>
           <input type="file" accept="image/*" capture="environment" onChange={(e) => setPhoto(e.target.files?.[0] || null)} />
         </div>
-        <div className="field" style={{ margin: 0 }}>
-          <label>Turn (Rs)</label>
-          <input type="number" min="0" value={turn} onChange={(e) => setTurn(e.target.value)} />
-        </div>
         <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }}>Save</button>
       </div>
     </form>
   );
 }
 
-function LoadingExpenseSummary({ trip, tripId, onSaved }) {
-  const [editing, setEditing] = useState(false);
-  const [amount, setAmount] = useState(String(trip.loadingExpense || ''));
-  const [parking, setParking] = useState(String(trip.parkingExpense || ''));
-  const [turn, setTurn] = useState(String(trip.turnExpense || ''));
-  const [error, setError] = useState('');
-
-  async function saveEdit() {
-    setError('');
-    try {
-      await api.setLoadingDetails(tripId, {
-        loadingExpense: Number(amount || 0),
-        parkingExpense: Number(parking || 0),
-        turnExpense: Number(turn || 0),
-      });
-      setEditing(false);
-      onSaved();
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to update loading expense');
-    }
-  }
-
+function LoadingDetailsSummary({ trip, onEdit }) {
   return (
-    <div className="card">
-      <h3 className="section-title">Expenses</h3>
-      {error && <div className="error-text">{error}</div>}
-      {editing ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
-          <div className="field" style={{ margin: 0 }}>
-            <label>Loading Cleaner Expense (Rs)</label>
-            <input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
-          </div>
-          <div className="field" style={{ margin: 0 }}>
-            <label>Parking (Rs)</label>
-            <input type="number" min="0" value={parking} onChange={(e) => setParking(e.target.value)} />
-          </div>
-          <div className="field" style={{ margin: 0 }}>
-            <label>Turn (Rs)</label>
-            <input type="number" min="0" value={turn} onChange={(e) => setTurn(e.target.value)} />
-          </div>
-          <div style={{ gridColumn: '1 / -1', marginTop: 4 }}>
-            <button type="button" className="btn" onClick={saveEdit}>Save</button>{' '}
-            <button type="button" className="btn secondary" onClick={() => setEditing(false)}>Cancel</button>
-          </div>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-            <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 }}>
-              <span style={{ color: '#64748b' }}>Cleaner</span> <strong>Rs {trip.loadingExpense || 0}</strong>
-            </span>
-            <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 }}>
-              <span style={{ color: '#64748b' }}>Parking</span> <strong>Rs {trip.parkingExpense || 0}</strong>
-            </span>
-            <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 }}>
-              <span style={{ color: '#64748b' }}>Turn</span> <strong>Rs {trip.turnExpense || 0}</strong>
-            </span>
-            {trip.parkingPhoto?.url && (
-              <a href={trip.parkingPhoto.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#eef7f4', border: '1px solid #bfe3da', borderRadius: 8, padding: '6px 12px', fontSize: 14, textDecoration: 'none' }}>
-                <img src={trip.parkingPhoto.url} alt="Parking" style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 6 }} />
-                <span>Photo</span>
-              </a>
-            )}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="button" className="btn secondary" onClick={() => setEditing(true)}>Edit</button>
-          </div>
-        </div>
-      )}
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+        <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 }}>
+          <strong>{trip.loadingLocation || '-'}</strong>
+        </span>
+        <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14, color: '#64748b' }}>
+          {trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}
+        </span>
+        <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 }}>
+          <span style={{ color: '#64748b' }}>Cleaner</span> <strong>Rs {trip.loadingExpense || 0}</strong>
+        </span>
+        <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 }}>
+          <span style={{ color: '#64748b' }}>Turn</span> <strong>Rs {trip.turnExpense || 0}</strong>
+        </span>
+        <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 }}>
+          <span style={{ color: '#64748b' }}>Parking</span> <strong>Rs {trip.parkingExpense || 0}</strong>
+        </span>
+        {trip.parkingPhoto?.url && (
+          <a href={trip.parkingPhoto.url} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#eef7f4', border: '1px solid #bfe3da', borderRadius: 8, padding: '6px 12px', fontSize: 14, textDecoration: 'none' }}>
+            <img src={trip.parkingPhoto.url} alt="Parking" style={{ width: 28, height: 28, objectFit: 'cover', borderRadius: 6 }} />
+            <span>Photo</span>
+          </a>
+        )}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button type="button" className="btn secondary" onClick={onEdit}>Edit</button>
+      </div>
     </div>
   );
 }
@@ -397,7 +384,7 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
   const [turnNumber, setTurnNumber] = useState(trip.turnNumber != null ? String(trip.turnNumber) : '');
   const [turnDate, setTurnDate] = useState(trip.turnDate ? new Date(trip.turnDate).toISOString().slice(0, 10) : '');
   const [fillingOrderLocation, setFillingOrderLocation] = useState(trip.fillingOrderLocation || '');
-  const [manualKm, setManualKm] = useState(trip.manualKm != null ? String(trip.manualKm) : '');
+  const [manualKmReturn, setManualKmReturn] = useState(trip.manualKmReturn != null ? String(trip.manualKmReturn) : '');
   const [error, setError] = useState('');
   const missingCloseFields = [
     !String(trip.loadingLocation || '').trim() && 'loading location',
@@ -406,12 +393,19 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
     !trip.unloadingDate && 'unloading date',
   ].filter(Boolean);
   const loadingLocations = Array.from(new Set((meta.routeKmTable || []).map((row) => row.loadingLocation).filter(Boolean)));
-  const manualKmRequired = trip.corporationKmSource === 'manual_required';
-  // Always show the trip's actual loading/unloading (or final diverted destination), never the
-  // divert leg locations, so the popup matches what the driver/admin entered earlier in the trip.
-  const manualKmFromLocation = trip.loadingLocation;
-  const manualKmToLocation = trip.isDiverted && trip.divertUnloadingLocation ? trip.divertUnloadingLocation : trip.unloadingLocation;
-  const manualKmMissing = manualKmRequired && manualKm === '';
+  // Manual KM Return covers the fillingOrder -> target leg, where target is the divert
+  // unloading location for diverted trips, or the primary unloading location otherwise.
+  const returnTargetLocation = trip.isDiverted && trip.divertUnloadingLocation ? trip.divertUnloadingLocation : trip.unloadingLocation;
+  const hasReturnLegInTable = (meta.routeKmTable || []).some((row) => (
+    String(row?.loadingLocation || '').trim() === String(fillingOrderLocation || '').trim() &&
+    String(row?.unloadingLocation || '').trim() === String(returnTargetLocation || '').trim()
+  ));
+  const manualKmReturnRequired = trip.manualKmReturn == null
+    && Boolean(String(fillingOrderLocation || '').trim())
+    && Boolean(String(returnTargetLocation || '').trim())
+    && !hasReturnLegInTable;
+  // Once a manual KM value has been saved, keep the field visible so it stays editable.
+  const manualKmReturnVisible = manualKmReturnRequired || trip.manualKmReturn != null;
 
   async function submit(e) {
     e.preventDefault();
@@ -419,8 +413,10 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
       setError(`Add ${missingCloseFields.join(', ')} before closing this trip.`);
       return;
     }
-    if (manualKmMissing) {
-      setError('Manual KM is required because automatic calculation is unavailable for this route.');
+    if (manualKmReturnRequired && manualKmReturn === '') {
+      setError(trip.isDiverted
+        ? 'Please enter Manual KM Return between the filling order location and new unloading location (Round trip).'
+        : 'Please enter Manual KM Return between the filling order location and unloading location (Round trip).');
       return;
     }
     setError('');
@@ -429,7 +425,7 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
         turnNumber: Number(turnNumber),
         turnDate,
         fillingOrderLocation: fillingOrderLocation || undefined,
-        manualKm: manualKm === '' ? undefined : Number(manualKm),
+        manualKmReturn: manualKmReturn === '' ? undefined : Number(manualKmReturn),
       });
       await api.closeTrip(tripId);
       // Driver-side close only locks this trip for customer confirmation - immediately
@@ -449,22 +445,30 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
     <form className="card" onSubmit={submit}>
       <h3 className="section-title">Load Turn</h3>
       {error && <div className="error-text">{error}</div>}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 0.9fr) auto', gap: 14, alignItems: 'end' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: manualKmReturnVisible ? 'minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 0.7fr) minmax(0, 0.9fr) auto' : 'minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 0.9fr) auto', gap: 14, alignItems: 'end' }}>
         <div className="field" style={{ margin: 0 }}>
           <label>Filling Order Location</label>
-          <select value={fillingOrderLocation} onChange={(e) => setFillingOrderLocation(e.target.value)}>
-            <option value="">Select loading location...</option>
-            {loadingLocations.map((location) => <option key={location} value={location}>{location}</option>)}
-          </select>
-        </div>
-        <div className="field" style={{ margin: 0 }}>
-          <label>Or Enter Manually</label>
-          <input
+          <ComboBoxInput
             value={fillingOrderLocation}
-            onChange={(e) => setFillingOrderLocation(e.target.value)}
-            placeholder="Enter filling order location"
+            onChange={setFillingOrderLocation}
+            options={loadingLocations}
+            placeholder="Select or enter filling order location"
           />
         </div>
+        {manualKmReturnVisible && (
+          <div className="field" style={{ margin: 0 }}>
+            <label>Manual KM Return{manualKmReturnRequired ? ' (required)' : ''}</label>
+            <input
+              type="number"
+              min="0"
+              value={manualKmReturn}
+              onChange={(e) => setManualKmReturn(e.target.value)}
+              placeholder={manualKmReturnRequired ? 'Required' : 'Optional'}
+              title={`Enter KM between ${fillingOrderLocation || 'filling order location'} and ${returnTargetLocation || 'unloading location'} (Round Trip)`}
+              required={manualKmReturnRequired}
+            />
+          </div>
+        )}
         <div className="field" style={{ margin: 0 }}>
           <label>Turn Number</label>
           <input type="number" min="0" step="1" value={turnNumber} onChange={(e) => setTurnNumber(e.target.value)} required />
@@ -473,33 +477,8 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
           <label>Turn Date</label>
           <input type="date" value={turnDate} onChange={(e) => setTurnDate(e.target.value)} required />
         </div>
-        <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }} disabled={missingCloseFields.length > 0 || manualKmMissing}>Trip close</button>
+        <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }} disabled={missingCloseFields.length > 0 || (manualKmReturnRequired && manualKmReturn === '')}>Trip close</button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)', gap: 14, marginTop: 14 }}>
-        <div className="field" style={{ margin: 0 }}>
-          <label>Loading Location</label>
-          <input value={manualKmFromLocation || '-'} readOnly />
-        </div>
-        <div className="field" style={{ margin: 0 }}>
-          <label>Unloading Location</label>
-          <input value={manualKmToLocation || '-'} readOnly />
-        </div>
-        <div className="field" style={{ margin: 0 }}>
-          <label>Manual KM {manualKmRequired ? '(required)' : '(optional)'}</label>
-          <input
-            type="number"
-            min="0"
-            value={manualKm}
-            onChange={(e) => setManualKm(e.target.value)}
-            required={manualKmRequired}
-          />
-        </div>
-      </div>
-      {manualKmRequired && (
-        <p className="error-text" style={{ marginTop: 12 }}>
-          KM for this route was not found in the KM table. Manual KM entry is required.
-        </p>
-      )}
       {missingCloseFields.length > 0 && (
         <p className="error-text" style={{ marginTop: 12 }}>
           Add {missingCloseFields.join(', ')} before closing this trip.
@@ -510,15 +489,21 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
 }
 
 function TurnDetailsSummary({ trip, onEdit }) {
+  const chip = { background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 };
   return (
     <div className="card">
       <h3 className="section-title">Load Turn Added</h3>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
-        <p style={{ margin: 0 }}>
-          Turn {trip.turnNumber} • {new Date(trip.turnDate).toLocaleDateString('en-IN')}
-          {trip.fillingOrderLocation ? ` • Filling order: ${trip.fillingOrderLocation}` : ''}
-          {trip.manualKm != null && trip.manualKm !== '' ? ` • Manual KM: ${trip.manualKm}` : ''}
-        </p>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+          <span style={chip}><span style={{ color: '#64748b' }}>Turn</span> <strong>{trip.turnNumber}</strong></span>
+          <span style={{ ...chip, color: '#64748b' }}>{new Date(trip.turnDate).toLocaleDateString('en-IN')}</span>
+          {trip.fillingOrderLocation && (
+            <span style={chip}><span style={{ color: '#64748b' }}>Filling order</span> <strong>{trip.fillingOrderLocation}</strong></span>
+          )}
+          <span style={chip}>
+            <span style={{ color: '#64748b' }}>Manual KM Return</span> <strong>{trip.manualKmReturn != null && trip.manualKmReturn !== '' ? `${trip.manualKmReturn} km` : 'Not set'}</strong>
+          </span>
+        </div>
         <button type="button" className="btn secondary" onClick={onEdit}>Edit</button>
       </div>
     </div>
@@ -850,13 +835,12 @@ function OtherExpenseForm({ tripId, onSaved }) {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [category, setCategory] = useState('');
-  const [manualDescription, setManualDescription] = useState('');
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState('');
 
   async function submit(e) {
     e.preventDefault();
-    const description = category === 'other' ? manualDescription.trim() : category;
+    const description = category.trim();
     if (!description) {
       setError('Select a category or enter a description.');
       return;
@@ -864,29 +848,22 @@ function OtherExpenseForm({ tripId, onSaved }) {
     setError('');
     const gps = await api.getCurrentPosition();
     await api.addOtherExpense(tripId, { amount, date: date || undefined, description, lat: gps?.lat, lng: gps?.lng }, photo);
-    setAmount(''); setDate(''); setCategory(''); setManualDescription(''); setPhoto(null);
+    setAmount(''); setDate(''); setCategory(''); setPhoto(null);
     onSaved();
   }
 
   return (
     <form onSubmit={submit} style={{ border: 0, background: 'transparent', padding: 0, borderRadius: 0 }}>
       {error && <div className="error-text">{error}</div>}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.1fr) minmax(0, 0.8fr) minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end' }}>
         <div className="field" style={{ margin: 0 }}>
           <label>Category</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value)} required>
-            <option value="">Select...</option>
-            {OTHER_EXPENSE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div className="field" style={{ margin: 0 }}>
-          <label>Or Enter Manually</label>
-          <input
-            value={category === 'other' ? manualDescription : category}
-            onChange={(e) => { setCategory('other'); setManualDescription(e.target.value); }}
-            placeholder="Enter description"
-            disabled={category !== 'other' && category !== ''}
+          <ComboBoxInput
+            value={category}
+            onChange={setCategory}
+            options={OTHER_EXPENSE_CATEGORIES}
+            placeholder="Select or enter description"
+            required
           />
         </div>
         <div className="field" style={{ margin: 0 }}><label>Amount (Rs)</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
@@ -983,11 +960,12 @@ function OtherExpenseSummary({ trip, tripId, onSaved }) {
 function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
   const [unloadingLocation, setLoc] = useState(trip.unloadingLocation || '');
   const [unloadingDate, setDate] = useState(trip.unloadingDate ? new Date(trip.unloadingDate).toISOString().slice(0, 10) : '');
+  const [manualKm, setManualKm] = useState(trip.manualKm != null ? String(trip.manualKm) : '');
+  const [manualKmDivert, setManualKmDivert] = useState(trip.manualKmDivert != null ? String(trip.manualKmDivert) : '');
+  const [error, setError] = useState('');
   const [isDiverted, setIsDiverted] = useState(Boolean(trip.isDiverted));
   const [divertUnloadingLocation, setDivertUnloadingLocation] = useState(trip.divertUnloadingLocation || '');
   const [divertDate, setDivertDate] = useState(trip.divertDate ? new Date(trip.divertDate).toISOString().slice(0, 10) : '');
-  const [divertKm, setDivertKm] = useState(trip.divertKm == null ? '' : String(trip.divertKm));
-  const [showDivertKmModal, setShowDivertKmModal] = useState(false);
   const [selectedCorporation, setSelectedCorporation] = useState(
     (() => {
       const currentLocation = trip.unloadingLocation || unloadingLocation;
@@ -1005,23 +983,40 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
     );
   });
 
+  const hasFirstLegInTable = (meta.routeKmTable || []).some((row) => (
+    String(row?.loadingLocation || '').trim() === String(trip.loadingLocation || '').trim() &&
+    String(row?.unloadingLocation || '').trim() === String(unloadingLocation || '').trim()
+  ));
+  const hasSecondLegInTable = (meta.routeKmTable || []).some((row) => (
+    String(row?.loadingLocation || '').trim() === String(unloadingLocation || '').trim() &&
+    String(row?.unloadingLocation || '').trim() === String(divertUnloadingLocation || '').trim()
+  ));
+  // The two manual KM fields cover different legs and are required independently of each other.
+  const manualKmLoadRequired = trip.manualKm == null && Boolean(String(unloadingLocation || '').trim()) && !hasFirstLegInTable;
+  const manualKmDivertRequired = trip.manualKmDivert == null && isDiverted && Boolean(String(divertUnloadingLocation || '').trim()) && !hasSecondLegInTable;
+  // Once a manual KM value has been saved, keep the field visible so it stays editable.
+  const manualKmLoadVisible = manualKmLoadRequired || trip.manualKm != null;
+  const manualKmDivertVisible = isDiverted && (manualKmDivertRequired || trip.manualKmDivert != null);
+
   async function submit(e) {
     e.preventDefault();
-    const hasSecondLegInTable = (meta.routeKmTable || []).some((row) => (
-      String(row?.loadingLocation || '').trim() === String(unloadingLocation || '').trim() &&
-      String(row?.unloadingLocation || '').trim() === String(divertUnloadingLocation || '').trim()
-    ));
-    if (isDiverted && !hasSecondLegInTable && (!Number.isFinite(Number(divertKm)) || Number(divertKm) < 0)) {
-      setShowDivertKmModal(true);
+    if (manualKmLoadRequired && manualKm === '') {
+      setError('Please enter Manual KM Load between the loading and unloading location (Round trip).');
       return;
     }
+    if (manualKmDivertRequired && manualKmDivert === '') {
+      setError('Please enter Manual KM Divert between the unloading location and new unloading location (Round trip).');
+      return;
+    }
+    setError('');
     await api.setUnloading(tripId, {
       unloadingLocation,
       unloadingDate,
+      manualKm: manualKm === '' ? undefined : Number(manualKm),
+      manualKmDivert: manualKmDivert === '' ? undefined : Number(manualKmDivert),
       isDiverted,
       divertUnloadingLocation: isDiverted ? divertUnloadingLocation : undefined,
       divertDate: isDiverted ? divertDate : undefined,
-      divertKm: isDiverted ? Number(divertKm) : undefined,
     });
     onSaved();
   }
@@ -1029,7 +1024,8 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
   return (
     <form className="card" onSubmit={submit}>
       <h3 className="section-title">Unloading Details</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto auto', gap: 14, alignItems: 'end' }}>
+      {error && <div className="error-text">{error}</div>}
+      <div style={{ display: 'grid', gridTemplateColumns: manualKmLoadVisible ? 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto auto' : 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto auto', gap: 14, alignItems: 'end' }}>
         <div className="field" style={{ margin: 0 }}>
           <label>Corporation</label>
           <select
@@ -1037,13 +1033,7 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
             onChange={(e) => {
               const nextCorporation = e.target.value;
               setSelectedCorporation(nextCorporation);
-              if (!nextCorporation) {
-                setLoc('');
-                return;
-              }
-              const available = (meta.routeKmTable || []).filter((row) => String(row?.corporation || '').trim() === String(nextCorporation).trim());
-              const firstLocation = available[0]?.unloadingLocation || '';
-              setLoc(firstLocation);
+              setLoc('');
             }}
           >
             <option value="">Select corporation...</option>
@@ -1054,22 +1044,27 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
         </div>
         <div className="field" style={{ margin: 0 }}>
           <label>Unloading Location</label>
-          <select
+          <ComboBoxInput
             value={unloadingLocation}
-            onChange={(e) => setLoc(e.target.value)}
-          >
-            <option value="">Select...</option>
-            {(filteredUnloadingOptions || []).filter(Boolean).map((loc) => <option key={loc} value={loc}>{loc}</option>)}
-          </select>
-        </div>
-        <div className="field" style={{ margin: 0 }}>
-          <label>Or Enter Manually</label>
-          <input
-            value={unloadingLocation}
-            onChange={(e) => setLoc(e.target.value)}
-            placeholder="Enter unloading location"
+            onChange={setLoc}
+            options={filteredUnloadingOptions}
+            placeholder="Select or enter unloading location"
           />
         </div>
+        {manualKmLoadVisible && (
+          <div className="field" style={{ margin: 0 }}>
+            <label>Manual KM Load{manualKmLoadRequired ? ' (required)' : ''}</label>
+            <input
+              type="number"
+              min="0"
+              value={manualKm}
+              onChange={(e) => setManualKm(e.target.value)}
+              placeholder={manualKmLoadRequired ? 'Required' : 'Optional'}
+              title={`Enter KM between ${trip.loadingLocation || 'loading location'} and ${unloadingLocation || 'unloading location'} (Round Trip)`}
+              required={manualKmLoadRequired}
+            />
+          </div>
+        )}
         <div className="field" style={{ margin: 0 }}>
           <label>Date</label>
           <input type="date" value={unloadingDate} onChange={(e) => setDate(e.target.value)} required />
@@ -1085,7 +1080,7 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
             />
           </div>
         </div>
-        <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }}>Save</button>
+        <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }} disabled={(manualKmLoadRequired && manualKm === '') || (manualKmDivertRequired && manualKmDivert === '')}>Save</button>
       </div>
       {isDiverted && (
         <div className="divert-fields" style={{ marginTop: 12 }}>
@@ -1100,40 +1095,23 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
               {(routeUnloadingOptions || []).filter(Boolean).map((loc) => <option key={loc} value={loc}>{loc}</option>)}
             </select>
           </div>
+          {manualKmDivertVisible && (
+            <div className="field">
+              <label>Manual KM Divert{manualKmDivertRequired ? ' (required)' : ''}</label>
+              <input
+                type="number"
+                min="0"
+                value={manualKmDivert}
+                onChange={(e) => setManualKmDivert(e.target.value)}
+                placeholder={manualKmDivertRequired ? 'Required' : 'Optional'}
+                title={`Enter KM between ${unloadingLocation || 'unloading location'} and ${divertUnloadingLocation || 'new unloading location'} (Round Trip)`}
+                required={manualKmDivertRequired}
+              />
+            </div>
+          )}
           <div className="field">
             <label>New Unloading Date</label>
             <input type="date" value={divertDate} onChange={(e) => setDivertDate(e.target.value)} required />
-          </div>
-        </div>
-      )}
-      {showDivertKmModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="divert-km-title"
-          style={{
-            position: 'fixed', inset: 0, zIndex: 10, display: 'grid', placeItems: 'center',
-            padding: 16, background: 'rgba(0, 0, 0, 0.35)',
-          }}
-        >
-          <div className="card" style={{ width: 'min(100%, 360px)', margin: 0, background: '#fff' }}>
-            <h3 id="divert-km-title" className="section-title">Divert location KM from here</h3>
-            <div className="field">
-              <label htmlFor="divert-km-input">Divert location KM from here</label>
-              <input
-                id="divert-km-input"
-                type="number"
-                min="0"
-                value={divertKm}
-                onChange={(e) => setDivertKm(e.target.value)}
-                autoFocus
-                required
-              />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button type="button" className="btn secondary" onClick={() => setShowDivertKmModal(false)}>Cancel</button>
-              <button type="submit" className="btn">Save KM</button>
-            </div>
           </div>
         </div>
       )}
@@ -1150,12 +1128,22 @@ function UnloadingDetailsSummary({ trip, onEdit }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
           <span style={chip}><strong>{trip.unloadingLocation || '-'}</strong></span>
           <span style={{ ...chip, color: '#64748b' }}>{trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}</span>
+          {trip.manualKm != null && trip.manualKm !== '' && (
+            <span style={chip}>
+              <span style={{ color: '#64748b' }}>Manual KM Load</span> <strong>{trip.manualKm} km</strong>
+            </span>
+          )}
           {trip.isDiverted ? (
             <>
               <span style={chip}><span style={{ color: '#64748b' }}>Divert</span> <strong>{trip.divertUnloadingLocation || '-'}</strong></span>
               <span style={{ ...chip, color: '#64748b' }}>{trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'}</span>
             </>
           ) : null}
+          {trip.manualKmDivert != null && trip.manualKmDivert !== '' && (
+            <span style={chip}>
+              <span style={{ color: '#64748b' }}>Manual KM Divert</span> <strong>{trip.manualKmDivert} km</strong>
+            </span>
+          )}
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button type="button" className="btn secondary" onClick={onEdit}>Edit</button>
@@ -1195,9 +1183,6 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
   const otherExpenseTotal = otherExpenses.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
   const totalExpenses = loadingExpenseTotal + parkingExpenseTotal + turnExpenseTotal + rtoExpenseTotal + otherExpenseTotal;
   const balance = totalAdvance - (dieselCashTotal + totalExpenses);
-  const manualKmRoute = trip.isDiverted && trip.divertUnloadingLocation
-    ? `${trip.unloadingLocation || '-'} to ${trip.divertUnloadingLocation}`
-    : `${trip.loadingLocation || '-'} to ${trip.unloadingLocation || '-'}`;
 
   function printTripDetails() {
     const printDate = trip.loadingDate || trip.unloadingDate || new Date();
@@ -1380,7 +1365,9 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
                       </thead>
                       <tbody>
                         {[
-                          [`Manual KM (${manualKmRoute})`, trip.manualKm != null && trip.manualKm !== '' ? `${trip.manualKm} km` : 'NA'],
+                          ...(trip.manualKm != null && trip.manualKm !== '' ? [['Manual KM Load', `${trip.manualKm} km`]] : []),
+                          ...(trip.manualKmDivert != null && trip.manualKmDivert !== '' ? [['Manual KM Divert', `${trip.manualKmDivert} km`]] : []),
+                          ...(trip.manualKmReturn != null && trip.manualKmReturn !== '' ? [['Manual KM Return', `${trip.manualKmReturn} km`]] : []),
                           ['Driver KM', calculatedCorporationKm != null ? `${calculatedCorporationKm} km` : 'NA'],
                         ].map(([label, value]) => (
                           <tr key={label}>

@@ -261,22 +261,22 @@ test('Corporation KM excludes routes below 200 KM when less than 200KM charges a
 
 test('Driver KM uses Manual KM for missing route legs', () => {
   const trips = [
-    { loadingLocation: 'Unknown', unloadingLocation: 'Route', manualKm: 760 },
+    { loadingLocation: 'Unknown', unloadingLocation: 'Route', manualKm: 760, manualKmReturn: 760 },
   ];
 
   assert.equal(customerController.sumRouteTableKm(trips, [], false), 760);
   assert.equal(customerController.sumRouteTableKm(trips, [], true), 760);
 });
 
-test('Driver KM uses Manual KM for a missing filling-order leg', () => {
+test('Driver KM falls back to Manual KM Return when the filling-order leg is missing from the table', () => {
   const trips = [
-    { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', manualKm: 760 },
+    { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', manualKmReturn: 772 },
   ];
   const routes = [
     { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', km: 748 },
   ];
 
-  assert.equal(customerController.sumRouteTableKm(trips, routes, false), 754);
+  assert.equal(customerController.sumRouteTableKm(trips, routes, false), 760);
 });
 
 test('Driver KM uses Manual KM for both missing normal-trip legs', () => {
@@ -285,11 +285,12 @@ test('Driver KM uses Manual KM for both missing normal-trip legs', () => {
     unloadingLocation: 'Route',
     fillingOrderLocation: 'Filling Order',
     manualKm: 300,
+    manualKmReturn: 300,
   };
 
   const details = getCorporationKmDetails(trip, []);
   assert.equal(details.value, 300);
-  assert.equal(details.source, 'manual_weighted');
+  assert.equal(details.source, 'manual');
 });
 
 test('Corporation KM uses two weighted legs for normal trips', () => {
@@ -344,16 +345,20 @@ test('trip schema supports an optional manualKm field for unloading details', ()
   assert.equal(trip.manualKm, 240);
 });
 
+test('trip schema supports optional manualKmDivert and manualKmReturn fields', () => {
+  const trip = new Trip({ manualKmDivert: 90, manualKmReturn: 120 });
+  assert.equal(trip.manualKmDivert, 90);
+  assert.equal(trip.manualKmReturn, 120);
+});
+
 test('trip schema stores optional divert unloading details', () => {
   const trip = new Trip({
     isDiverted: true,
     divertUnloadingLocation: 'Alternate Depot',
     divertDate: new Date('2026-09-14'),
-    divertKm: 35,
   });
   assert.equal(trip.isDiverted, true);
   assert.equal(trip.divertUnloadingLocation, 'Alternate Depot');
-  assert.equal(trip.divertKm, 35);
 });
 
 test('diverted Driver KM weights all three route legs at 50 percent', () => {
@@ -392,14 +397,14 @@ test('Divert route calculation takes priority over Manual KM fallback', () => {
   assert.equal(getCorporationKmDetails(trip, routes).source, 'km_table_divert_weighted');
 });
 
-test('diverted Driver KM uses Manual KM for a missing automatic leg', () => {
+test('diverted Driver KM falls back to Manual KM Divert when the divert leg is missing', () => {
   const trip = {
     loadingLocation: 'Loading',
     unloadingLocation: 'Unloading',
     fillingOrderLocation: 'Filling Order',
     isDiverted: true,
     divertUnloadingLocation: 'New Unloading',
-    manualKm: 300,
+    manualKmDivert: 300,
   };
   const routes = [
     { loadingLocation: 'Loading', unloadingLocation: 'Unloading', km: 100 },
@@ -407,7 +412,7 @@ test('diverted Driver KM uses Manual KM for a missing automatic leg', () => {
   ];
 
   assert.equal(getCorporationKmDetails(trip, routes).value, 230);
-  assert.equal(getCorporationKmDetails(trip, routes).source, 'manual_divert_weighted');
+  assert.equal(getCorporationKmDetails(trip, routes).source, 'manual');
 });
 
 test('odometer KM uses current and previous trip closing diesel odometers', () => {

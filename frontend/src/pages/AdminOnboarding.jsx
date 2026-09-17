@@ -39,8 +39,8 @@ export default function AdminOnboarding() {
         <div className="field"><label>Email Address</label><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></div>
         <div className="field"><label>Address</label><input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
         <div className="grid-2">
-          <div className="field"><label>Admin Username</label><input value={form.adminUsername} onChange={(e) => setForm({ ...form, adminUsername: e.target.value })} required /></div>
-          <div className="field"><label>Admin Password</label><input type="password" value={form.adminPassword} onChange={(e) => setForm({ ...form, adminPassword: e.target.value })} required /></div>
+          <div className="field"><label>Admin Username</label><input autoComplete="off" value={form.adminUsername} onChange={(e) => setForm({ ...form, adminUsername: e.target.value })} required /></div>
+          <div className="field"><label>Admin Password</label><input type="password" autoComplete="new-password" value={form.adminPassword} onChange={(e) => setForm({ ...form, adminPassword: e.target.value })} required /></div>
         </div>
         {error && <div className="error-text">{error}</div>}
         <button className="btn">Create Customer</button>

@@ -78,11 +78,18 @@ const tripSchema = new mongoose.Schema(
     unloadingLocation: { type: String, trim: true },
     unloadingDate: { type: Date },
     unloadingExpense: { type: Number, default: 0, min: 0 },
+    // Manual fallback KM for the loading->unloading leg, used only when the route KM table
+    // has no exact match for that leg.
     manualKm: { type: Number, default: null, min: 0 },
+    // Manual fallback KM for the unloading->divertUnloading leg (divert case only), used only
+    // when the route KM table has no exact match for that leg.
+    manualKmDivert: { type: Number, default: null, min: 0 },
+    // Manual fallback KM for the fillingOrder->(divertUnloading or unloading) return leg, used
+    // only when the route KM table has no exact match for that leg.
+    manualKmReturn: { type: Number, default: null, min: 0 },
     isDiverted: { type: Boolean, default: false },
     divertUnloadingLocation: { type: String, trim: true, default: null },
     divertDate: { type: Date, default: null },
-    divertKm: { type: Number, default: null, min: 0 },
 
     turnNumber: { type: Number, min: 0 },
     turnDate: { type: Date },

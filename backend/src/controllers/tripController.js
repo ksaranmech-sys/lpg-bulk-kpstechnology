@@ -475,10 +475,10 @@ async function setUnloading(req, res) {
     unloadingDate,
     unloadingExpense,
     manualKm,
+    manualKmDivert,
     isDiverted,
     divertUnloadingLocation,
     divertDate,
-    divertKm,
   } = req.body;
   if (unloadingLocation) trip.unloadingLocation = unloadingLocation;
   if (!unloadingDate) return res.status(400).json({ error: 'unloadingDate is required' });
@@ -493,6 +493,23 @@ async function setUnloading(req, res) {
     }
     trip.manualKm = km;
   }
+  if (manualKmDivert != null && manualKmDivert !== '') {
+    const km = Number(manualKmDivert);
+    if (!Number.isFinite(km) || km < 0) {
+      return res.status(400).json({ error: 'manualKmDivert must be a non-negative number' });
+    }
+    trip.manualKmDivert = km;
+  }
+  // Once loading + unloading location are both known, the route must be resolvable from the KM
+  // table or the driver/admin must supply Manual KM Load - otherwise Driver KM would silently be wrong.
+  if (trip.unloadingLocation && trip.manualKm == null) {
+    const routeKm = findRouteKm(metaRoutes.loadRouteKmTable(), trip.loadingLocation, trip.unloadingLocation);
+    if (routeKm == null) {
+      return res.status(400).json({
+        error: 'Please enter Manual KM Load between the loading and unloading location (Round trip).',
+      });
+    }
+  }
   if (isDiverted != null) {
     trip.isDiverted = Boolean(isDiverted);
     if (trip.isDiverted) {
@@ -502,26 +519,33 @@ async function setUnloading(req, res) {
       if (!divertDate || Number.isNaN(date.getTime())) {
         return res.status(400).json({ error: 'divertDate must be a valid date when diverted' });
       }
-      const km = Number(divertKm);
       trip.divertUnloadingLocation = location;
       trip.divertDate = date;
-      trip.divertKm = Number.isFinite(km) && km >= 0 ? km : null;
+      // Same rule for the divert leg: unloading -> new unloading must resolve from the KM
+      // table, or its own Manual KM Divert fallback must be supplied.
+      if (trip.manualKmDivert == null) {
+        const divertRouteKm = findRouteKm(metaRoutes.loadRouteKmTable(), trip.unloadingLocation, trip.divertUnloadingLocation);
+        if (divertRouteKm == null) {
+          return res.status(400).json({
+            error: 'Please enter Manual KM Divert between the unloading location and new unloading location (Round trip).',
+          });
+        }
+      }
     } else {
       trip.divertUnloadingLocation = null;
       trip.divertDate = null;
-      trip.divertKm = null;
     }
   }
   await trip.save();
   res.json({ trip });
 }
 
-// PATCH /api/v1/trips/:tripId/turn   body: { turnNumber, turnDate, fillingOrderLocation, manualKm }
+// PATCH /api/v1/trips/:tripId/turn   body: { turnNumber, turnDate, fillingOrderLocation, manualKmReturn }
 async function setTurnDetails(req, res) {
   const trip = await getOpenTripOr404(req, res);
   if (!trip) return;
 
-  const { turnNumber, turnDate, fillingOrderLocation, manualKm } = req.body;
+  const { turnNumber, turnDate, fillingOrderLocation, manualKmReturn } = req.body;
   if (turnNumber == null || turnNumber === '') {
     return res.status(400).json({ error: 'turnNumber is required' });
   }
@@ -536,16 +560,33 @@ async function setTurnDetails(req, res) {
   trip.turnNumber = number;
   trip.turnDate = date;
   trip.fillingOrderLocation = fillingOrderLocation ? String(fillingOrderLocation).trim() : undefined;
-  if (manualKm !== undefined && manualKm !== '') {
-    const km = Number(manualKm);
+  if (manualKmReturn !== undefined && manualKmReturn !== '') {
+    const km = Number(manualKmReturn);
     if (!Number.isFinite(km) || km < 0) {
-      return res.status(400).json({ error: 'manualKm must be a non-negative number' });
+      return res.status(400).json({ error: 'manualKmReturn must be a non-negative number' });
     }
-    trip.manualKm = km;
+    trip.manualKmReturn = km;
   }
-  const corporationKmDetails = getCorporationKmDetails(trip, metaRoutes.loadRouteKmTable());
-  if (corporationKmDetails.source === 'manual_required' && trip.manualKm == null) {
-    return res.status(400).json({ error: 'Manual Corporation KM is required because automatic calculation is unavailable' });
+  // Manual KM Return requirement: diverted trips check filling order -> new unloading location;
+  // non-diverted trips check filling order -> unloading location instead.
+  if (trip.manualKmReturn == null) {
+    if (trip.isDiverted && trip.divertUnloadingLocation) {
+      if (trip.fillingOrderLocation) {
+        const returnRouteKm = findRouteKm(metaRoutes.loadRouteKmTable(), trip.fillingOrderLocation, trip.divertUnloadingLocation);
+        if (returnRouteKm == null) {
+          return res.status(400).json({
+            error: 'Please enter Manual KM Return between the filling order location and new unloading location (Round trip).',
+          });
+        }
+      }
+    } else {
+      const returnRouteKm = findRouteKm(metaRoutes.loadRouteKmTable(), trip.fillingOrderLocation, trip.unloadingLocation);
+      if (returnRouteKm == null) {
+        return res.status(400).json({
+          error: 'Please enter Manual KM Return between the filling order location and unloading location (Round trip).',
+        });
+      }
+    }
   }
   await trip.save();
   res.json({ trip });

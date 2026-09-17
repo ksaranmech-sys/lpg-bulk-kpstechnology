@@ -434,11 +434,11 @@ export default function CustomerDetail() {
             <div className="grid-2">
               <div className="field">
                 <label>Admin Username</label>
-                <input value={customerEditForm.adminUsername} onChange={(e) => updateCustomerEditField('adminUsername', e.target.value)} required />
+                <input autoComplete="off" value={customerEditForm.adminUsername} onChange={(e) => updateCustomerEditField('adminUsername', e.target.value)} required />
               </div>
               <div className="field">
                 <label>Admin Password</label>
-                <input type="password" value={customerEditForm.adminPassword} onChange={(e) => updateCustomerEditField('adminPassword', e.target.value)} placeholder="Leave blank to keep current password" />
+                <input type="password" autoComplete="new-password" value={customerEditForm.adminPassword} onChange={(e) => updateCustomerEditField('adminPassword', e.target.value)} placeholder="Leave blank to keep current password" />
               </div>
             </div>
             <div className="grid-2">
@@ -693,11 +693,11 @@ export default function CustomerDetail() {
               <div className="grid-2">
                 <div className="field">
                   <label>Login Username</label>
-                  <input value={driverEditForm.username} onChange={(e) => setDriverEditForm({ ...driverEditForm, username: e.target.value })} required />
+                  <input autoComplete="off" value={driverEditForm.username} onChange={(e) => setDriverEditForm({ ...driverEditForm, username: e.target.value })} required />
                 </div>
                 <div className="field">
                   <label>Login Password</label>
-                  <input type="password" value={driverEditForm.password} onChange={(e) => setDriverEditForm({ ...driverEditForm, password: e.target.value })} placeholder="Leave blank to keep current password" />
+                  <input type="password" autoComplete="new-password" value={driverEditForm.password} onChange={(e) => setDriverEditForm({ ...driverEditForm, password: e.target.value })} placeholder="Leave blank to keep current password" />
                 </div>
               </div>
               <div className="field">
