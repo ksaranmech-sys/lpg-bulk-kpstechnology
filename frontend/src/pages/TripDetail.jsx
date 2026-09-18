@@ -155,7 +155,7 @@ export default function TripDetail() {
         <div className="card">
           <DieselSummary trip={trip} tripId={tripId} onSaved={load} />
           <div style={{ marginTop: 14 }}>
-            <DieselForm tripId={tripId} onSaved={load} title="" />
+            <DieselForm tripId={tripId} trip={trip} onSaved={load} title="" />
           </div>
         </div>
         <div className="card">
@@ -614,6 +614,7 @@ function UnloadingTurnSummary({ trip, onDeleted }) {
 
 function DieselForm({
   tripId,
+  trip,
   onSaved,
   title = 'Diesel Filling Entry',
   submitLabel = 'Add',
@@ -626,26 +627,35 @@ function DieselForm({
   const [filledAt, setFilledAt] = useState('');
   const [photo, setPhoto] = useState(null);
   const [dieselFilledConfirmed, setDieselFilledConfirmed] = useState(false);
+  const [error, setError] = useState('');
+  const minDate = dayAfterDateInputValue(trip?.previousTripCloseDate);
+  const maxDate = toDateInputValue(trip?.turnDate);
 
   async function submit(e) {
     e.preventDefault();
-    const gps = await api.getCurrentPosition();
-    await api.addDieselEntry(
-      tripId,
-      { volumeLitres, totalValue, paymentMethod, loadingPointTankFill: dieselFilledConfirmed, odometerKm: odometerKm || undefined, filledAt: filledAt || undefined, lat: gps?.lat, lng: gps?.lng },
-      photo
-    );
-    setVolume(''); setTotalValue(''); setPaymentMethod('diesel_card'); setOdo(''); setFilledAt(''); setPhoto(null); setDieselFilledConfirmed(false);
-    if (closeAfterSave) {
-      await onSaved();
-      return;
+    setError('');
+    try {
+      const gps = await api.getCurrentPosition();
+      await api.addDieselEntry(
+        tripId,
+        { volumeLitres, totalValue, paymentMethod, loadingPointTankFill: dieselFilledConfirmed, odometerKm: odometerKm || undefined, filledAt: filledAt || undefined, lat: gps?.lat, lng: gps?.lng },
+        photo
+      );
+      setVolume(''); setTotalValue(''); setPaymentMethod('diesel_card'); setOdo(''); setFilledAt(''); setPhoto(null); setDieselFilledConfirmed(false);
+      if (closeAfterSave) {
+        await onSaved();
+        return;
+      }
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to add diesel entry');
     }
-    onSaved();
   }
 
   return (
     <form onSubmit={submit} style={{ padding: '0', margin: 0, border: 0, background: 'transparent', borderRadius: 0 }}>
       {title ? <h3 className="section-title">{title}</h3> : null}
+      {error && <div className="error-text">{error}</div>}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end' }}>
         <div className="field" style={{ margin: 0 }}><label>Volume (Litres)</label><input type="number" value={volumeLitres} onChange={(e) => setVolume(e.target.value)} required /></div>
         <div className="field" style={{ margin: 0 }}><label>Total Value (Rs)</label><input type="number" value={totalValue} onChange={(e) => setTotalValue(e.target.value)} required /></div>
@@ -672,7 +682,7 @@ function DieselForm({
         <div className="field" style={{ margin: 0 }}><label>Odometer Reading</label><input type="number" value={odometerKm} onChange={(e) => setOdo(e.target.value)} placeholder="Optional" /></div>
         <div className="field" style={{ margin: 0 }}>
           <label>Date</label>
-          <input type="date" value={filledAt} onChange={(e) => setFilledAt(e.target.value)} required />
+          <input type="date" value={filledAt} onChange={(e) => setFilledAt(e.target.value)} min={minDate} max={maxDate} required />
         </div>
         <div className="field" style={{ margin: 0 }}>
           <label>Photo (optional)</label>
@@ -694,6 +704,8 @@ function DieselSummary({ trip, tripId, onSaved }) {
   const [odometerKm, setOdometerKm] = useState('');
   const [date, setDate] = useState('');
   const [error, setError] = useState('');
+  const minDate = dayAfterDateInputValue(trip.previousTripCloseDate);
+  const maxDate = toDateInputValue(trip.turnDate);
 
   function startEdit(index, entry) {
     setEditingIndex(index);
@@ -739,7 +751,7 @@ function DieselSummary({ trip, tripId, onSaved }) {
                     <td><input type="number" value={volume} onChange={(e) => setVolume(e.target.value)} min="0" /></td>
                     <td><input type="number" value={totalValue} onChange={(e) => setTotalValue(e.target.value)} min="0" /></td>
                     <td><input type="number" value={odometerKm} onChange={(e) => setOdometerKm(e.target.value)} min="0" /></td>
-                    <td><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></td>
+                    <td><input type="date" value={date} onChange={(e) => setDate(e.target.value)} min={minDate} max={maxDate} /></td>
                     <td style={{ textAlign: 'right' }}>
                       <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
                         <option value="diesel_card">Diesel Card</option>

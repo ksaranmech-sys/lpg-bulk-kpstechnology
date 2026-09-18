@@ -315,6 +315,11 @@ async function addDieselEntry(req, res) {
     return res.status(400).json({ error: 'volumeLitres and totalValue must be valid positive numbers' });
   }
 
+  const dieselDate = filledAt ? new Date(filledAt) : new Date();
+  if (Number.isNaN(dieselDate.getTime())) return res.status(400).json({ error: 'filledAt must be a valid date' });
+  const dieselDateError = await validateEntryDate(trip, dieselDate, 'Diesel');
+  if (dieselDateError) return res.status(400).json({ error: dieselDateError });
+
   trip.dieselEntries.push({
     volumeLitres: volume,
     ratePerLitre: calculatedRate,
@@ -322,7 +327,7 @@ async function addDieselEntry(req, res) {
     paymentMethod,
     loadingPointTankFill: loadingPointTankFill === true || loadingPointTankFill === 'true',
     odometerKm: odometerKm != null && odometerKm !== '' ? Number(odometerKm) : null,
-    filledAt: filledAt || new Date(),
+    filledAt: dieselDate,
     photo,
   });
   await trip.save();
@@ -379,6 +384,8 @@ async function updateDieselEntry(req, res) {
     if (Number.isNaN(filledAt.getTime())) {
       return res.status(400).json({ error: 'filledAt must be a valid date' });
     }
+    const dieselDateError = await validateEntryDate(trip, filledAt, 'Diesel');
+    if (dieselDateError) return res.status(400).json({ error: dieselDateError });
     entry.filledAt = filledAt;
   }
   await trip.save();
