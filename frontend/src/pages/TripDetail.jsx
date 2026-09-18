@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import * as api from '../api/api';
 import Layout from '../components/Layout';
+import { useAuth } from '../context/AuthContext';
 
 // Shared date-picker bounds for Advance/RTO/Other Expense entries: must be strictly after the
 // previous trip's close date and on or before this trip's own close date (once it has one).
@@ -97,6 +98,7 @@ function ComboBoxInput({ value, onChange, options, placeholder, required }) {
 
 export default function TripDetail() {
   const { tripId } = useParams();
+  const { user } = useAuth() || {};
   const [trip, setTrip] = useState(null);
   const [meta, setMeta] = useState({ loadingLocations: [], unloadingLocations: [], routeKmTable: [] });
   const [editingLoadingDetails, setEditingLoadingDetails] = useState(false);
@@ -124,6 +126,8 @@ export default function TripDetail() {
   const unloadingDateText = formatDate(trip.unloadingDate);
 
   const routeUnloadingOptions = Array.from(new Set((meta.routeKmTable || []).map((row) => row.unloadingLocation).filter(Boolean)));
+  // The driver can no longer edit a trip they've already Trip Closed - only admins can adjust it.
+  const lockedForDriver = user?.role === 'vehicle_user' && trip.status !== 'open';
 
   return (
     <Layout>
@@ -141,7 +145,7 @@ export default function TripDetail() {
         </p>
       </div>
 
-      <fieldset style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+      <fieldset disabled={lockedForDriver} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <>
         <AdvanceSection trip={trip} tripId={tripId} onSaved={load} />
         <div className="card">

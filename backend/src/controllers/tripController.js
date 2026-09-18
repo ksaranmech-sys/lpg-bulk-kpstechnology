@@ -889,6 +889,12 @@ async function getOpenTripOr404(req, res) {
     res.status(403).json({ error: 'Only the assigned user can edit an open trip' });
     return null;
   }
+  // Once the driver has pressed Trip Close, the trip is locked from further driver edits -
+  // only customer admins / super admins can still adjust it from here.
+  if (trip.status !== TRIP_STATUS.OPEN) {
+    res.status(403).json({ error: 'This trip is already closed and can no longer be edited.' });
+    return null;
+  }
   return trip;
 }
 
