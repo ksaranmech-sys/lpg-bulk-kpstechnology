@@ -164,19 +164,6 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
     doc.moveDown(0.12);
     doc.x = doc.page.margins.left;
 
-    styledSectionHeader(doc, 'Manual KM Details');
-    renderSalaryTripsTable(doc, ['S.No', 'Manual KM Loading', 'Manual KM Unloading', 'Manual KM'],
-      trips.filter((trip) => trip.manualKm != null).length ? trips.filter((trip) => trip.manualKm != null).map((trip, index) => [
-        String(index + 1),
-        trip.isDiverted ? trip.unloadingLocation || '-' : trip.loadingLocation || '-',
-        trip.isDiverted ? trip.divertUnloadingLocation || '-' : trip.unloadingLocation || '-',
-        `${fmtMoney(trip.manualKm)} km`,
-      ]) : [['-', 'No manual KM entries for this month', '-', '-']], {
-        totalLabel: 'Total Manual KM',
-        totalValue: `${fmtMoney(trips.reduce((sum, trip) => sum + Number(trip.manualKm || 0), 0))} km`,
-      });
-    doc.moveDown(0.12);
-    doc.x = doc.page.margins.left;
 
     styledSectionHeader(doc, 'Salary Calculation');
     const salaryRows = [

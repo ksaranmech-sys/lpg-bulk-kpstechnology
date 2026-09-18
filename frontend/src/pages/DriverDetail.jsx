@@ -460,30 +460,6 @@ export default function DriverDetail() {
                     </tbody>
                   </table>
                 </div>
-                <div style={{ overflowX: 'auto', marginBottom: 16 }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                    <thead>
-                      <tr>
-                        <th style={{ width: '8%', textAlign: 'right', padding: '8px 10px', border: '1px solid #d0d7de' }}>S.No</th>
-                        <th style={{ width: '30%', textAlign: 'left', padding: '8px 10px', border: '1px solid #d0d7de' }}>Manual KM Loading</th>
-                        <th style={{ width: '30%', textAlign: 'left', padding: '8px 10px', border: '1px solid #d0d7de' }}>Manual KM Unloading</th>
-                        <th style={{ width: '16%', textAlign: 'right', padding: '8px 10px', border: '1px solid #d0d7de' }}>Manual KM</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(salary.trips || []).filter((trip) => trip.manualKm != null).length === 0 ? (
-                        <tr><td colSpan="4" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No manual KM entries for this month.</td></tr>
-                      ) : (salary.trips || []).filter((trip) => trip.manualKm != null).map((trip, index) => (
-                        <tr key={trip._id || index}>
-                          <td style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>{index + 1}</td>
-                          <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.isDiverted ? trip.unloadingLocation || '-' : trip.loadingLocation || '-'}</td>
-                          <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.isDiverted ? trip.divertUnloadingLocation || '-' : trip.unloadingLocation || '-'}</td>
-                          <td style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>{Math.round(trip.manualKm)} km</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
                 <table className="salary-summary">
                   <tbody>
                     <tr>
