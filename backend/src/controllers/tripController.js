@@ -592,7 +592,7 @@ async function setUnloading(req, res) {
         return res.status(400).json({ error: 'divertDate must be a valid date when diverted' });
       }
       if (trip.unloadingDate && date < trip.unloadingDate) {
-        return res.status(400).json({ error: 'New Unloading date must be the same as or after the Unloading date.' });
+        return res.status(400).json({ error: 'Divert date must be the same as or after the Unloading date.' });
       }
       trip.divertUnloadingLocation = location;
       trip.divertDate = date;
@@ -602,7 +602,7 @@ async function setUnloading(req, res) {
         const divertRouteKm = findRouteKm(metaRoutes.loadRouteKmTable(), trip.unloadingLocation, trip.divertUnloadingLocation);
         if (divertRouteKm == null) {
           return res.status(400).json({
-            error: 'Please enter Manual KM Divert between the unloading location and new unloading location (Round trip).',
+            error: 'Please enter Manual KM Divert between the unloading location and divert location (Round trip).',
           });
         }
       }
@@ -648,7 +648,7 @@ async function setTurnDetails(req, res) {
     }
     trip.manualKmReturn = km;
   }
-  // Manual KM Return requirement: diverted trips check filling order -> new unloading location;
+  // Manual KM Return requirement: diverted trips check filling order -> divert location;
   // non-diverted trips check filling order -> unloading location instead. Reuse only applies
   // when the reused leg targets the same destination as the return leg - Manual KM Load
   // (Loading -> Unloading) only matches when the trip isn't diverted (return target is the
@@ -666,7 +666,7 @@ async function setTurnDetails(req, res) {
         if (!reusesLoadLeg && !reusesDivertLeg) {
           return res.status(400).json({
             error: isDivertedReturn
-              ? 'Please enter Manual KM Return between the filling order location and new unloading location (Round trip).'
+              ? 'Please enter Manual KM Return between the filling order location and divert location (Round trip).'
               : 'Please enter Manual KM Return between the filling order location and unloading location (Round trip).',
           });
         }

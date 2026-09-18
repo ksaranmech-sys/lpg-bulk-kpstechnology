@@ -456,7 +456,7 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
     }
     if (manualKmReturnRequired && manualKmReturn === '') {
       setError(trip.isDiverted
-        ? 'Please enter Manual KM Return between the filling order location and new unloading location (Round trip).'
+        ? 'Please enter Manual KM Return between the filling order location and divert location (Round trip).'
         : 'Please enter Manual KM Return between the filling order location and unloading location (Round trip).');
       return;
     }
@@ -1095,7 +1095,7 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
       return;
     }
     if (manualKmDivertRequired && manualKmDivert === '') {
-      setError('Please enter Manual KM Divert between the unloading location and new unloading location (Round trip).');
+      setError('Please enter Manual KM Divert between the unloading location and divert location (Round trip).');
       return;
     }
     setError('');
@@ -1194,12 +1194,12 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
       {isDiverted && (
         <div className="divert-fields" style={{ marginTop: 12 }}>
           <div className="field">
-            <label>New Unloading Location</label>
+            <label>Divert Location</label>
             <ComboBoxInput
               value={divertUnloadingLocation}
               onChange={setDivertUnloadingLocation}
               options={(routeUnloadingOptions || []).filter(Boolean)}
-              placeholder="Select or enter new unloading location"
+              placeholder="Select or enter divert location"
               required
             />
           </div>
@@ -1212,13 +1212,13 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
                 value={manualKmDivert}
                 onChange={(e) => setManualKmDivert(e.target.value)}
                 placeholder={manualKmDivertRequired ? 'Required' : 'Optional'}
-                title={`Enter KM between ${unloadingLocation || 'unloading location'} and ${divertUnloadingLocation || 'new unloading location'} (One Way)`}
+                title={`Enter KM between ${unloadingLocation || 'unloading location'} and ${divertUnloadingLocation || 'divert location'} (One Way)`}
                 required={manualKmDivertRequired}
               />
             </div>
           )}
           <div className="field">
-            <label>New Unloading Date</label>
+            <label>Divert Date</label>
             <input
               type="date"
               value={divertDate}

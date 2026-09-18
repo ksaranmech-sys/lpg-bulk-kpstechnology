@@ -137,7 +137,7 @@ test('shows editable manual loading details below driver advance', async () => {
   expect(divertFields.children).toHaveLength(2);
   expect(divertFields.querySelector('select')).not.toBeNull();
   expect(divertFields.querySelector('input[type="date"]')).not.toBeNull();
-  expect(divertFields.textContent).toContain('New Unloading Date');
+  expect(divertFields.textContent).toContain('Divert Date');
 
   const dieselForm = Array.from(container.querySelectorAll('form')).find(
     (form) => form.querySelector('h3')?.textContent === 'Diesel Filling Entry'

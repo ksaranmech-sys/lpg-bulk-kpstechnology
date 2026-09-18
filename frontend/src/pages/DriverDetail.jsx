@@ -241,6 +241,21 @@ export default function DriverDetail() {
     }
   }
 
+  // With responseType: 'blob', a JSON error response also arrives as a Blob - axios never
+  // parses it, so err.response.data.error is always undefined unless we decode it ourselves.
+  async function extractBlobErrorMessage(err, fallback) {
+    const data = err.response?.data;
+    if (data instanceof Blob) {
+      try {
+        const parsed = JSON.parse(await data.text());
+        return parsed.error || fallback;
+      } catch {
+        return fallback;
+      }
+    }
+    return err.response?.data?.error || fallback;
+  }
+
   async function printMonthlySummary(month = salaryMonth) {
     const printWindow = window.open('', '_blank');
     setSummaryPrinting(true);
@@ -251,7 +266,7 @@ export default function DriverDetail() {
       else window.location.href = url;
     } catch (err) {
       printWindow?.close();
-      setError(err.response?.data?.error || 'Failed to generate monthly summary');
+      setError(await extractBlobErrorMessage(err, 'Failed to generate monthly summary'));
     } finally {
       setSummaryPrinting(false);
     }
@@ -388,8 +403,8 @@ export default function DriverDetail() {
                         <th style={{ width: '12%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Date</th>
                         <th style={{ width: '15%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Unloading Location</th>
                         <th style={{ width: '12%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Unloading Date</th>
-                        <th style={{ width: '15%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>New Unloading Location</th>
-                        <th style={{ width: '12%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>New Unloading Date</th>
+                        <th style={{ width: '15%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Divert Location</th>
+                        <th style={{ width: '12%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Divert Date</th>
                         <th style={{ width: '10%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Driver KM</th>
                         <th style={{ width: '15%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip balance</th>
                       </tr>

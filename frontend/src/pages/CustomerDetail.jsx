@@ -67,6 +67,8 @@ export default function CustomerDetail() {
   const [deletingTripId, setDeletingTripId] = useState('');
   const [tripHistoryError, setTripHistoryError] = useState('');
   const [showArchivedTrips, setShowArchivedTrips] = useState(false);
+  const [selectedTripsToClose, setSelectedTripsToClose] = useState([]);
+  const [closingSelectedTrips, setClosingSelectedTrips] = useState(false);
 
   useEffect(() => {
     if (!['super_admin', 'customer_admin'].includes(user?.role)) return;
@@ -92,6 +94,7 @@ export default function CustomerDetail() {
 
   useEffect(() => {
     setShowArchivedTrips(false);
+    setSelectedTripsToClose([]);
   }, [selectedVehicleId]);
 
   async function deleteTrip(tripId) {
@@ -116,6 +119,25 @@ export default function CustomerDetail() {
       )));
     } catch (err) {
       setTripHistoryError(err.response?.data?.error || 'Failed to close trip');
+    }
+  }
+
+  // Trips only auto-close once the vehicle's next trip records its first diesel fill - if that
+  // hasn't happened yet, they're stuck as pending_close and need a manual force-close here.
+  async function closeSelectedTrips() {
+    if (!selectedTripsToClose.length) return;
+    setClosingSelectedTrips(true);
+    setTripHistoryError('');
+    try {
+      await Promise.all(selectedTripsToClose.map((tripId) => api.closeTrip(tripId)));
+      setClosedTrips((current) => current.map((trip) => (
+        selectedTripsToClose.includes(trip._id) ? { ...trip, status: 'closed' } : trip
+      )));
+      setSelectedTripsToClose([]);
+    } catch (err) {
+      setTripHistoryError(err.response?.data?.error || 'Failed to close selected trips');
+    } finally {
+      setClosingSelectedTrips(false);
     }
   }
 
@@ -557,10 +579,35 @@ export default function CustomerDetail() {
         {!closedTripsLoading && !selectedVehicleId && <p>Select a vehicle to view trip history.</p>}
         {!closedTripsLoading && selectedVehicleId && visibleClosedTrips.length === 0 && <p>No trip history found for this vehicle.</p>}
         {tripHistoryError && <p className="error-text">{tripHistoryError}</p>}
+        {!closedTripsLoading && selectedTripsToClose.length > 0 && (
+          <button
+            type="button"
+            className="btn"
+            style={{ marginTop: 12 }}
+            onClick={closeSelectedTrips}
+            disabled={closingSelectedTrips}
+          >
+            {closingSelectedTrips ? 'Closing...' : `Close ${selectedTripsToClose.length} selected trip(s)`}
+          </button>
+        )}
         {!closedTripsLoading && visibleClosedTrips.length > 0 && (
           <div style={{ display: 'grid', gap: 10, marginTop: 12 }}>
             {visibleClosedTrips.map((trip) => (
               <div key={trip._id} className="list-item">
+                {trip.status === 'pending_close' && (
+                  <input
+                    type="checkbox"
+                    checked={selectedTripsToClose.includes(trip._id)}
+                    onChange={() => setSelectedTripsToClose((current) => (
+                      current.includes(trip._id)
+                        ? current.filter((id) => id !== trip._id)
+                        : [...current, trip._id]
+                    ))}
+                    aria-label="Select trip to close"
+                    title="This trip did not close automatically - select it to force-close and settle it"
+                    style={{ width: 'auto' }}
+                  />
+                )}
                 <Link to={`/trips/${trip._id}`} style={{ flex: 1, color: 'inherit', textDecoration: 'none' }}>
                     <strong>{formatTripRoute(trip)}</strong>
                 </Link>
