@@ -480,11 +480,13 @@ export default function DriverDetail() {
                     </tr>
                     <tr><td>Total Driver KM = Driver KM + Manual KM ({salary.closedTrips} closed trips)</td><td>{Math.round((salary.corporationKm || 0) + (salary.manualKmTotal || 0))} km</td></tr>
                     <tr><td>KM Beta (Total Driver KM {Math.round(salary.kmCharges || 0)})</td><td>Rs {Math.round(salary.kmBeta || 0)}</td></tr>
-                    <tr><td>Total Advance ({salary.closedTrips} trips)</td><td>Rs {Math.round(salary.totalAdvance || 0)}</td></tr>
                     {Number(salary.specialTripCharges || 0) > 0 && (
                       <tr><td>Special Trip Charges ({salary.specialTripCount || 0} trips x Rs 1000)</td><td>Rs {Math.round(salary.specialTripCharges || 0)}</td></tr>
                     )}
-                    <tr><td><strong>Trip balance</strong></td><td><strong>Rs {Math.round(salary.salaryBalance || 0)}</strong></td></tr>
+                    <tr><td>Total Advance ({salary.closedTrips} trips)</td><td>Rs {Math.round(salary.totalAdvance || 0)}</td></tr>
+                    <tr><td><strong>Sub Total</strong></td><td><strong>Rs {Math.round((salary.basicSalary || 0) + (salary.kmBeta || 0) + (salary.specialTripCharges || 0) + (salary.totalAdvance || 0))}</strong></td></tr>
+                    <tr><td>Total Expenses ({salary.closedTrips} trips)</td><td>Rs {Math.round(salary.totalExpense || 0)}</td></tr>
+                    <tr><td><strong>Balance to Driver</strong></td><td><strong>Rs {Math.round(salary.salaryBalance || 0)}</strong></td></tr>
                   </tbody>
                 </table>
               </>
