@@ -17,6 +17,12 @@ function dayAfterDateInputValue(value) {
   return date.toISOString().slice(0, 10);
 }
 
+// Entries can't be dated after this trip's own close date - if that isn't set yet, they also
+// can't be dated in the future, so today is the fallback upper bound.
+function getEntryMaxDate(trip) {
+  return toDateInputValue(trip?.turnDate) || new Date().toISOString().slice(0, 10);
+}
+
 // Custom combobox so the suggestions dropdown always matches the input's own
 // width - native <input list> + <datalist> popups ignore CSS sizing entirely.
 function ComboBoxInput({ value, onChange, options, placeholder, required }) {
@@ -218,7 +224,7 @@ function AdvanceSection({ trip, tripId, onSaved }) {
   const [error, setError] = useState('');
   const advances = trip.driverAdvances || [];
   const minDate = dayAfterDateInputValue(trip.previousTripCloseDate);
-  const maxDate = toDateInputValue(trip.turnDate);
+  const maxDate = getEntryMaxDate(trip);
 
   async function submit(e) {
     e.preventDefault();
@@ -629,7 +635,7 @@ function DieselForm({
   const [dieselFilledConfirmed, setDieselFilledConfirmed] = useState(false);
   const [error, setError] = useState('');
   const minDate = dayAfterDateInputValue(trip?.previousTripCloseDate);
-  const maxDate = toDateInputValue(trip?.turnDate);
+  const maxDate = getEntryMaxDate(trip);
 
   async function submit(e) {
     e.preventDefault();
@@ -705,7 +711,7 @@ function DieselSummary({ trip, tripId, onSaved }) {
   const [date, setDate] = useState('');
   const [error, setError] = useState('');
   const minDate = dayAfterDateInputValue(trip.previousTripCloseDate);
-  const maxDate = toDateInputValue(trip.turnDate);
+  const maxDate = getEntryMaxDate(trip);
 
   function startEdit(index, entry) {
     setEditingIndex(index);
@@ -807,7 +813,7 @@ function RtoSummary({ trip, onSaved }) {
   const [date, setDate] = useState('');
   const [error, setError] = useState('');
   const minDate = dayAfterDateInputValue(trip.previousTripCloseDate);
-  const maxDate = toDateInputValue(trip.turnDate);
+  const maxDate = getEntryMaxDate(trip);
 
   function startEdit(index, entry) {
     setEditingIndex(index);
@@ -870,7 +876,7 @@ function RtoForm({ tripId, trip, onSaved }) {
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState('');
   const minDate = dayAfterDateInputValue(trip.previousTripCloseDate);
-  const maxDate = toDateInputValue(trip.turnDate);
+  const maxDate = getEntryMaxDate(trip);
 
   async function submit(e) {
     e.preventDefault();
@@ -910,7 +916,7 @@ function OtherExpenseForm({ tripId, trip, onSaved }) {
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState('');
   const minDate = dayAfterDateInputValue(trip.previousTripCloseDate);
-  const maxDate = toDateInputValue(trip.turnDate);
+  const maxDate = getEntryMaxDate(trip);
 
   async function submit(e) {
     e.preventDefault();
@@ -964,7 +970,7 @@ function OtherExpenseSummary({ trip, tripId, onSaved }) {
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
   const minDate = dayAfterDateInputValue(trip.previousTripCloseDate);
-  const maxDate = toDateInputValue(trip.turnDate);
+  const maxDate = getEntryMaxDate(trip);
 
   function startEdit(index, entry) {
     setEditingIndex(index);

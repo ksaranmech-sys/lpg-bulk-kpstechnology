@@ -35,14 +35,18 @@ async function getPreviousTripTurnDate(trip) {
 }
 
 // Advance/RTO/Other Expense entries must fall strictly after the previous trip's close date and
-// on or before this trip's own close date (once it has one).
+// on or before this trip's own close date - if that isn't set yet, they also can't be dated in
+// the future (there's nothing to bound them by otherwise).
 async function validateEntryDate(trip, date, label) {
   const previousTurnDate = await getPreviousTripTurnDate(trip);
   if (previousTurnDate && date <= previousTurnDate) {
     return `${label} date must be after the previous trip's Load Turn (close) date.`;
   }
-  if (trip.turnDate && date > trip.turnDate) {
-    return `${label} date must be on or before this trip's Load Turn (close) date.`;
+  const upperBound = trip.turnDate || new Date();
+  if (date > upperBound) {
+    return trip.turnDate
+      ? `${label} date must be on or before this trip's Load Turn (close) date.`
+      : `${label} date cannot be in the future.`;
   }
   return null;
 }
