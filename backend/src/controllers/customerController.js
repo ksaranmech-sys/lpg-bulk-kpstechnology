@@ -157,10 +157,10 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
       .select(
         'loadingLocation loadingDate unloadingLocation unloadingDate fillingOrderLocation turnDate closedAt ' +
         'dieselEntries.filledAt settlement.balance settlement.totalKm ' +
-        'driverAdvances loadingExpense unloadingExpense rtoEntries otherExpenses manualKm ' +
+        'driverAdvances loadingExpense unloadingExpense rtoEntries otherExpenses manualKm manualKmDivert manualKmReturn ' +
         'isDiverted divertUnloadingLocation divertDate'
       )
-      .sort('closedAt loadingDate')
+      .sort('-loadingDate -closedAt')
     : [];
   const monthTrips = trips.filter((trip) => isTripInSalaryMonth(trip, monthStart, monthEnd));
   const routeKmTable = loadRouteKmTable();
