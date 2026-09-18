@@ -149,7 +149,7 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
     doc.x = doc.page.margins.left;
 
     styledSectionHeader(doc, 'Closed Trips');
-    renderSalaryTripsTable(doc, ['S.No', 'Loading Location', 'Loading Date', 'Unloading Location', 'Unloading Date', 'Divert Location', 'Divert Date', 'Driver KM', 'Balance'],
+    renderSalaryTripsTable(doc, ['S.No', 'Loading Location', 'Loading Date', 'Unloading Location', 'Unloading Date', 'Divert Location', 'Divert Date', 'Driver KM', 'Trip Advance', 'Trip Diesel', 'Balance'],
       trips.length ? trips.map((trip, index) => [
         String(index + 1),
         trip.loadingLocation || '-',
@@ -159,8 +159,10 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
         trip.isDiverted ? trip.divertUnloadingLocation || '-' : '-',
         trip.isDiverted ? fmtDate(trip.divertDate) : '-',
         trip.corporationKm != null ? `${fmtMoney(trip.corporationKm)} km` : '-',
+        `Rs ${fmtMoney(trip.advanceTotal || 0)}`,
+        `Rs ${fmtMoney(trip.dieselTotal || 0)}`,
         `Rs ${fmtMoney(trip.balance || 0)}`,
-      ]) : [['-', 'No closed trips for this month', '-', '-', '-', '-', '-', '-', '-']]);
+      ]) : [['-', 'No closed trips for this month', '-', '-', '-', '-', '-', '-', '-', '-', '-']]);
     doc.moveDown(0.12);
     doc.x = doc.page.margins.left;
 
@@ -326,13 +328,17 @@ function styledSectionHeader(doc, text) {
 function renderSalaryTripsTable(doc, headers, rows, total = {}) {
   const x = doc.page.margins.left;
   const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const columnRatios = headers.length === 9
+  const columnRatios = headers.length === 11
+    ? [0.04, 0.115, 0.085, 0.115, 0.085, 0.115, 0.085, 0.09, 0.09, 0.09, 0.09]
+    : headers.length === 9
     ? [0.04, 0.14, 0.11, 0.14, 0.11, 0.14, 0.11, 0.10, 0.11]
     : headers.length === 8
     ? [0.05, 0.18, 0.13, 0.17, 0.13, 0.10, 0.10, 0.14]
     : headers.length === 4
       ? [0.08, 0.34, 0.34, 0.24]
       : [0.05, 0.15, 0.12, 0.15, 0.12, 0.08, 0.08, 0.09, 0.16];
+  // The trailing columns (KM/money figures) are right-aligned - how many varies by table shape.
+  const numericTrailingCount = headers.length === 11 ? 4 : headers.length === 4 ? 1 : 2;
   const rowHeight = 22;
   const headerHeight = 30;
   const columnWidths = columnRatios.map((ratio) => width * ratio);
@@ -343,7 +349,7 @@ function renderSalaryTripsTable(doc, headers, rows, total = {}) {
   doc.rect(x, y, width, headerHeight).fillAndStroke('#eaf2f5', '#1f4d2b');
   let columnX = x;
   headers.forEach((header, index) => {
-    const numericColumn = index >= headers.length - (headers.length === 4 ? 1 : 2);
+    const numericColumn = index >= headers.length - numericTrailingCount;
     doc.fillColor('#102f52').font('Helvetica-Bold').fontSize(7).text(
       header.toUpperCase(), columnX + 8, y + 6, { width: columnWidths[index] - 16, align: numericColumn ? 'right' : 'left', lineBreak: true }
     );
@@ -356,7 +362,7 @@ function renderSalaryTripsTable(doc, headers, rows, total = {}) {
     doc.moveTo(x, rowY).lineTo(x + width, rowY).lineWidth(0.5).strokeColor('#b8c9d1').stroke();
     let cellX = x;
     row.forEach((cell, index) => {
-      const numericColumn = index >= row.length - (row.length === 4 ? 1 : 2);
+      const numericColumn = index >= row.length - numericTrailingCount;
       doc.fillColor('#102f52').font('Helvetica').fontSize(7.5).text(
         String(cell), cellX + 8, rowY + 5, { width: columnWidths[index] - 16, align: numericColumn ? 'right' : 'left', lineBreak: false }
       );

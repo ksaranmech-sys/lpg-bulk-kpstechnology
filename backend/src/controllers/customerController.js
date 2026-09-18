@@ -46,6 +46,12 @@ function sumTripAdvances(trips) {
   ), 0);
 }
 
+function sumTripDiesel(trips) {
+  return trips.reduce((sum, trip) => (
+    sum + (trip.dieselEntries || []).reduce((total, entry) => total + Number(entry.amount || 0), 0)
+  ), 0);
+}
+
 function getSalaryMonthBounds(month) {
   const [year, monthNumber] = month.split('-').map(Number);
   return {
@@ -169,7 +175,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
     })
       .select(
         'loadingLocation loadingDate unloadingLocation unloadingDate fillingOrderLocation turnDate closedAt status ' +
-        'dieselEntries.filledAt settlement.balance settlement.totalKm ' +
+        'dieselEntries.filledAt dieselEntries.amount settlement.balance settlement.totalKm ' +
         'driverAdvances loadingExpense unloadingExpense rtoEntries otherExpenses manualKm manualKmDivert manualKmReturn ' +
         'isDiverted divertUnloadingLocation divertDate'
       )
@@ -185,6 +191,8 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
       corpKm: findRouteKm(routeKmTable, trip.loadingLocation, trip.unloadingLocation),
       corporationKm: corporationKmDetails.value || 0,
       corporationKmSource: corporationKmDetails.source,
+      advanceTotal: (trip.driverAdvances || []).reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
+      dieselTotal: (trip.dieselEntries || []).reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
     };
   });
   const corporationKm = sumRouteTableKm(tripsWithBalances, routeKmTable, Number(driver.minKmCharges || 0) > 0);
@@ -193,6 +201,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   const { specialTripCount, specialTripCharges } = calculateSpecialTripCharges(tripsWithBalances, routeKmTable);
   const totalBalance = sumTripBalances(tripsWithBalances);
   const totalAdvance = round0(sumTripAdvances(tripsWithBalances));
+  const totalDiesel = round0(sumTripDiesel(tripsWithBalances));
   const basicSalaryDetails = calculateBasicSalary(
     month,
     driver.basicSalary,
@@ -210,6 +219,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
     closedTrips: tripsWithBalances.length,
     totalBalance: round0(totalBalance),
     totalAdvance,
+    totalDiesel,
     basicSalary,
     ...basicSalaryDetails,
     kmCharges,
@@ -552,6 +562,7 @@ module.exports = {
   calculateTripBalance,
   sumTripBalances,
   sumTripAdvances,
+  sumTripDiesel,
   getSalaryMonthBounds,
   getClosedTripsMonthFilter,
   getTripClosedDate,

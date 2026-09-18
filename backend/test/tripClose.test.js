@@ -145,6 +145,16 @@ test('monthly salary sums driver advances across every trip in the month', () =>
   assert.equal(total, 27650);
 });
 
+test('monthly salary sums diesel fills across every trip in the month', () => {
+  const total = customerController.sumTripDiesel([
+    { dieselEntries: [{ amount: 5000 }, { amount: 3000 }] },
+    { dieselEntries: [{ amount: 1500 }] },
+    { dieselEntries: [] },
+  ]);
+
+  assert.equal(total, 9500);
+});
+
 test('monthly salary assigns trips to their closed month when the trip was closed in August', () => {
   const { start, end } = customerController.getSalaryMonthBounds('2026-08');
   const filter = customerController.getClosedTripsMonthFilter(start, end);
