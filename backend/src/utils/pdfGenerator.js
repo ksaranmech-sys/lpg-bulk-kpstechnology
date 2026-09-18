@@ -149,7 +149,7 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
     doc.x = doc.page.margins.left;
 
     styledSectionHeader(doc, 'Closed Trips');
-    renderSalaryTripsTable(doc, ['S.No', 'Loading Location', 'Loading Date', 'Unloading Location', 'Unloading Date', 'Divert Location', 'Divert Date', 'Driver KM', 'Trip Advance', 'Trip Diesel', 'Balance'],
+    renderSalaryTripsTable(doc, ['S.No', 'Loading Location', 'Loading Date', 'Unloading Location', 'Unloading Date', 'Divert Location', 'Divert Date', 'Driver KM', 'Trip Advance', 'Trip Diesel', 'Trip Expense', 'Balance'],
       trips.length ? trips.map((trip, index) => [
         String(index + 1),
         trip.loadingLocation || '-',
@@ -161,8 +161,9 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
         trip.corporationKm != null ? `${fmtMoney(trip.corporationKm)} km` : '-',
         `Rs ${fmtMoney(trip.advanceTotal || 0)}`,
         `Rs ${fmtMoney(trip.dieselTotal || 0)}`,
+        `Rs ${fmtMoney(trip.expenseTotal || 0)}`,
         `Rs ${fmtMoney(trip.balance || 0)}`,
-      ]) : [['-', 'No closed trips for this month', '-', '-', '-', '-', '-', '-', '-', '-', '-']]);
+      ]) : [['-', 'No closed trips for this month', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-']]);
     doc.moveDown(0.12);
     doc.x = doc.page.margins.left;
 
@@ -328,7 +329,9 @@ function styledSectionHeader(doc, text) {
 function renderSalaryTripsTable(doc, headers, rows, total = {}) {
   const x = doc.page.margins.left;
   const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const columnRatios = headers.length === 11
+  const columnRatios = headers.length === 12
+    ? [0.035, 0.105, 0.08, 0.105, 0.08, 0.105, 0.08, 0.082, 0.082, 0.082, 0.082, 0.082]
+    : headers.length === 11
     ? [0.04, 0.115, 0.085, 0.115, 0.085, 0.115, 0.085, 0.09, 0.09, 0.09, 0.09]
     : headers.length === 9
     ? [0.04, 0.14, 0.11, 0.14, 0.11, 0.14, 0.11, 0.10, 0.11]
@@ -338,7 +341,7 @@ function renderSalaryTripsTable(doc, headers, rows, total = {}) {
       ? [0.08, 0.34, 0.34, 0.24]
       : [0.05, 0.15, 0.12, 0.15, 0.12, 0.08, 0.08, 0.09, 0.16];
   // The trailing columns (KM/money figures) are right-aligned - how many varies by table shape.
-  const numericTrailingCount = headers.length === 11 ? 4 : headers.length === 4 ? 1 : 2;
+  const numericTrailingCount = headers.length === 12 ? 5 : headers.length === 11 ? 4 : headers.length === 4 ? 1 : 2;
   const rowHeight = 22;
   const headerHeight = 30;
   const columnWidths = columnRatios.map((ratio) => width * ratio);

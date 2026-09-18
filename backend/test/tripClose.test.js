@@ -155,6 +155,28 @@ test('monthly salary sums diesel fills across every trip in the month', () => {
   assert.equal(total, 9500);
 });
 
+test('trip expense excludes diesel and driver advance, includes loading/unloading/RTO/other expenses', () => {
+  const expense = customerController.calculateTripExpense({
+    loadingExpense: 300,
+    unloadingExpense: 200,
+    rtoEntries: [{ amount: 100 }],
+    otherExpenses: [{ amount: 50 }],
+    driverAdvances: [{ amount: 99999 }],
+    dieselEntries: [{ amount: 99999 }],
+  });
+
+  assert.equal(expense, 650);
+});
+
+test('monthly salary sums trip expenses across every trip in the month', () => {
+  const total = customerController.sumTripExpenses([
+    { loadingExpense: 300, unloadingExpense: 200, rtoEntries: [], otherExpenses: [] },
+    { loadingExpense: 0, unloadingExpense: 0, rtoEntries: [{ amount: 150 }], otherExpenses: [{ amount: 50 }] },
+  ]);
+
+  assert.equal(total, 700);
+});
+
 test('monthly salary assigns trips to their closed month when the trip was closed in August', () => {
   const { start, end } = customerController.getSalaryMonthBounds('2026-08');
   const filter = customerController.getClosedTripsMonthFilter(start, end);

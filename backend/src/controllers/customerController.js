@@ -25,11 +25,15 @@ function loadRouteKmTable() {
   }
 }
 
-function calculateTripBalance(trip) {
-  const totalAdvance = (trip.driverAdvances || []).reduce((total, entry) => total + Number(entry.amount || 0), 0);
+function calculateTripExpense(trip) {
   const rtoExpense = (trip.rtoEntries || []).reduce((total, entry) => total + Number(entry.amount || 0), 0);
   const otherExpense = (trip.otherExpenses || []).reduce((total, entry) => total + Number(entry.amount || 0), 0);
-  const totalExpense = Number(trip.loadingExpense || 0) + Number(trip.unloadingExpense || 0) + rtoExpense + otherExpense;
+  return Number(trip.loadingExpense || 0) + Number(trip.unloadingExpense || 0) + rtoExpense + otherExpense;
+}
+
+function calculateTripBalance(trip) {
+  const totalAdvance = (trip.driverAdvances || []).reduce((total, entry) => total + Number(entry.amount || 0), 0);
+  const totalExpense = calculateTripExpense(trip);
   return Math.round((totalAdvance - totalExpense + Number.EPSILON) * 100) / 100;
 }
 
@@ -50,6 +54,10 @@ function sumTripDiesel(trips) {
   return trips.reduce((sum, trip) => (
     sum + (trip.dieselEntries || []).reduce((total, entry) => total + Number(entry.amount || 0), 0)
   ), 0);
+}
+
+function sumTripExpenses(trips) {
+  return trips.reduce((sum, trip) => sum + calculateTripExpense(trip), 0);
 }
 
 function getSalaryMonthBounds(month) {
@@ -193,6 +201,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
       corporationKmSource: corporationKmDetails.source,
       advanceTotal: (trip.driverAdvances || []).reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
       dieselTotal: (trip.dieselEntries || []).reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
+      expenseTotal: calculateTripExpense(trip),
     };
   });
   const corporationKm = sumRouteTableKm(tripsWithBalances, routeKmTable, Number(driver.minKmCharges || 0) > 0);
@@ -202,6 +211,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   const totalBalance = sumTripBalances(tripsWithBalances);
   const totalAdvance = round0(sumTripAdvances(tripsWithBalances));
   const totalDiesel = round0(sumTripDiesel(tripsWithBalances));
+  const totalExpense = round0(sumTripExpenses(tripsWithBalances));
   const basicSalaryDetails = calculateBasicSalary(
     month,
     driver.basicSalary,
@@ -220,6 +230,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
     totalBalance: round0(totalBalance),
     totalAdvance,
     totalDiesel,
+    totalExpense,
     basicSalary,
     ...basicSalaryDetails,
     kmCharges,
@@ -560,9 +571,11 @@ async function bulkDeleteVehicleUsers(req, res) {
 
 module.exports = {
   calculateTripBalance,
+  calculateTripExpense,
   sumTripBalances,
   sumTripAdvances,
   sumTripDiesel,
+  sumTripExpenses,
   getSalaryMonthBounds,
   getClosedTripsMonthFilter,
   getTripClosedDate,
