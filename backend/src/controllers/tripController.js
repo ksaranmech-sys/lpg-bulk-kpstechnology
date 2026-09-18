@@ -228,6 +228,9 @@ async function getTrip(req, res) {
     metaRoutes.loadRouteKmTable()
   ).value;
   result.driverName = driver?.name || null;
+  // Only a previous trip the user actually Trip Closed (past OPEN) counts as a close date -
+  // used by the frontend to restrict Advance/RTO/Other Expense date pickers to valid dates.
+  result.previousTripCloseDate = (previousTrip?.status !== TRIP_STATUS.OPEN && previousTrip?.turnDate) || null;
   res.json({ trip: result });
 }
 

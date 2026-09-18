@@ -3,6 +3,20 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import * as api from '../api/api';
 import Layout from '../components/Layout';
 
+// Shared date-picker bounds for Advance/RTO/Other Expense entries: must be strictly after the
+// previous trip's close date and on or before this trip's own close date (once it has one).
+function toDateInputValue(value) {
+  if (!value) return undefined;
+  return new Date(value).toISOString().slice(0, 10);
+}
+
+function dayAfterDateInputValue(value) {
+  if (!value) return undefined;
+  const date = new Date(value);
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
 // Custom combobox so the suggestions dropdown always matches the input's own
 // width - native <input list> + <datalist> popups ignore CSS sizing entirely.
 function ComboBoxInput({ value, onChange, options, placeholder, required }) {
@@ -147,7 +161,7 @@ export default function TripDetail() {
         <div className="card">
           <RtoSummary trip={trip} onSaved={load} />
           <div style={{ marginTop: 14 }}>
-            <RtoForm tripId={tripId} onSaved={load} />
+            <RtoForm tripId={tripId} trip={trip} onSaved={load} />
           </div>
         </div>
         {hasUnloadingTurnDetails ? (
@@ -168,7 +182,7 @@ export default function TripDetail() {
         <div className="card">
           <OtherExpenseSummary trip={trip} tripId={tripId} onSaved={load} />
           <div style={{ marginTop: 14 }}>
-            <OtherExpenseForm tripId={tripId} onSaved={load} />
+            <OtherExpenseForm tripId={tripId} trip={trip} onSaved={load} />
           </div>
         </div>
         {hasTurnDetails && !manualKmMissingForClose && <TurnDetailsSummary trip={trip} onEdit={() => setEditingTurnDetails(true)} />}
@@ -203,6 +217,8 @@ function AdvanceSection({ trip, tripId, onSaved }) {
   const [editDate, setEditDate] = useState('');
   const [error, setError] = useState('');
   const advances = trip.driverAdvances || [];
+  const minDate = dayAfterDateInputValue(trip.previousTripCloseDate);
+  const maxDate = toDateInputValue(trip.turnDate);
 
   async function submit(e) {
     e.preventDefault();
@@ -247,7 +263,7 @@ function AdvanceSection({ trip, tripId, onSaved }) {
                 {editingIndex === i ? (
                   <>
                     <td><input type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} min="0" /></td>
-                    <td style={{ textAlign: 'center' }}><input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} /></td>
+                    <td style={{ textAlign: 'center' }}><input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} min={minDate} max={maxDate} /></td>
                     <td style={{ textAlign: 'right' }}>
                       <button type="button" className="btn" onClick={() => saveEdit(i)}>Save</button>{' '}
                       <button type="button" className="btn secondary" onClick={() => setEditingIndex(null)}>Cancel</button>
@@ -270,7 +286,7 @@ function AdvanceSection({ trip, tripId, onSaved }) {
       <form onSubmit={submit} style={{ border: 0, background: 'transparent', padding: 0, borderRadius: 0, marginTop: advances.length ? 16 : 0 }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end' }}>
           <div className="field" style={{ margin: 0 }}><label>Amount (Rs)</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
-          <div className="field" style={{ margin: 0 }}><label>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+          <div className="field" style={{ margin: 0 }}><label>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} min={minDate} max={maxDate} /></div>
           <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }}>Add</button>
         </div>
       </form>
@@ -778,6 +794,8 @@ function RtoSummary({ trip, onSaved }) {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [error, setError] = useState('');
+  const minDate = dayAfterDateInputValue(trip.previousTripCloseDate);
+  const maxDate = toDateInputValue(trip.turnDate);
 
   function startEdit(index, entry) {
     setEditingIndex(index);
@@ -810,7 +828,7 @@ function RtoSummary({ trip, onSaved }) {
                 {editingIndex === index ? (
                   <>
                     <td><input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} /></td>
-                    <td><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></td>
+                    <td><input type="date" value={date} onChange={(e) => setDate(e.target.value)} min={minDate} max={maxDate} /></td>
                     <td style={{ textAlign: 'right' }}>
                       <button type="button" className="btn" onClick={() => saveEdit(index)}>Save</button>{' '}
                       <button type="button" className="btn secondary" onClick={() => setEditingIndex(null)}>Cancel</button>
@@ -834,11 +852,13 @@ function RtoSummary({ trip, onSaved }) {
   );
 }
 
-function RtoForm({ tripId, onSaved }) {
+function RtoForm({ tripId, trip, onSaved }) {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState('');
+  const minDate = dayAfterDateInputValue(trip.previousTripCloseDate);
+  const maxDate = toDateInputValue(trip.turnDate);
 
   async function submit(e) {
     e.preventDefault();
@@ -858,7 +878,7 @@ function RtoForm({ tripId, onSaved }) {
       {error && <div className="error-text">{error}</div>}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end' }}>
         <div className="field" style={{ margin: 0 }}><label>Amount (Rs)</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
-        <div className="field" style={{ margin: 0 }}><label>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+        <div className="field" style={{ margin: 0 }}><label>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} min={minDate} max={maxDate} /></div>
         <div className="field" style={{ margin: 0 }}>
           <label>Photo (GPS auto)</label>
           <input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files[0])} />
@@ -871,12 +891,14 @@ function RtoForm({ tripId, onSaved }) {
 
 const OTHER_EXPENSE_CATEGORIES = ['Unloading Cleaner', 'AdBlue', 'Puncture', 'Firegun'];
 
-function OtherExpenseForm({ tripId, onSaved }) {
+function OtherExpenseForm({ tripId, trip, onSaved }) {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [category, setCategory] = useState('');
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState('');
+  const minDate = dayAfterDateInputValue(trip.previousTripCloseDate);
+  const maxDate = toDateInputValue(trip.turnDate);
 
   async function submit(e) {
     e.preventDefault();
@@ -911,7 +933,7 @@ function OtherExpenseForm({ tripId, onSaved }) {
           />
         </div>
         <div className="field" style={{ margin: 0 }}><label>Amount (Rs)</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
-        <div className="field" style={{ margin: 0 }}><label>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+        <div className="field" style={{ margin: 0 }}><label>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} min={minDate} max={maxDate} /></div>
         <div className="field" style={{ margin: 0 }}>
           <label>Photo (optional)</label>
           <input type="file" accept="image/*" onChange={(e) => setPhoto(e.target.files[0])} />
@@ -929,6 +951,8 @@ function OtherExpenseSummary({ trip, tripId, onSaved }) {
   const [date, setDate] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
+  const minDate = dayAfterDateInputValue(trip.previousTripCloseDate);
+  const maxDate = toDateInputValue(trip.turnDate);
 
   function startEdit(index, entry) {
     setEditingIndex(index);
@@ -965,7 +989,7 @@ function OtherExpenseSummary({ trip, tripId, onSaved }) {
                   <>
                     <td><input value={description} onChange={(e) => setDescription(e.target.value)} /></td>
                     <td><input type="number" min="0" value={amount} onChange={(e) => setAmount(e.target.value)} /></td>
-                    <td><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></td>
+                    <td><input type="date" value={date} onChange={(e) => setDate(e.target.value)} min={minDate} max={maxDate} /></td>
                     <td>{entry.photo?.url ? <a href={entry.photo.url} target="_blank" rel="noreferrer">view</a> : '-'}</td>
                     <td>
                       <button type="button" className="btn" onClick={() => saveEdit(index)}>Save</button>{' '}
