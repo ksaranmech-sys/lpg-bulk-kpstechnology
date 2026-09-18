@@ -534,6 +534,8 @@ async function setUnloading(req, res) {
     } else {
       trip.divertUnloadingLocation = null;
       trip.divertDate = null;
+      // Manual KM Divert only applies to the divert leg - clear it once diverting is undone.
+      trip.manualKmDivert = null;
     }
   }
   await trip.save();
@@ -568,20 +570,23 @@ async function setTurnDetails(req, res) {
     trip.manualKmReturn = km;
   }
   // Manual KM Return requirement: diverted trips check filling order -> new unloading location;
-  // non-diverted trips check filling order -> unloading location instead. If that leg isn't in
-  // the table, the filling order location matching the loading or unloading location reuses
-  // Manual KM Load / Manual KM Divert instead - only require a separate entry otherwise.
+  // non-diverted trips check filling order -> unloading location instead. Reuse only applies
+  // when the reused leg targets the same destination as the return leg - Manual KM Load
+  // (Loading -> Unloading) only matches when the trip isn't diverted (return target is the
+  // same Unloading location); Manual KM Divert (Unloading -> divertUnloading) always matches
+  // the diverted return leg's destination, so it can reuse regardless.
   if (trip.manualKmReturn == null) {
     const routeKmTable = metaRoutes.loadRouteKmTable();
-    const returnTarget = trip.isDiverted && trip.divertUnloadingLocation ? trip.divertUnloadingLocation : trip.unloadingLocation;
+    const isDivertedReturn = trip.isDiverted && trip.divertUnloadingLocation;
+    const returnTarget = isDivertedReturn ? trip.divertUnloadingLocation : trip.unloadingLocation;
     if (trip.fillingOrderLocation && returnTarget) {
       const returnRouteKm = findRouteKm(routeKmTable, trip.fillingOrderLocation, returnTarget);
       if (returnRouteKm == null) {
-        const reusesLoadLeg = trip.fillingOrderLocation === trip.loadingLocation;
-        const reusesDivertLeg = trip.fillingOrderLocation === trip.unloadingLocation;
+        const reusesLoadLeg = !isDivertedReturn && trip.fillingOrderLocation === trip.loadingLocation;
+        const reusesDivertLeg = isDivertedReturn && trip.fillingOrderLocation === trip.unloadingLocation;
         if (!reusesLoadLeg && !reusesDivertLeg) {
           return res.status(400).json({
-            error: trip.isDiverted && trip.divertUnloadingLocation
+            error: isDivertedReturn
               ? 'Please enter Manual KM Return between the filling order location and new unloading location (Round trip).'
               : 'Please enter Manual KM Return between the filling order location and unloading location (Round trip).',
           });

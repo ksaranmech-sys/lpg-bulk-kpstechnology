@@ -428,20 +428,20 @@ test('Manual KM Return reuses Manual KM Load when filling order location equals 
   assert.equal(details.source, 'manual');
 });
 
-test('diverted Manual KM Return reuses Manual KM Load when filling order location equals loading location', () => {
+test('diverted trip with turn location matching loading location still requires Manual KM Return for the divert leg', () => {
   const trip = {
-    loadingLocation: 'Loading',
-    unloadingLocation: 'Unloading',
-    fillingOrderLocation: 'Loading',
+    loadingLocation: 'IPPL, Chennai',
+    unloadingLocation: 'namakkal',
+    fillingOrderLocation: 'IPPL, Chennai',
     isDiverted: true,
-    divertUnloadingLocation: 'New Unloading',
-    manualKm: 100,
-    manualKmDivert: 40,
+    divertUnloadingLocation: 'karur',
+    manualKm: 400,
+    manualKmDivert: 100,
   };
 
   const details = getCorporationKmDetails(trip, []);
-  assert.equal(details.value, (100 * 0.5) + (40 * 0.5) + (100 * 0.5));
-  assert.equal(details.source, 'manual');
+  assert.equal(details.value, null);
+  assert.equal(details.source, 'manual_required');
 });
 
 test('Manual KM Return reuses a table-resolved Load leg without any manual entry', () => {

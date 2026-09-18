@@ -393,16 +393,19 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
   const loadingLocations = Array.from(new Set((meta.routeKmTable || []).map((row) => row.loadingLocation).filter(Boolean)));
   // Manual KM Return covers the fillingOrder -> target leg, where target is the divert
   // unloading location for diverted trips, or the primary unloading location otherwise.
-  const returnTargetLocation = trip.isDiverted && trip.divertUnloadingLocation ? trip.divertUnloadingLocation : trip.unloadingLocation;
+  const isDivertedReturn = Boolean(trip.isDiverted && trip.divertUnloadingLocation);
+  const returnTargetLocation = isDivertedReturn ? trip.divertUnloadingLocation : trip.unloadingLocation;
   const hasReturnLegInTable = (meta.routeKmTable || []).some((row) => (
     String(row?.loadingLocation || '').trim() === String(fillingOrderLocation || '').trim() &&
     String(row?.unloadingLocation || '').trim() === String(returnTargetLocation || '').trim()
   ));
-  // If the return leg isn't in the table, the filling order location matching the loading or
-  // unloading location reuses Manual KM Load / Manual KM Divert instead - only require a
-  // separate Manual KM Return when neither leg applies.
-  const returnLegSameAsLoadLeg = String(fillingOrderLocation || '').trim() === String(trip.loadingLocation || '').trim();
-  const returnLegSameAsDivertLeg = String(fillingOrderLocation || '').trim() === String(trip.unloadingLocation || '').trim();
+  // Reuse only applies when the reused leg targets the same destination as the return leg:
+  // Manual KM Load (Loading -> Unloading) only matches a non-diverted return leg; Manual KM
+  // Divert (Unloading -> divertUnloading) matches the diverted return leg's destination.
+  const returnLegSameAsLoadLeg = !isDivertedReturn
+    && String(fillingOrderLocation || '').trim() === String(trip.loadingLocation || '').trim();
+  const returnLegSameAsDivertLeg = isDivertedReturn
+    && String(fillingOrderLocation || '').trim() === String(trip.unloadingLocation || '').trim();
   const manualKmReturnRequired = trip.manualKmReturn == null
     && Boolean(String(fillingOrderLocation || '').trim())
     && Boolean(String(returnTargetLocation || '').trim())
@@ -463,7 +466,7 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
               value={manualKmReturn}
               onChange={(e) => setManualKmReturn(e.target.value)}
               placeholder={manualKmReturnRequired ? 'Required' : 'Optional'}
-              title={`Enter KM between ${fillingOrderLocation || 'filling order location'} and ${returnTargetLocation || 'unloading location'} (Round Trip)`}
+              title={`Enter KM between ${fillingOrderLocation || 'filling order location'} and ${returnTargetLocation || 'unloading location'} (One Way)`}
               required={manualKmReturnRequired}
             />
           </div>
@@ -499,9 +502,11 @@ function TurnDetailsSummary({ trip, onEdit }) {
           {trip.fillingOrderLocation && (
             <span style={chip}><span style={{ color: '#64748b' }}>Filling order</span> <strong>{trip.fillingOrderLocation}</strong></span>
           )}
-          <span style={chip}>
-            <span style={{ color: '#64748b' }}>Manual KM Return</span> <strong>{trip.manualKmReturn != null && trip.manualKmReturn !== '' ? `${trip.manualKmReturn} km` : 'Not set'}</strong>
-          </span>
+          {trip.manualKmReturn != null && trip.manualKmReturn !== '' && (
+            <span style={chip}>
+              <span style={{ color: '#64748b' }}>Manual KM Return</span> <strong>{trip.manualKmReturn} km</strong>
+            </span>
+          )}
         </div>
         <button type="button" className="btn secondary" onClick={onEdit}>Edit</button>
       </div>
@@ -1059,7 +1064,7 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
               value={manualKm}
               onChange={(e) => setManualKm(e.target.value)}
               placeholder={manualKmLoadRequired ? 'Required' : 'Optional'}
-              title={`Enter KM between ${trip.loadingLocation || 'loading location'} and ${unloadingLocation || 'unloading location'} (Round Trip)`}
+              title={`Enter KM between ${trip.loadingLocation || 'loading location'} and ${unloadingLocation || 'unloading location'} (One Way)`}
               required={manualKmLoadRequired}
             />
           </div>
@@ -1075,7 +1080,16 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
               type="checkbox"
               style={{ width: 20, height: 20, margin: 0, accentColor: 'var(--green-500)', cursor: 'pointer' }}
               checked={isDiverted}
-              onChange={(e) => setIsDiverted(e.target.checked)}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setIsDiverted(checked);
+                // Manual KM Divert only applies while diverted - clear the stale value once undone.
+                if (!checked) {
+                  setManualKmDivert('');
+                  setDivertUnloadingLocation('');
+                  setDivertDate('');
+                }
+              }}
             />
           </div>
         </div>
@@ -1085,14 +1099,13 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
         <div className="divert-fields" style={{ marginTop: 12 }}>
           <div className="field">
             <label>New Unloading Location</label>
-            <select
+            <ComboBoxInput
               value={divertUnloadingLocation}
-              onChange={(e) => setDivertUnloadingLocation(e.target.value)}
+              onChange={setDivertUnloadingLocation}
+              options={(routeUnloadingOptions || []).filter(Boolean)}
+              placeholder="Select or enter new unloading location"
               required
-            >
-              <option value="">Select...</option>
-              {(routeUnloadingOptions || []).filter(Boolean).map((loc) => <option key={loc} value={loc}>{loc}</option>)}
-            </select>
+            />
           </div>
           {manualKmDivertVisible && (
             <div className="field">
@@ -1103,7 +1116,7 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
                 value={manualKmDivert}
                 onChange={(e) => setManualKmDivert(e.target.value)}
                 placeholder={manualKmDivertRequired ? 'Required' : 'Optional'}
-                title={`Enter KM between ${unloadingLocation || 'unloading location'} and ${divertUnloadingLocation || 'new unloading location'} (Round Trip)`}
+                title={`Enter KM between ${unloadingLocation || 'unloading location'} and ${divertUnloadingLocation || 'new unloading location'} (One Way)`}
                 required={manualKmDivertRequired}
               />
             </div>
@@ -1138,7 +1151,7 @@ function UnloadingDetailsSummary({ trip, onEdit }) {
               <span style={{ ...chip, color: '#64748b' }}>{trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'}</span>
             </>
           ) : null}
-          {trip.manualKmDivert != null && trip.manualKmDivert !== '' && (
+          {trip.isDiverted && trip.manualKmDivert != null && trip.manualKmDivert !== '' && (
             <span style={chip}>
               <span style={{ color: '#64748b' }}>Manual KM Divert</span> <strong>{trip.manualKmDivert} km</strong>
             </span>
