@@ -23,12 +23,13 @@ function getTripCloseDate(trip) {
   return getClosingDieselDate(trip);
 }
 
-// The driver "closes" a trip by adding Load Turn details, so the previous trip's turnDate is
-// the reference point for dates (loading, advances, ...) that must come after it.
+// The previous trip only counts as "closed" once the user actually pressed Trip Close
+// (status moved past OPEN) - a turnDate saved without that action doesn't count.
 async function getPreviousTripTurnDate(trip) {
   const previousTrip = await Trip.findOne({
     vehicle: trip.vehicle,
     createdAt: { $lt: trip.createdAt },
+    status: { $in: [TRIP_STATUS.PENDING_CLOSE, TRIP_STATUS.CLOSED] },
   }).sort('-createdAt');
   return previousTrip?.turnDate || null;
 }
