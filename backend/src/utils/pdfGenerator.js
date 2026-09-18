@@ -375,11 +375,22 @@ function renderSalaryTripsTable(doc, headers, rows, total = {}) {
 
   const totalY = y + headerHeight + rows.length * rowHeight;
   doc.moveTo(x, totalY).lineTo(x + width, totalY).lineWidth(0.8).strokeColor('#1f4d2b').stroke();
-  doc.fillColor('#102f52').font('Helvetica-Bold').fontSize(7.5).text(total.totalLabel || 'Total', x + 8, totalY + 5, { width: width * 0.70 - 16, align: 'left' });
-  const totalBalance = rows.reduce((sum, row) => sum + (Number(String(row[row.length - 1]).replace(/[^0-9.-]/g, '')) || 0), 0);
-  const lastColumnWidth = columnWidths[columnWidths.length - 1];
-  const lastColumnX = x + width - lastColumnWidth;
-  doc.text(total.totalValue || `Rs ${fmtMoney(totalBalance)}`, lastColumnX + 8, totalY + 5, { width: lastColumnWidth - 16, align: 'right' });
+  const labelColumnCount = headers.length - numericTrailingCount;
+  const labelWidth = columnWidths.slice(0, labelColumnCount).reduce((sum, w) => sum + w, 0);
+  doc.fillColor('#102f52').font('Helvetica-Bold').fontSize(7.5).text(total.totalLabel || 'Total', x + 8, totalY + 5, { width: labelWidth - 16, align: 'left' });
+  // Show a running total under each numeric column (Driver KM, Trip Diesel, Trip Advance, etc.),
+  // not just the last one, so the report totals every figure the reader can see per trip.
+  let numericColumnX = x + labelWidth;
+  for (let index = labelColumnCount; index < headers.length; index += 1) {
+    const columnTotal = rows.reduce((sum, row) => sum + (Number(String(row[index]).replace(/[^0-9.-]/g, '')) || 0), 0);
+    const isLastColumn = index === headers.length - 1;
+    const columnWidth = columnWidths[index];
+    const displayValue = isLastColumn && total.totalValue != null
+      ? total.totalValue
+      : /km$/i.test(headers[index]) ? `${fmtMoney(columnTotal)} km` : `Rs ${fmtMoney(columnTotal)}`;
+    doc.text(displayValue, numericColumnX + 8, totalY + 5, { width: columnWidth - 16, align: 'right' });
+    numericColumnX += columnWidth;
+  }
   doc.y = y + totalHeight + 4;
 }
 
