@@ -144,7 +144,7 @@ test('monthly salary assigns trips to their closed month when the trip was close
   assert.equal(end.getFullYear(), 2026);
   assert.equal(end.getMonth(), 8);
   assert.deepEqual(filter, {
-    status: { $in: ['pending_close', 'closed'] },
+    status: { $in: ['open', 'pending_close', 'closed'] },
   });
 });
 
@@ -191,6 +191,14 @@ test('salary month uses the final diesel fill when closedAt is missing', () => {
 
   assert.equal(customerController.isTripInSalaryMonth(trip, start, end), true);
   assert.equal(customerController.getTripClosedDate(trip).toISOString(), '2026-07-24T00:00:00.000Z');
+});
+
+test('still-open trip with no turnDate/diesel/closedAt falls back to loading date for salary month grouping', () => {
+  const { start, end } = customerController.getSalaryMonthBounds('2026-08');
+  const trip = { status: 'open', loadingDate: new Date('2026-08-10T00:00:00.000Z'), dieselEntries: [] };
+
+  assert.equal(customerController.isTripInSalaryMonth(trip, start, end), true);
+  assert.equal(customerController.getTripClosedDate(trip).toISOString(), '2026-08-10T00:00:00.000Z');
 });
 
 test('final closing diesel date takes precedence over stale closedAt', () => {

@@ -112,6 +112,7 @@ export default function DriverDetail() {
   const [showArchivedSalary, setShowArchivedSalary] = useState(false);
   const [archivedSalaryMonth, setArchivedSalaryMonth] = useState(previousMonth);
   const [summaryPrinting, setSummaryPrinting] = useState(false);
+  const [closingTripId, setClosingTripId] = useState(null);
   const [trips, setTrips] = useState([]);
   const [tripsLoading, setTripsLoading] = useState(false);
   const [showArchivedTrips, setShowArchivedTrips] = useState(false);
@@ -152,13 +153,29 @@ export default function DriverDetail() {
     ? driverLeaves
     : driverLeaves.filter((leave) => !archivedLeaves.includes(leave));
 
-  useEffect(() => {
+  function loadSalary() {
     if (!driver) return;
     api
       .getDriverMonthlySalary(customerId, driverId, salaryMonth)
       .then((res) => setSalary(res.data))
       .catch((err) => setError(err.response?.data?.error || 'Failed to load salary calculation'));
-  }, [customerId, driver, driverId, salaryMonth]);
+  }
+
+  useEffect(loadSalary, [customerId, driver, driverId, salaryMonth]);
+
+  async function closeTripFromSalary(tripId) {
+    if (!window.confirm('Mark this trip as closed for salary purposes?')) return;
+    setError('');
+    setClosingTripId(tripId);
+    try {
+      await api.closeTrip(tripId);
+      loadSalary();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to close trip');
+    } finally {
+      setClosingTripId(null);
+    }
+  }
 
   useEffect(() => {
     if (!driver) return;
@@ -407,11 +424,12 @@ export default function DriverDetail() {
                         <th style={{ width: '12%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Divert Date</th>
                         <th style={{ width: '10%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Driver KM</th>
                         <th style={{ width: '15%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip balance</th>
+                        <th style={{ width: '8%', textAlign: 'center', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Closed</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(salary.trips || []).length === 0 ? (
-                        <tr><td colSpan="9" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No trips for this month.</td></tr>
+                        <tr><td colSpan="10" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No trips for this month.</td></tr>
                       ) : (salary.trips || []).map((trip, index) => (
                         <tr key={trip._id || index}>
                           <td style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>{index + 1}</td>
@@ -423,11 +441,21 @@ export default function DriverDetail() {
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.isDiverted && trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'}</td>
                           <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.corporationKm != null ? `${Math.round(trip.corporationKm)} km` : '-'}</td>
                           <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.balance ?? 0}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'center', border: '1px solid #d0d7de' }}>
+                            <input
+                              type="checkbox"
+                              checked={trip.status === 'closed'}
+                              disabled={trip.status === 'closed' || closingTripId === trip._id}
+                              title={trip.status === 'closed' ? 'Trip already closed' : 'Mark this trip as closed'}
+                              onChange={() => closeTripFromSalary(trip._id)}
+                            />
+                          </td>
                         </tr>
                       ))}
                       <tr>
                         <td colSpan="8" style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
                         <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {salary.totalBalance}</td>
+                        <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}></td>
                       </tr>
                     </tbody>
                   </table>

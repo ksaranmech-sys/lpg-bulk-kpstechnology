@@ -538,4 +538,4 @@ function formatMonth(month) {
   return new Date(year, monthNumber - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
 
-module.exports = { buildTripSettlementPdf, buildDriverMonthlySummaryPdf };
+module.exports = { buildTripSettlementPdf, buildDriverMonthlySummaryPdf, formatMonth };

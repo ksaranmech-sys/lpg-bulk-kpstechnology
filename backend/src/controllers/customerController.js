@@ -5,7 +5,7 @@ const Trip = require('../models/Trip');
 const fs = require('fs');
 const path = require('path');
 const { ROLES } = require('../config/constants');
-const { buildDriverMonthlySummaryPdf } = require('../utils/pdfGenerator');
+const { buildDriverMonthlySummaryPdf, formatMonth } = require('../utils/pdfGenerator');
 const Leave = require('../models/Leave');
 const { findRouteKm, getCorporationKmDetails } = require('../utils/corporationKm');
 
@@ -49,7 +49,9 @@ function getSalaryMonthBounds(month) {
 }
 
 function getClosedTripsMonthFilter(monthStart, monthEnd) {
-  return { status: { $in: ['pending_close', 'closed'] } };
+  // Still-open trips are included too, so the admin can see and manually close them from the
+  // salary table instead of waiting for the automatic next-trip close.
+  return { status: { $in: ['open', 'pending_close', 'closed'] } };
 }
 
 function getTripClosedDate(trip) {
@@ -61,7 +63,12 @@ function getTripClosedDate(trip) {
   if (filledAt && !Number.isNaN(filledAt.getTime())) return filledAt;
 
   const closedAt = trip.closedAt ? new Date(trip.closedAt) : null;
-  return closedAt && !Number.isNaN(closedAt.getTime()) ? closedAt : null;
+  if (closedAt && !Number.isNaN(closedAt.getTime())) return closedAt;
+
+  // Still-open trips have no close-related date yet - fall back to the loading date so they
+  // still show up (with a checkbox to manually close them) in the month they were started.
+  const loadingDate = trip.loadingDate ? new Date(trip.loadingDate) : null;
+  return loadingDate && !Number.isNaN(loadingDate.getTime()) ? loadingDate : null;
 }
 
 function isTripInSalaryMonth(trip, monthStart, monthEnd) {
@@ -155,7 +162,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
       ...getClosedTripsMonthFilter(monthStart, monthEnd),
     })
       .select(
-        'loadingLocation loadingDate unloadingLocation unloadingDate fillingOrderLocation turnDate closedAt ' +
+        'loadingLocation loadingDate unloadingLocation unloadingDate fillingOrderLocation turnDate closedAt status ' +
         'dieselEntries.filledAt settlement.balance settlement.totalKm ' +
         'driverAdvances loadingExpense unloadingExpense rtoEntries otherExpenses manualKm manualKmDivert manualKmReturn ' +
         'isDiverted divertUnloadingLocation divertDate'
