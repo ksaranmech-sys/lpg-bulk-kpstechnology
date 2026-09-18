@@ -285,27 +285,34 @@ function LoadingDetailsForm({ tripId, trip, meta, onSaved }) {
   const [turn, setTurn] = useState(trip.turnExpense || '');
   const [parking, setParking] = useState(trip.parkingExpense || '');
   const [photo, setPhoto] = useState(null);
+  const [error, setError] = useState('');
   const loadingOptions = Array.from(new Set((meta.routeKmTable || []).map((row) => row.loadingLocation).filter(Boolean)));
 
   async function submit(e) {
     e.preventDefault();
-    await api.setLoadingDetailsWithPhoto(
-      tripId,
-      {
-        loadingLocation,
-        loadingDate,
-        loadingExpense: Number(cleanerExpense || 0),
-        turnExpense: Number(turn || 0),
-        parkingExpense: Number(parking || 0),
-      },
-      photo
-    );
-    setPhoto(null);
-    onSaved();
+    setError('');
+    try {
+      await api.setLoadingDetailsWithPhoto(
+        tripId,
+        {
+          loadingLocation,
+          loadingDate,
+          loadingExpense: Number(cleanerExpense || 0),
+          turnExpense: Number(turn || 0),
+          parkingExpense: Number(parking || 0),
+        },
+        photo
+      );
+      setPhoto(null);
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save loading details.');
+    }
   }
 
   return (
     <form onSubmit={submit}>
+      {error && <div className="error-text">{error}</div>}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(140px, auto)', gap: 14, alignItems: 'end' }}>
         <div className="field" style={{ margin: 0 }}>
           <label>Loading Location</label>
@@ -526,16 +533,23 @@ function TurnDetailsSummary({ trip, onEdit }) {
 function UnloadingTurnForm({ tripId, trip, onSaved }) {
   const [turnNumber, setTurnNumber] = useState(trip.unTurnNumber != null ? String(trip.unTurnNumber) : '');
   const [turnDate, setTurnDate] = useState(trip.unTurnDate ? new Date(trip.unTurnDate).toISOString().slice(0, 10) : '');
+  const [error, setError] = useState('');
 
   async function submit(e) {
     e.preventDefault();
-    await api.setUnloadingTurnDetails(tripId, { turnNumber: Number(turnNumber), turnDate });
-    onSaved();
+    setError('');
+    try {
+      await api.setUnloadingTurnDetails(tripId, { turnNumber: Number(turnNumber), turnDate });
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save Unload Turn details.');
+    }
   }
 
   return (
     <form className="card" onSubmit={submit}>
       <h3 className="section-title">Unload Turn</h3>
+      {error && <div className="error-text">{error}</div>}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end' }}>
         <div className="field" style={{ margin: 0 }}>
           <label>Turn Number</label>
@@ -1028,16 +1042,20 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
       return;
     }
     setError('');
-    await api.setUnloading(tripId, {
-      unloadingLocation,
-      unloadingDate,
-      manualKm: manualKm === '' ? undefined : Number(manualKm),
-      manualKmDivert: manualKmDivert === '' ? undefined : Number(manualKmDivert),
-      isDiverted,
-      divertUnloadingLocation: isDiverted ? divertUnloadingLocation : undefined,
-      divertDate: isDiverted ? divertDate : undefined,
-    });
-    onSaved();
+    try {
+      await api.setUnloading(tripId, {
+        unloadingLocation,
+        unloadingDate,
+        manualKm: manualKm === '' ? undefined : Number(manualKm),
+        manualKmDivert: manualKmDivert === '' ? undefined : Number(manualKmDivert),
+        isDiverted,
+        divertUnloadingLocation: isDiverted ? divertUnloadingLocation : undefined,
+        divertDate: isDiverted ? divertDate : undefined,
+      });
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save unloading details.');
+    }
   }
 
   return (
