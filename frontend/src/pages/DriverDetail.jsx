@@ -459,7 +459,8 @@ export default function DriverDetail() {
                         </tr>
                       ))}
                       <tr>
-                        <td colSpan="8" style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
+                        <td colSpan="7" style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>{Math.round(salary.corporationKm || 0)} km</td>
                         <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {salary.totalDiesel}</td>
                         <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {salary.totalAdvance}</td>
                         <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {salary.totalExpense}</td>
