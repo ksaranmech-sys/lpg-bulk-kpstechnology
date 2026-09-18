@@ -568,23 +568,24 @@ async function setTurnDetails(req, res) {
     trip.manualKmReturn = km;
   }
   // Manual KM Return requirement: diverted trips check filling order -> new unloading location;
-  // non-diverted trips check filling order -> unloading location instead.
+  // non-diverted trips check filling order -> unloading location instead. If that leg isn't in
+  // the table, the filling order location matching the loading or unloading location reuses
+  // Manual KM Load / Manual KM Divert instead - only require a separate entry otherwise.
   if (trip.manualKmReturn == null) {
-    if (trip.isDiverted && trip.divertUnloadingLocation) {
-      if (trip.fillingOrderLocation) {
-        const returnRouteKm = findRouteKm(metaRoutes.loadRouteKmTable(), trip.fillingOrderLocation, trip.divertUnloadingLocation);
-        if (returnRouteKm == null) {
+    const routeKmTable = metaRoutes.loadRouteKmTable();
+    const returnTarget = trip.isDiverted && trip.divertUnloadingLocation ? trip.divertUnloadingLocation : trip.unloadingLocation;
+    if (trip.fillingOrderLocation && returnTarget) {
+      const returnRouteKm = findRouteKm(routeKmTable, trip.fillingOrderLocation, returnTarget);
+      if (returnRouteKm == null) {
+        const reusesLoadLeg = trip.fillingOrderLocation === trip.loadingLocation;
+        const reusesDivertLeg = trip.fillingOrderLocation === trip.unloadingLocation;
+        if (!reusesLoadLeg && !reusesDivertLeg) {
           return res.status(400).json({
-            error: 'Please enter Manual KM Return between the filling order location and new unloading location (Round trip).',
+            error: trip.isDiverted && trip.divertUnloadingLocation
+              ? 'Please enter Manual KM Return between the filling order location and new unloading location (Round trip).'
+              : 'Please enter Manual KM Return between the filling order location and unloading location (Round trip).',
           });
         }
-      }
-    } else {
-      const returnRouteKm = findRouteKm(metaRoutes.loadRouteKmTable(), trip.fillingOrderLocation, trip.unloadingLocation);
-      if (returnRouteKm == null) {
-        return res.status(400).json({
-          error: 'Please enter Manual KM Return between the filling order location and unloading location (Round trip).',
-        });
       }
     }
   }

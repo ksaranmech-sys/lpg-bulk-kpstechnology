@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import * as api from '../api/api';
 import Layout from '../components/Layout';
-import { useAuth } from '../context/AuthContext';
 
 // Custom combobox so the suggestions dropdown always matches the input's own
 // width - native <input list> + <datalist> popups ignore CSS sizing entirely.
@@ -379,7 +378,6 @@ function LoadingDetailsSummary({ trip, onEdit }) {
 }
 
 function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [turnNumber, setTurnNumber] = useState(trip.turnNumber != null ? String(trip.turnNumber) : '');
   const [turnDate, setTurnDate] = useState(trip.turnDate ? new Date(trip.turnDate).toISOString().slice(0, 10) : '');
@@ -400,10 +398,17 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
     String(row?.loadingLocation || '').trim() === String(fillingOrderLocation || '').trim() &&
     String(row?.unloadingLocation || '').trim() === String(returnTargetLocation || '').trim()
   ));
+  // If the return leg isn't in the table, the filling order location matching the loading or
+  // unloading location reuses Manual KM Load / Manual KM Divert instead - only require a
+  // separate Manual KM Return when neither leg applies.
+  const returnLegSameAsLoadLeg = String(fillingOrderLocation || '').trim() === String(trip.loadingLocation || '').trim();
+  const returnLegSameAsDivertLeg = String(fillingOrderLocation || '').trim() === String(trip.unloadingLocation || '').trim();
   const manualKmReturnRequired = trip.manualKmReturn == null
     && Boolean(String(fillingOrderLocation || '').trim())
     && Boolean(String(returnTargetLocation || '').trim())
-    && !hasReturnLegInTable;
+    && !hasReturnLegInTable
+    && !returnLegSameAsLoadLeg
+    && !returnLegSameAsDivertLeg;
   // Once a manual KM value has been saved, keep the field visible so it stays editable.
   const manualKmReturnVisible = manualKmReturnRequired || trip.manualKmReturn != null;
 
@@ -428,14 +433,8 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
         manualKmReturn: manualKmReturn === '' ? undefined : Number(manualKmReturn),
       });
       await api.closeTrip(tripId);
-      // Driver-side close only locks this trip for customer confirmation - immediately
-      // open the next trip for the same vehicle instead of leaving the driver stranded here.
-      if (user?.role === 'vehicle_user' && trip.vehicle?._id) {
-        const created = await api.createTrip(trip.vehicle._id, {});
-        navigate(`/trips/${created.data.trip._id}`);
-        return;
-      }
-      onSaved();
+      // Trip close should return the user to the main dashboard, not stay on this trip.
+      navigate('/');
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save Turn details or close trip');
     }

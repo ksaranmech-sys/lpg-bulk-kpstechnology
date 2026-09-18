@@ -29,7 +29,19 @@ function getCorporationKmDetails(trip, routeKmTable) {
     const leg2 = findRouteKm(routeKmTable, fillingOrderLocation, divertUnloadingLocation);
     const resolvedLeg0 = leg0 != null ? leg0 : (hasManualKm ? manualKm : null);
     const resolvedLeg1 = leg1 != null ? leg1 : (hasManualKmDivert ? manualKmDivert : null);
-    const resolvedLeg2 = leg2 != null ? leg2 : (hasManualKmReturn ? manualKmReturn : null);
+    // If the return (Turn Location) leg isn't in the table, reuse the Load or Divert leg's
+    // resolved value when the Turn Location matches the Loading or Unloading location -
+    // only falling back to a separate Manual KM Return when neither leg applies.
+    let resolvedLeg2;
+    if (leg2 != null) {
+      resolvedLeg2 = leg2;
+    } else if (fillingOrderLocation && fillingOrderLocation === loadingLocation) {
+      resolvedLeg2 = resolvedLeg0;
+    } else if (fillingOrderLocation && fillingOrderLocation === unloadingLocation) {
+      resolvedLeg2 = resolvedLeg1;
+    } else {
+      resolvedLeg2 = hasManualKmReturn ? manualKmReturn : null;
+    }
     if (resolvedLeg0 != null && resolvedLeg1 != null && resolvedLeg2 != null) {
       const allFromTable = leg0 != null && leg1 != null && leg2 != null;
       return {
@@ -43,7 +55,13 @@ function getCorporationKmDetails(trip, routeKmTable) {
   const leg0 = findRouteKm(routeKmTable, loadingLocation, unloadingLocation);
   const leg1 = findRouteKm(routeKmTable, fillingOrderLocation, unloadingLocation);
   const resolvedLeg0 = leg0 != null ? leg0 : (hasManualKm ? manualKm : null);
-  const resolvedLeg1 = leg1 != null ? leg1 : (hasManualKmReturn ? manualKmReturn : null);
+  // Same reuse rule as above: Turn Location matching the Loading location reuses the Load
+  // leg's resolved value instead of requiring a separate Manual KM Return.
+  const resolvedLeg1 = leg1 != null
+    ? leg1
+    : (fillingOrderLocation && fillingOrderLocation === loadingLocation)
+      ? resolvedLeg0
+      : (hasManualKmReturn ? manualKmReturn : null);
   if (resolvedLeg0 != null && resolvedLeg1 != null) {
     const allFromTable = leg0 != null && leg1 != null;
     return {

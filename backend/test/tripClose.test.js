@@ -415,6 +415,66 @@ test('diverted Driver KM falls back to Manual KM Divert when the divert leg is m
   assert.equal(getCorporationKmDetails(trip, routes).source, 'manual');
 });
 
+test('Manual KM Return reuses Manual KM Load when filling order location equals loading location', () => {
+  const trip = {
+    loadingLocation: 'IPPL, Chennai',
+    unloadingLocation: 'Salem Steel Plant',
+    fillingOrderLocation: 'IPPL, Chennai',
+    manualKm: 750,
+  };
+
+  const details = getCorporationKmDetails(trip, []);
+  assert.equal(details.value, 750);
+  assert.equal(details.source, 'manual');
+});
+
+test('diverted Manual KM Return reuses Manual KM Load when filling order location equals loading location', () => {
+  const trip = {
+    loadingLocation: 'Loading',
+    unloadingLocation: 'Unloading',
+    fillingOrderLocation: 'Loading',
+    isDiverted: true,
+    divertUnloadingLocation: 'New Unloading',
+    manualKm: 100,
+    manualKmDivert: 40,
+  };
+
+  const details = getCorporationKmDetails(trip, []);
+  assert.equal(details.value, (100 * 0.5) + (40 * 0.5) + (100 * 0.5));
+  assert.equal(details.source, 'manual');
+});
+
+test('Manual KM Return reuses a table-resolved Load leg without any manual entry', () => {
+  const trip = {
+    loadingLocation: 'Loading',
+    unloadingLocation: 'Unloading',
+    fillingOrderLocation: 'Loading',
+  };
+  const routes = [
+    { loadingLocation: 'Loading', unloadingLocation: 'Unloading', km: 100 },
+  ];
+
+  const details = getCorporationKmDetails(trip, routes);
+  assert.equal(details.value, 100);
+  assert.equal(details.source, 'km_table_weighted');
+});
+
+test('Manual KM Return reuses Manual KM Divert when filling order location equals unloading location', () => {
+  const trip = {
+    loadingLocation: 'Loading',
+    unloadingLocation: 'Unloading',
+    fillingOrderLocation: 'Unloading',
+    isDiverted: true,
+    divertUnloadingLocation: 'New Unloading',
+    manualKm: 100,
+    manualKmDivert: 40,
+  };
+
+  const details = getCorporationKmDetails(trip, []);
+  assert.equal(details.value, (100 * 0.5) + (40 * 0.5) + (40 * 0.5));
+  assert.equal(details.source, 'manual');
+});
+
 test('odometer KM uses current and previous trip closing diesel odometers', () => {
   const currentTrip = { dieselEntries: [{ odometerKm: 1000 }, { odometerKm: 1450 }] };
   const previousTrip = { dieselEntries: [{ odometerKm: 700 }, { odometerKm: 900 }] };
