@@ -477,7 +477,16 @@ function TurnDetailsForm({ tripId, trip, meta, onSaved }) {
         </div>
         <div className="field" style={{ margin: 0 }}>
           <label>Turn Date</label>
-          <input type="date" value={turnDate} onChange={(e) => setTurnDate(e.target.value)} required />
+          <input
+            type="date"
+            value={turnDate}
+            onChange={(e) => setTurnDate(e.target.value)}
+            min={(() => {
+              const floor = (trip.isDiverted && trip.divertUnloadingLocation) ? trip.divertDate : trip.unloadingDate;
+              return floor ? new Date(floor).toISOString().slice(0, 10) : undefined;
+            })()}
+            required
+          />
         </div>
         <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }} disabled={missingCloseFields.length > 0 || (manualKmReturnRequired && manualKmReturn === '')}>Trip close</button>
       </div>
@@ -534,7 +543,13 @@ function UnloadingTurnForm({ tripId, trip, onSaved }) {
         </div>
         <div className="field" style={{ margin: 0 }}>
           <label>Turn Date</label>
-          <input type="date" value={turnDate} onChange={(e) => setTurnDate(e.target.value)} required />
+          <input
+            type="date"
+            value={turnDate}
+            onChange={(e) => setTurnDate(e.target.value)}
+            min={trip.loadingDate ? new Date(trip.loadingDate).toISOString().slice(0, 10) : undefined}
+            required
+          />
         </div>
         <button className="btn" style={{ marginBottom: 1, whiteSpace: 'nowrap' }}>Save</button>
       </div>
@@ -1071,7 +1086,13 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
         )}
         <div className="field" style={{ margin: 0 }}>
           <label>Date</label>
-          <input type="date" value={unloadingDate} onChange={(e) => setDate(e.target.value)} required />
+          <input
+            type="date"
+            value={unloadingDate}
+            onChange={(e) => setDate(e.target.value)}
+            min={trip.unTurnDate ? new Date(trip.unTurnDate).toISOString().slice(0, 10) : undefined}
+            required
+          />
         </div>
         <div className="field" style={{ margin: 0 }}>
           <label>Divert</label>
@@ -1123,7 +1144,13 @@ function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
           )}
           <div className="field">
             <label>New Unloading Date</label>
-            <input type="date" value={divertDate} onChange={(e) => setDivertDate(e.target.value)} required />
+            <input
+              type="date"
+              value={divertDate}
+              onChange={(e) => setDivertDate(e.target.value)}
+              min={unloadingDate || undefined}
+              required
+            />
           </div>
         </div>
       )}

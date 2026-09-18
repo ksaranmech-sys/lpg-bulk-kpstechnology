@@ -121,6 +121,14 @@ async function setLoadingDetails(req, res) {
   if (loadingDate != null) {
     const date = new Date(loadingDate);
     if (Number.isNaN(date.getTime())) return res.status(400).json({ error: 'loadingDate must be a valid date' });
+    // Loading date must not precede the vehicle's previous trip's Load Turn date.
+    const previousTrip = await Trip.findOne({
+      vehicle: trip.vehicle,
+      createdAt: { $lt: trip.createdAt },
+    }).sort('-createdAt');
+    if (previousTrip?.turnDate && date < previousTrip.turnDate) {
+      return res.status(400).json({ error: "Loading date must be the same as or after the previous trip's Load Turn date." });
+    }
     trip.loadingDate = date;
   }
   if (loadingExpense != null) {
@@ -484,6 +492,9 @@ async function setUnloading(req, res) {
   if (!unloadingDate) return res.status(400).json({ error: 'unloadingDate is required' });
   const date = new Date(unloadingDate);
   if (Number.isNaN(date.getTime())) return res.status(400).json({ error: 'unloadingDate must be a valid date' });
+  if (trip.unTurnDate && date < trip.unTurnDate) {
+    return res.status(400).json({ error: 'Unloading date must be the same as or after the Unload Turn date.' });
+  }
   trip.unloadingDate = date;
   if (unloadingExpense != null) trip.unloadingExpense = Number(unloadingExpense);
   if (manualKm != null && manualKm !== '') {
@@ -518,6 +529,9 @@ async function setUnloading(req, res) {
       const date = new Date(divertDate);
       if (!divertDate || Number.isNaN(date.getTime())) {
         return res.status(400).json({ error: 'divertDate must be a valid date when diverted' });
+      }
+      if (trip.unloadingDate && date < trip.unloadingDate) {
+        return res.status(400).json({ error: 'New Unloading date must be the same as or after the Unloading date.' });
       }
       trip.divertUnloadingLocation = location;
       trip.divertDate = date;
@@ -558,6 +572,10 @@ async function setTurnDetails(req, res) {
   if (!turnDate) return res.status(400).json({ error: 'turnDate is required' });
   const date = new Date(turnDate);
   if (Number.isNaN(date.getTime())) return res.status(400).json({ error: 'turnDate must be a valid date' });
+  const turnDateFloor = (trip.isDiverted && trip.divertUnloadingLocation) ? trip.divertDate : trip.unloadingDate;
+  if (turnDateFloor && date < turnDateFloor) {
+    return res.status(400).json({ error: 'Load Turn date must be the same as or after the New Unloading/Unloading date.' });
+  }
 
   trip.turnNumber = number;
   trip.turnDate = date;
@@ -614,6 +632,9 @@ async function setUnloadingTurnDetails(req, res) {
   if (!turnDate) return res.status(400).json({ error: 'turnDate is required' });
   const date = new Date(turnDate);
   if (Number.isNaN(date.getTime())) return res.status(400).json({ error: 'turnDate must be a valid date' });
+  if (trip.loadingDate && date < trip.loadingDate) {
+    return res.status(400).json({ error: 'Unload Turn date must be the same as or after the Loading date.' });
+  }
 
   trip.unTurnNumber = number;
   trip.unTurnDate = date;
