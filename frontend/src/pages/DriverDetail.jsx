@@ -278,7 +278,18 @@ export default function DriverDetail() {
     setSummaryPrinting(true);
     try {
       const res = await api.downloadDriverMonthlySummary(customerId, driverId, month);
-      const url = URL.createObjectURL(res.data);
+      const cleanFilenamePart = (value) => String(value || 'Unknown').trim()
+        .replace(/[\\/:*?"<>|]+/g, '-')
+        .replace(/\s+/g, '-');
+      const filename = [
+        cleanFilenamePart(data?.customer?.companyName),
+        cleanFilenamePart(driver?.name || driver?.username),
+        cleanFilenamePart(formatMonthLabel(month)),
+      ].join('-') + '.pdf';
+      // Naming the Blob (via File) is what makes Chrome's PDF viewer suggest the right
+      // filename in "Save As" - a plain object URL from a Blob has no filename metadata.
+      const namedFile = new File([res.data], filename, { type: 'application/pdf' });
+      const url = URL.createObjectURL(namedFile);
       if (printWindow) printWindow.location.href = url;
       else window.location.href = url;
     } catch (err) {
