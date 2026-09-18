@@ -170,6 +170,7 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
       [`Basic Salary Payable (Payable days: ${summary.payableDays || 0}, Leaves taken: ${summary.unpaidLeaveDays || 0})`, `Rs ${fmtMoney(summary.basicSalary)}`],
       ['Total Driver KM = Driver KM + Manual KM', `${fmtMoney(Number(summary.corporationKm || 0) + Number(summary.manualKmTotal || 0))} km`],
       [`KM Beta (Total Driver KM x Rs ${fmtMoney(summary.kmCharges)})`, `Rs ${fmtMoney(summary.kmBeta)}`],
+      ['Total Advance', `Rs ${fmtMoney(summary.totalAdvance)}`],
       ['Sum of all balances for the month', `Rs ${fmtMoney(summary.totalBalance)}`],
       ['Balance', `Rs ${fmtMoney(summary.salaryBalance)}`],
     ];

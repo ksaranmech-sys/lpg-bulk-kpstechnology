@@ -40,6 +40,12 @@ function sumTripBalances(trips) {
   return Math.round((total + Number.EPSILON) * 100) / 100;
 }
 
+function sumTripAdvances(trips) {
+  return trips.reduce((sum, trip) => (
+    sum + (trip.driverAdvances || []).reduce((total, entry) => total + Number(entry.amount || 0), 0)
+  ), 0);
+}
+
 function getSalaryMonthBounds(month) {
   const [year, monthNumber] = month.split('-').map(Number);
   return {
@@ -186,6 +192,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   const totalDriverKm = corporationKm + manualKmTotal;
   const { specialTripCount, specialTripCharges } = calculateSpecialTripCharges(tripsWithBalances, routeKmTable);
   const totalBalance = sumTripBalances(tripsWithBalances);
+  const totalAdvance = round0(sumTripAdvances(tripsWithBalances));
   const basicSalaryDetails = calculateBasicSalary(
     month,
     driver.basicSalary,
@@ -202,6 +209,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
     trips: tripsWithBalances,
     closedTrips: tripsWithBalances.length,
     totalBalance: round0(totalBalance),
+    totalAdvance,
     basicSalary,
     ...basicSalaryDetails,
     kmCharges,
@@ -543,6 +551,7 @@ async function bulkDeleteVehicleUsers(req, res) {
 module.exports = {
   calculateTripBalance,
   sumTripBalances,
+  sumTripAdvances,
   getSalaryMonthBounds,
   getClosedTripsMonthFilter,
   getTripClosedDate,

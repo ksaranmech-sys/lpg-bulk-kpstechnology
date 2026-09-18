@@ -135,6 +135,16 @@ test('monthly salary total is the sum of every closed trip balance', () => {
   assert.equal(total, 1375);
 });
 
+test('monthly salary sums driver advances across every trip in the month', () => {
+  const total = customerController.sumTripAdvances([
+    { driverAdvances: [{ amount: 20000 }, { amount: 5000 }] },
+    { driverAdvances: [{ amount: 2650 }] },
+    { driverAdvances: [] },
+  ]);
+
+  assert.equal(total, 27650);
+});
+
 test('monthly salary assigns trips to their closed month when the trip was closed in August', () => {
   const { start, end } = customerController.getSalaryMonthBounds('2026-08');
   const filter = customerController.getClosedTripsMonthFilter(start, end);
