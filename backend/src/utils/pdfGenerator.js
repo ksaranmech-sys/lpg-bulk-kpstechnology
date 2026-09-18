@@ -149,16 +149,16 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
     doc.x = doc.page.margins.left;
 
     styledSectionHeader(doc, 'Closed Trips');
-    renderSalaryTripsTable(doc, ['S.No', 'Loading Location', 'Loading Date', 'Unloading Location', 'Unloading Date', 'Divert Location', 'Divert Date', 'Driver KM', 'Trip Diesel', 'Trip Advance', 'Trip Expense', 'Balance'],
+    renderSalaryTripsTable(doc, ['S.No', 'Loading Location', 'Unloading Location', 'Unloading Date', 'Divert Location', 'Divert Date', 'Driver KM', 'Diesel (Litres)', 'Trip Diesel', 'Trip Advance', 'Trip Expense', 'Balance'],
       trips.length ? trips.map((trip, index) => [
         String(index + 1),
         trip.loadingLocation || '-',
-        fmtDate(trip.loadingDate),
         trip.unloadingLocation || '-',
         fmtDate(trip.unloadingDate),
         trip.isDiverted ? trip.divertUnloadingLocation || '-' : '-',
         trip.isDiverted ? fmtDate(trip.divertDate) : '-',
         trip.corporationKm != null ? `${fmtMoney(trip.corporationKm)} km` : '-',
+        `${fmtMoney(trip.dieselLitres || 0)} L`,
         `Rs ${fmtMoney(trip.dieselTotal || 0)}`,
         `Rs ${fmtMoney(trip.advanceTotal || 0)}`,
         `Rs ${fmtMoney(trip.expenseTotal || 0)}`,
@@ -170,16 +170,17 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
 
     styledSectionHeader(doc, 'Salary Calculation');
     const specialTripCharges = Number(summary.specialTripCharges || 0);
-    // Sub Total is a display-only running total (Basic + KM Beta + Special Trip Charges +
-    // Advance) - it does not change how Balance to Driver itself is calculated below.
-    const subTotal = Number(summary.basicSalary || 0) + Number(summary.kmBeta || 0) + specialTripCharges + Number(summary.totalAdvance || 0);
+    // Sub Total = Basic + KM Beta + Special Trip Charges + Total Expenses (earnings and
+    // reimbursable expenses owed to the driver). Settlement to Driver = Sub Total - Total
+    // Advance (money already paid out) - this matches summary.salaryBalance exactly.
+    const subTotal = Number(summary.basicSalary || 0) + Number(summary.kmBeta || 0) + specialTripCharges + Number(summary.totalExpense || 0);
     const salaryRows = [
       [`Basic Salary Payable (Payable days: ${summary.payableDays || 0}, Leaves taken: ${summary.unpaidLeaveDays || 0})`, `Rs ${fmtMoney(summary.basicSalary)}`],
       [`KM Beta (Total Driver KM x Rs ${fmtMoney(summary.kmCharges)})`, `Rs ${fmtMoney(summary.kmBeta)}`],
-      ['Total Advance', `Rs ${fmtMoney(summary.totalAdvance)}`],
-      ['Sub Total', `Rs ${fmtMoney(subTotal)}`],
       ['Total Expenses', `Rs ${fmtMoney(summary.totalExpense)}`],
-      ['Balance to Driver', `Rs ${fmtMoney(summary.salaryBalance)}`],
+      ['Sub Total', `Rs ${fmtMoney(subTotal)}`],
+      ['Total Advance', `Rs ${fmtMoney(summary.totalAdvance)}`],
+      ['Settlement to Driver', `Rs ${fmtMoney(summary.salaryBalance)}`],
     ];
     if (specialTripCharges > 0) {
       salaryRows.splice(2, 0, [
@@ -334,7 +335,7 @@ function renderSalaryTripsTable(doc, headers, rows, total = {}) {
   const x = doc.page.margins.left;
   const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const columnRatios = headers.length === 12
-    ? [0.035, 0.105, 0.08, 0.105, 0.08, 0.105, 0.08, 0.082, 0.082, 0.082, 0.082, 0.082]
+    ? [0.035, 0.12, 0.12, 0.085, 0.12, 0.085, 0.0725, 0.0725, 0.0725, 0.0725, 0.0725, 0.0725]
     : headers.length === 11
     ? [0.04, 0.115, 0.085, 0.115, 0.085, 0.115, 0.085, 0.09, 0.09, 0.09, 0.09]
     : headers.length === 9
@@ -345,7 +346,7 @@ function renderSalaryTripsTable(doc, headers, rows, total = {}) {
       ? [0.08, 0.34, 0.34, 0.24]
       : [0.05, 0.15, 0.12, 0.15, 0.12, 0.08, 0.08, 0.09, 0.16];
   // The trailing columns (KM/money figures) are right-aligned - how many varies by table shape.
-  const numericTrailingCount = headers.length === 12 ? 5 : headers.length === 11 ? 4 : headers.length === 4 ? 1 : 2;
+  const numericTrailingCount = headers.length === 12 ? 6 : headers.length === 11 ? 4 : headers.length === 4 ? 1 : 2;
   const rowHeight = 22;
   const headerHeight = 30;
   const columnWidths = columnRatios.map((ratio) => width * ratio);
@@ -391,7 +392,9 @@ function renderSalaryTripsTable(doc, headers, rows, total = {}) {
     const columnWidth = columnWidths[index];
     const displayValue = isLastColumn && total.totalValue != null
       ? total.totalValue
-      : /km$/i.test(headers[index]) ? `${fmtMoney(columnTotal)} km` : `Rs ${fmtMoney(columnTotal)}`;
+      : /km$/i.test(headers[index]) ? `${fmtMoney(columnTotal)} km`
+      : /litre/i.test(headers[index]) ? `${fmtMoney(columnTotal)} L`
+      : `Rs ${fmtMoney(columnTotal)}`;
     doc.text(displayValue, numericColumnX + 8, totalY + 5, { width: columnWidth - 16, align: 'right' });
     numericColumnX += columnWidth;
   }

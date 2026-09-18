@@ -417,12 +417,12 @@ export default function DriverDetail() {
                       <tr>
                         <th style={{ width: '5%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>S.No</th>
                         <th style={{ width: '15%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Location</th>
-                        <th style={{ width: '12%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Date</th>
                         <th style={{ width: '15%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Unloading Location</th>
                         <th style={{ width: '12%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Unloading Date</th>
                         <th style={{ width: '15%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Divert Location</th>
                         <th style={{ width: '12%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Divert Date</th>
                         <th style={{ width: '10%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Driver KM</th>
+                        <th style={{ width: '10%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Diesel (Litres)</th>
                         <th style={{ width: '12%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Diesel</th>
                         <th style={{ width: '12%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Advance</th>
                         <th style={{ width: '12%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Expense</th>
@@ -437,12 +437,12 @@ export default function DriverDetail() {
                         <tr key={trip._id || index}>
                           <td style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>{index + 1}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingLocation || '-'}</td>
-                          <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingLocation || '-'}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.isDiverted ? trip.divertUnloadingLocation || '-' : '-'}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.isDiverted && trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'}</td>
                           <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.corporationKm != null ? `${Math.round(trip.corporationKm)} km` : '-'}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.dieselLitres ?? 0} L</td>
                           <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.dieselTotal ?? 0}</td>
                           <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.advanceTotal ?? 0}</td>
                           <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.expenseTotal ?? 0}</td>
@@ -459,8 +459,9 @@ export default function DriverDetail() {
                         </tr>
                       ))}
                       <tr>
-                        <td colSpan="7" style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
+                        <td colSpan="6" style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
                         <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>{Math.round(salary.corporationKm || 0)} km</td>
+                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>{salary.totalDieselLitres || 0} L</td>
                         <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {salary.totalDiesel}</td>
                         <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {salary.totalAdvance}</td>
                         <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {salary.totalExpense}</td>
@@ -482,10 +483,10 @@ export default function DriverDetail() {
                     {Number(salary.specialTripCharges || 0) > 0 && (
                       <tr><td>Special Trip Charges ({salary.specialTripCount || 0} trips x Rs 1000)</td><td>Rs {Math.round(salary.specialTripCharges || 0)}</td></tr>
                     )}
-                    <tr><td>Total Advance ({salary.closedTrips} trips)</td><td>Rs {Math.round(salary.totalAdvance || 0)}</td></tr>
-                    <tr><td><strong>Sub Total</strong></td><td><strong>Rs {Math.round((salary.basicSalary || 0) + (salary.kmBeta || 0) + (salary.specialTripCharges || 0) + (salary.totalAdvance || 0))}</strong></td></tr>
                     <tr><td>Total Expenses ({salary.closedTrips} trips)</td><td>Rs {Math.round(salary.totalExpense || 0)}</td></tr>
-                    <tr><td><strong>Balance to Driver</strong></td><td><strong>Rs {Math.round(salary.salaryBalance || 0)}</strong></td></tr>
+                    <tr><td><strong>Sub Total</strong></td><td><strong>Rs {Math.round((salary.basicSalary || 0) + (salary.kmBeta || 0) + (salary.specialTripCharges || 0) + (salary.totalExpense || 0))}</strong></td></tr>
+                    <tr><td>Total Advance ({salary.closedTrips} trips)</td><td>Rs {Math.round(salary.totalAdvance || 0)}</td></tr>
+                    <tr><td><strong>Settlement to Driver</strong></td><td><strong>Rs {Math.round(salary.salaryBalance || 0)}</strong></td></tr>
                   </tbody>
                 </table>
               </>

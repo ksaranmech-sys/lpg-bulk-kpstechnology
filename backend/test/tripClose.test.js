@@ -155,6 +155,16 @@ test('monthly salary sums diesel fills across every trip in the month', () => {
   assert.equal(total, 9500);
 });
 
+test('monthly salary sums diesel litres across every trip in the month', () => {
+  const total = customerController.sumTripDieselLitres([
+    { dieselEntries: [{ volumeLitres: 200 }, { volumeLitres: 100 }] },
+    { dieselEntries: [{ volumeLitres: 50 }] },
+    { dieselEntries: [] },
+  ]);
+
+  assert.equal(total, 350);
+});
+
 test('trip expense excludes diesel and driver advance, includes loading/unloading/RTO/other expenses', () => {
   const expense = customerController.calculateTripExpense({
     loadingExpense: 300,
