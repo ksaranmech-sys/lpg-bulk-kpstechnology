@@ -60,7 +60,9 @@ const otherExpenseSchema = new mongoose.Schema(
 const tripSchema = new mongoose.Schema(
   {
     customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true, index: true },
-    vehicle: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle', required: true, index: true },
+    // No separate single-field index here - the {vehicle:1, createdAt:1} and partial unique
+    // indexes below already cover vehicle-scoped lookups (avoids a duplicate-index warning).
+    vehicle: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle', required: true },
 
     driverAdvances: { type: [advanceSchema], default: [] },
 
@@ -127,5 +129,13 @@ const tripSchema = new mongoose.Schema(
 );
 
 tripSchema.index({ vehicle: 1, createdAt: 1 });
+
+// Guards against the createTrip check-then-create race (two near-simultaneous requests both
+// passing the "no open trip" check before either write commits) from ever producing two
+// open/pending_close trips for the same vehicle at the database level.
+tripSchema.index(
+  { vehicle: 1 },
+  { unique: true, partialFilterExpression: { status: { $in: ['open', 'pending_close'] } } }
+);
 
 module.exports = mongoose.model('Trip', tripSchema);

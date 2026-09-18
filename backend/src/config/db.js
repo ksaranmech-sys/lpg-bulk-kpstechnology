@@ -77,7 +77,14 @@ async function attemptConnect() {
     }
   }
 
-  const shouldUseMemoryFallback = process.env.USE_MEMORY_MONGO === 'true';
+  // In-memory fallback is a dev-only convenience. It must never activate in production:
+  // if it did (e.g. a stray USE_MEMORY_MONGO=true env var plus a transient Atlas hiccup on a
+  // cold start), the app would silently start writing to a throwaway empty database and any
+  // trip data saved during that window is lost once the process restarts and reconnects.
+  const shouldUseMemoryFallback = process.env.USE_MEMORY_MONGO === 'true' && process.env.NODE_ENV !== 'production';
+  if (process.env.USE_MEMORY_MONGO === 'true' && process.env.NODE_ENV === 'production') {
+    console.error('[db] USE_MEMORY_MONGO=true is set but NODE_ENV=production - ignoring it and refusing to fall back to an in-memory database.');
+  }
   if (shouldUseMemoryFallback) {
     try {
       const fallbackUri = await startMemoryMongo();

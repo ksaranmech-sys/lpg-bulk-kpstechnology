@@ -123,14 +123,26 @@ async function createTrip(req, res) {
     }
   }
 
-  const trip = await Trip.create({
-    customer: vehicle.customer,
-    vehicle: vehicle._id,
-    ...(loadingLocation ? { loadingLocation: loadingLocation.trim() } : {}),
-    loadingExpense: loadingExpense || 0,
-    driverAdvances: driverAdvances || [],
-    createdBy: req.user.id,
-  });
+  let trip;
+  try {
+    trip = await Trip.create({
+      customer: vehicle.customer,
+      vehicle: vehicle._id,
+      ...(loadingLocation ? { loadingLocation: loadingLocation.trim() } : {}),
+      loadingExpense: loadingExpense || 0,
+      driverAdvances: driverAdvances || [],
+      createdBy: req.user.id,
+    });
+  } catch (err) {
+    // Unique partial index on {vehicle, status: open|pending_close} - catches the rare race
+    // where two requests both passed the "no open trip" check before either write committed.
+    if (err.code === 11000) {
+      return res.status(400).json({
+        error: 'This vehicle already has an open trip. Close the current trip before creating a new one.',
+      });
+    }
+    throw err;
+  }
 
   res.status(201).json({ trip, ...(previousTripNotice ? { message: previousTripNotice } : {}) });
 }
