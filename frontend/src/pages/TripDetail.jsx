@@ -838,17 +838,24 @@ function RtoForm({ tripId, onSaved }) {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [photo, setPhoto] = useState(null);
+  const [error, setError] = useState('');
 
   async function submit(e) {
     e.preventDefault();
-    const gps = await api.getCurrentPosition();
-    await api.addRtoEntry(tripId, { amount, date: date || undefined, lat: gps?.lat, lng: gps?.lng }, photo);
-    setAmount(''); setDate(''); setPhoto(null);
-    onSaved();
+    setError('');
+    try {
+      const gps = await api.getCurrentPosition();
+      await api.addRtoEntry(tripId, { amount, date: date || undefined, lat: gps?.lat, lng: gps?.lng }, photo);
+      setAmount(''); setDate(''); setPhoto(null);
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to add RTO expense');
+    }
   }
 
   return (
     <form onSubmit={submit} style={{ border: 0, background: 'transparent', padding: 0, borderRadius: 0 }}>
+      {error && <div className="error-text">{error}</div>}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end' }}>
         <div className="field" style={{ margin: 0 }}><label>Amount (Rs)</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required /></div>
         <div className="field" style={{ margin: 0 }}><label>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
@@ -879,10 +886,14 @@ function OtherExpenseForm({ tripId, onSaved }) {
       return;
     }
     setError('');
-    const gps = await api.getCurrentPosition();
-    await api.addOtherExpense(tripId, { amount, date: date || undefined, description, lat: gps?.lat, lng: gps?.lng }, photo);
-    setAmount(''); setDate(''); setCategory(''); setPhoto(null);
-    onSaved();
+    try {
+      const gps = await api.getCurrentPosition();
+      await api.addOtherExpense(tripId, { amount, date: date || undefined, description, lat: gps?.lat, lng: gps?.lng }, photo);
+      setAmount(''); setDate(''); setCategory(''); setPhoto(null);
+      onSaved();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to add other expense');
+    }
   }
 
   return (

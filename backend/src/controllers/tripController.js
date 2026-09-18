@@ -23,6 +23,29 @@ function getTripCloseDate(trip) {
   return getClosingDieselDate(trip);
 }
 
+// The driver "closes" a trip by adding Load Turn details, so the previous trip's turnDate is
+// the reference point for dates (loading, advances, ...) that must come after it.
+async function getPreviousTripTurnDate(trip) {
+  const previousTrip = await Trip.findOne({
+    vehicle: trip.vehicle,
+    createdAt: { $lt: trip.createdAt },
+  }).sort('-createdAt');
+  return previousTrip?.turnDate || null;
+}
+
+// Advance/RTO/Other Expense entries must fall strictly after the previous trip's close date and
+// on or before this trip's own close date (once it has one).
+async function validateEntryDate(trip, date, label) {
+  const previousTurnDate = await getPreviousTripTurnDate(trip);
+  if (previousTurnDate && date <= previousTurnDate) {
+    return `${label} date must be after the previous trip's Load Turn (close) date.`;
+  }
+  if (trip.turnDate && date > trip.turnDate) {
+    return `${label} date must be on or before this trip's Load Turn (close) date.`;
+  }
+  return null;
+}
+
 // Loading/unloading location + date are compulsory before a trip can close.
 const REQUIRED_CLOSE_FIELDS = [
   ['loadingLocation', 'loading location'],
@@ -122,11 +145,8 @@ async function setLoadingDetails(req, res) {
     const date = new Date(loadingDate);
     if (Number.isNaN(date.getTime())) return res.status(400).json({ error: 'loadingDate must be a valid date' });
     // Loading date must not precede the vehicle's previous trip's Load Turn date.
-    const previousTrip = await Trip.findOne({
-      vehicle: trip.vehicle,
-      createdAt: { $lt: trip.createdAt },
-    }).sort('-createdAt');
-    if (previousTrip?.turnDate && date < previousTrip.turnDate) {
+    const previousTurnDate = await getPreviousTripTurnDate(trip);
+    if (previousTurnDate && date < previousTurnDate) {
       return res.status(400).json({ error: "Loading date must be the same as or after the previous trip's Load Turn date." });
     }
     trip.loadingDate = date;
@@ -214,7 +234,11 @@ async function getTrip(req, res) {
 async function addAdvance(req, res) {
   const trip = await getOpenTripOr404(req, res);
   if (!trip) return;
-  trip.driverAdvances.push({ amount: req.body.amount, date: req.body.date || new Date() });
+  const date = req.body.date ? new Date(req.body.date) : new Date();
+  if (Number.isNaN(date.getTime())) return res.status(400).json({ error: 'date must be a valid date' });
+  const dateError = await validateEntryDate(trip, date, 'Advance');
+  if (dateError) return res.status(400).json({ error: dateError });
+  trip.driverAdvances.push({ amount: req.body.amount, date });
   await trip.save();
   res.status(201).json({ trip });
 
@@ -236,7 +260,13 @@ async function updateAdvance(req, res) {
     return res.status(400).json({ error: 'amount must be a non-negative number' });
   }
   advance.amount = amount;
-  if (req.body.date) advance.date = req.body.date;
+  if (req.body.date) {
+    const date = new Date(req.body.date);
+    if (Number.isNaN(date.getTime())) return res.status(400).json({ error: 'date must be a valid date' });
+    const dateError = await validateEntryDate(trip, date, 'Advance');
+    if (dateError) return res.status(400).json({ error: dateError });
+    advance.date = date;
+  }
   await trip.save();
   res.json({ trip });
 }
@@ -377,8 +407,12 @@ async function addRtoEntry(req, res) {
   const trip = await getOpenTripOr404(req, res);
   if (!trip) return;
 
-  const { amount, date, lat, lng } = req.body;
+  const { amount, date: rawDate, lat, lng } = req.body;
   if (!amount) return res.status(400).json({ error: 'amount is required' });
+  const date = rawDate ? new Date(rawDate) : new Date();
+  if (Number.isNaN(date.getTime())) return res.status(400).json({ error: 'date must be a valid date' });
+  const dateError = await validateEntryDate(trip, date, 'RTO');
+  if (dateError) return res.status(400).json({ error: dateError });
 
   let photo;
   if (req.file) {
@@ -386,7 +420,7 @@ async function addRtoEntry(req, res) {
     photo = { url, gps: lat && lng ? { lat: Number(lat), lng: Number(lng) } : undefined };
   }
 
-  trip.rtoEntries.push({ amount: Number(amount), date: date || new Date(), photo });
+  trip.rtoEntries.push({ amount: Number(amount), date, photo });
   await trip.save();
   res.status(201).json({ trip });
 }
@@ -411,6 +445,8 @@ async function updateRtoEntry(req, res) {
     if (Number.isNaN(date.getTime())) {
       return res.status(400).json({ error: 'date must be a valid date' });
     }
+    const dateError = await validateEntryDate(trip, date, 'RTO');
+    if (dateError) return res.status(400).json({ error: dateError });
     entry.date = date;
   }
   entry.amount = amount;
@@ -423,8 +459,12 @@ async function addOtherExpense(req, res) {
   const trip = await getOpenTripOr404(req, res);
   if (!trip) return;
 
-  const { amount, date, description, lat, lng } = req.body;
+  const { amount, date: rawDate, description, lat, lng } = req.body;
   if (!amount) return res.status(400).json({ error: 'amount is required' });
+  const date = rawDate ? new Date(rawDate) : new Date();
+  if (Number.isNaN(date.getTime())) return res.status(400).json({ error: 'date must be a valid date' });
+  const dateError = await validateEntryDate(trip, date, 'Other Expense');
+  if (dateError) return res.status(400).json({ error: dateError });
 
   let photo;
   if (req.file) {
@@ -432,7 +472,7 @@ async function addOtherExpense(req, res) {
     photo = { url, gps: lat && lng ? { lat: Number(lat), lng: Number(lng) } : undefined };
   }
 
-  trip.otherExpenses.push({ amount: Number(amount), date: date || new Date(), description, photo });
+  trip.otherExpenses.push({ amount: Number(amount), date, description, photo });
   await trip.save();
   res.status(201).json({ trip });
 }
@@ -452,8 +492,14 @@ async function updateOtherExpense(req, res) {
   if (!Number.isFinite(amount) || amount < 0) {
     return res.status(400).json({ error: 'amount must be a non-negative number' });
   }
+  if (req.body.date) {
+    const date = new Date(req.body.date);
+    if (Number.isNaN(date.getTime())) return res.status(400).json({ error: 'date must be a valid date' });
+    const dateError = await validateEntryDate(trip, date, 'Other Expense');
+    if (dateError) return res.status(400).json({ error: dateError });
+    expense.date = date;
+  }
   expense.amount = amount;
-  expense.date = req.body.date ? new Date(req.body.date) : expense.date;
   expense.description = req.body.description || '';
   await trip.save();
   res.json({ trip });
