@@ -259,13 +259,13 @@ test('Corporation KM excludes routes below 200 KM when less than 200KM charges a
   assert.equal(customerController.sumRouteTableKm(trips, routes, true), 500);
 });
 
-test('Driver KM uses Manual KM for missing route legs', () => {
+test('Driver KM uses Manual KM for missing route legs, doubling one-way entries to round trip', () => {
   const trips = [
     { loadingLocation: 'Unknown', unloadingLocation: 'Route', manualKm: 760, manualKmReturn: 760 },
   ];
 
-  assert.equal(customerController.sumRouteTableKm(trips, [], false), 760);
-  assert.equal(customerController.sumRouteTableKm(trips, [], true), 760);
+  assert.equal(customerController.sumRouteTableKm(trips, [], false), 1520);
+  assert.equal(customerController.sumRouteTableKm(trips, [], true), 1520);
 });
 
 test('Driver KM falls back to Manual KM Return when the filling-order leg is missing from the table', () => {
@@ -276,10 +276,10 @@ test('Driver KM falls back to Manual KM Return when the filling-order leg is mis
     { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', km: 748 },
   ];
 
-  assert.equal(customerController.sumRouteTableKm(trips, routes, false), 760);
+  assert.equal(customerController.sumRouteTableKm(trips, routes, false), 1146);
 });
 
-test('Driver KM uses Manual KM for both missing normal-trip legs', () => {
+test('Driver KM uses Manual KM for both missing normal-trip legs, doubling one-way entries to round trip', () => {
   const trip = {
     loadingLocation: 'Unknown',
     unloadingLocation: 'Route',
@@ -289,7 +289,7 @@ test('Driver KM uses Manual KM for both missing normal-trip legs', () => {
   };
 
   const details = getCorporationKmDetails(trip, []);
-  assert.equal(details.value, 300);
+  assert.equal(details.value, 600);
   assert.equal(details.source, 'manual');
 });
 
@@ -397,7 +397,7 @@ test('Divert route calculation takes priority over Manual KM fallback', () => {
   assert.equal(getCorporationKmDetails(trip, routes).source, 'km_table_divert_weighted');
 });
 
-test('diverted Driver KM falls back to Manual KM Divert when the divert leg is missing', () => {
+test('diverted Driver KM falls back to Manual KM Divert when the divert leg is missing, doubling the one-way entry', () => {
   const trip = {
     loadingLocation: 'Loading',
     unloadingLocation: 'Unloading',
@@ -411,11 +411,11 @@ test('diverted Driver KM falls back to Manual KM Divert when the divert leg is m
     { loadingLocation: 'Filling Order', unloadingLocation: 'New Unloading', km: 60 },
   ];
 
-  assert.equal(getCorporationKmDetails(trip, routes).value, 230);
+  assert.equal(getCorporationKmDetails(trip, routes).value, 380);
   assert.equal(getCorporationKmDetails(trip, routes).source, 'manual');
 });
 
-test('Manual KM Return reuses Manual KM Load when filling order location equals loading location', () => {
+test('Manual KM Return reuses Manual KM Load when filling order location equals loading location, doubling the one-way entry', () => {
   const trip = {
     loadingLocation: 'IPPL, Chennai',
     unloadingLocation: 'Salem Steel Plant',
@@ -424,7 +424,7 @@ test('Manual KM Return reuses Manual KM Load when filling order location equals 
   };
 
   const details = getCorporationKmDetails(trip, []);
-  assert.equal(details.value, 750);
+  assert.equal(details.value, 1500);
   assert.equal(details.source, 'manual');
 });
 
@@ -459,7 +459,7 @@ test('Manual KM Return reuses a table-resolved Load leg without any manual entry
   assert.equal(details.source, 'km_table_weighted');
 });
 
-test('Manual KM Return reuses Manual KM Divert when filling order location equals unloading location', () => {
+test('Manual KM Return reuses Manual KM Divert when filling order location equals unloading location, doubling one-way entries', () => {
   const trip = {
     loadingLocation: 'Loading',
     unloadingLocation: 'Unloading',
@@ -471,7 +471,7 @@ test('Manual KM Return reuses Manual KM Divert when filling order location equal
   };
 
   const details = getCorporationKmDetails(trip, []);
-  assert.equal(details.value, (100 * 0.5) + (40 * 0.5) + (40 * 0.5));
+  assert.equal(details.value, (200 * 0.5) + (80 * 0.5) + (80 * 0.5));
   assert.equal(details.source, 'manual');
 });
 

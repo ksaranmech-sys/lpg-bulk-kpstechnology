@@ -15,12 +15,14 @@ function getCorporationKmDetails(trip, routeKmTable) {
   // manualKm is the manual fallback for the loading->unloading leg; manualKmDivert is the
   // fallback for the unloading->divertUnloading leg (divert case only); manualKmReturn is the
   // fallback for the fillingOrder->(divertUnloading or unloading) return leg. Each is used only
-  // for its own leg when that leg has no exact match in the route KM table.
-  const manualKm = trip.manualKm == null ? NaN : Number(trip.manualKm);
+  // for its own leg when that leg has no exact match in the route KM table. Manual entries are
+  // one-way distances while KM table values are round trip, so double each manual value before
+  // it's combined with table values in the weighted formula below.
+  const manualKm = trip.manualKm == null ? NaN : Number(trip.manualKm) * 2;
   const hasManualKm = Number.isFinite(manualKm) && manualKm >= 0;
-  const manualKmDivert = trip.manualKmDivert == null ? NaN : Number(trip.manualKmDivert);
+  const manualKmDivert = trip.manualKmDivert == null ? NaN : Number(trip.manualKmDivert) * 2;
   const hasManualKmDivert = Number.isFinite(manualKmDivert) && manualKmDivert >= 0;
-  const manualKmReturn = trip.manualKmReturn == null ? NaN : Number(trip.manualKmReturn);
+  const manualKmReturn = trip.manualKmReturn == null ? NaN : Number(trip.manualKmReturn) * 2;
   const hasManualKmReturn = Number.isFinite(manualKmReturn) && manualKmReturn >= 0;
 
   if (trip.isDiverted && divertUnloadingLocation) {

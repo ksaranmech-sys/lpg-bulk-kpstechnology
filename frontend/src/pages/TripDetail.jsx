@@ -1347,7 +1347,7 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
                   <td colSpan="3" style={{ width: '90%', padding: '8px 6px' }}>
                     {trip.loadingLocation || '-'} ({trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'})
                     {' \u2192 '}{trip.unloadingLocation || '-'} ({trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'})
-                    {trip.isDiverted && ` \u2192 ${trip.divertUnloadingLocation || '-'} (${trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'})`}
+                    {trip.isDiverted && ` \u2192 ${trip.divertUnloadingLocation || '-'} (${trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'}) - Divert`}
                   </td>
                 </tr>
                 <tr>
@@ -1377,13 +1377,16 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
                       </thead>
                       <tbody>
                         {[
-                          ...(trip.manualKm != null && trip.manualKm !== '' ? [['Manual KM Load', `${trip.manualKm} km`]] : []),
-                          ...(trip.manualKmDivert != null && trip.manualKmDivert !== '' ? [['Manual KM Divert', `${trip.manualKmDivert} km`]] : []),
-                          ...(trip.manualKmReturn != null && trip.manualKmReturn !== '' ? [['Manual KM Return', `${trip.manualKmReturn} km`]] : []),
-                          ['Driver KM', calculatedCorporationKm != null ? `${calculatedCorporationKm} km` : 'NA'],
-                        ].map(([label, value]) => (
+                          ...(trip.manualKm != null && trip.manualKm !== '' ? [['Manual KM Load', `${trip.manualKm} km (One Way)`, `${trip.loadingLocation || '-'} \u2192 ${trip.unloadingLocation || '-'}`]] : []),
+                          ...(trip.manualKmDivert != null && trip.manualKmDivert !== '' ? [['Manual KM Divert', `${trip.manualKmDivert} km (One Way)`, `${trip.unloadingLocation || '-'} \u2192 ${trip.divertUnloadingLocation || '-'}`]] : []),
+                          ...(trip.manualKmReturn != null && trip.manualKmReturn !== '' ? [['Manual KM Return', `${trip.manualKmReturn} km (One Way)`, `${trip.fillingOrderLocation || '-'} \u2192 ${(trip.isDiverted && trip.divertUnloadingLocation) ? trip.divertUnloadingLocation : (trip.unloadingLocation || '-')}`]] : []),
+                          ['Driver KM', calculatedCorporationKm != null ? `${calculatedCorporationKm} km` : 'NA', null],
+                        ].map(([label, value, locations]) => (
                           <tr key={label}>
-                            <td style={{ padding: '8px 12px', border: '1px solid #1f4d2b', fontWeight: 600 }}>{label}</td>
+                            <td style={{ padding: '8px 12px', border: '1px solid #1f4d2b', fontWeight: 600 }}>
+                              {label}
+                              {locations && <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>{locations}</div>}
+                            </td>
                             <td style={{ padding: '8px 12px', border: '1px solid #1f4d2b', textAlign: 'right' }}>{value}</td>
                           </tr>
                         ))}
