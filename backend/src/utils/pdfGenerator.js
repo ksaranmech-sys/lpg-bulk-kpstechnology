@@ -149,7 +149,7 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
     doc.x = doc.page.margins.left;
 
     styledSectionHeader(doc, 'Closed Trips');
-    renderSalaryTripsTable(doc, ['S.No', 'Loading Location', 'Loading Date', 'Unloading Location', 'Unloading Date', 'Divert Location', 'Divert Date', 'Driver KM', 'Trip Advance', 'Trip Diesel', 'Trip Expense', 'Balance'],
+    renderSalaryTripsTable(doc, ['S.No', 'Loading Location', 'Loading Date', 'Unloading Location', 'Unloading Date', 'Divert Location', 'Divert Date', 'Driver KM', 'Trip Diesel', 'Trip Advance', 'Trip Expense', 'Balance'],
       trips.length ? trips.map((trip, index) => [
         String(index + 1),
         trip.loadingLocation || '-',
@@ -159,8 +159,8 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
         trip.isDiverted ? trip.divertUnloadingLocation || '-' : '-',
         trip.isDiverted ? fmtDate(trip.divertDate) : '-',
         trip.corporationKm != null ? `${fmtMoney(trip.corporationKm)} km` : '-',
-        `Rs ${fmtMoney(trip.advanceTotal || 0)}`,
         `Rs ${fmtMoney(trip.dieselTotal || 0)}`,
+        `Rs ${fmtMoney(trip.advanceTotal || 0)}`,
         `Rs ${fmtMoney(trip.expenseTotal || 0)}`,
         `Rs ${fmtMoney(trip.balance || 0)}`,
       ]) : [['-', 'No closed trips for this month', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-']]);
