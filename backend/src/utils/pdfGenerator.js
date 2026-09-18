@@ -175,7 +175,6 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
     const subTotal = Number(summary.basicSalary || 0) + Number(summary.kmBeta || 0) + specialTripCharges + Number(summary.totalAdvance || 0);
     const salaryRows = [
       [`Basic Salary Payable (Payable days: ${summary.payableDays || 0}, Leaves taken: ${summary.unpaidLeaveDays || 0})`, `Rs ${fmtMoney(summary.basicSalary)}`],
-      ['Total Driver KM = Driver KM + Manual KM', `${fmtMoney(Number(summary.corporationKm || 0) + Number(summary.manualKmTotal || 0))} km`],
       [`KM Beta (Total Driver KM x Rs ${fmtMoney(summary.kmCharges)})`, `Rs ${fmtMoney(summary.kmBeta)}`],
       ['Total Advance', `Rs ${fmtMoney(summary.totalAdvance)}`],
       ['Sub Total', `Rs ${fmtMoney(subTotal)}`],
@@ -183,7 +182,7 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
       ['Balance to Driver', `Rs ${fmtMoney(summary.salaryBalance)}`],
     ];
     if (specialTripCharges > 0) {
-      salaryRows.splice(3, 0, [
+      salaryRows.splice(2, 0, [
         `Special Trip Charges (${summary.specialTripCount || 0} trips x Rs 1000)`,
         `Rs ${fmtMoney(summary.specialTripCharges)}`,
       ]);
