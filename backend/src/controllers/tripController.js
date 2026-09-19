@@ -748,6 +748,9 @@ async function setUnloadingTurnDetails(req, res) {
   trip.unTurnNumber = number;
   trip.unTurnDate = date;
   await trip.save();
+  // Unload Turn is the other signal (besides the next trip's first diesel fill) that this trip
+  // has genuinely started, so it can also unblock closing the vehicle's previous trip.
+  await tryCloseVehiclePreviousTrip(trip);
   res.json({ trip });
 }
 
