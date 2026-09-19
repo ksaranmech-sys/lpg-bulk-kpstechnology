@@ -47,16 +47,12 @@ function calculateClosingOdometerKm(currentTrip, previousTrip) {
  * @param {Trip|null} nextTrip - the following trip for this vehicle, if it exists yet.
  *   Settlement cannot be finalized until nextTrip records its first diesel fill, OR (if that
  *   hasn't happened yet) its Unload Turn date, OR its own unloading is done - any one confirms
- *   the next trip has genuinely started. Without a diesel fill though, the diesel/KM/mileage
- *   figures stay null until it's filled.
+ *   the next trip has genuinely started. Without a diesel fill (on either this trip or the next
+ *   one) the diesel/KM/mileage figures stay null until it's filled.
  * @returns {{ ready: boolean, reason?: string, settlement?: object }}
  */
 function computeTripSettlement(trip, nextTrip) {
   const dieselEntries = trip.dieselEntries || [];
-
-  if (dieselEntries.length === 0) {
-    return { ready: false, reason: 'Trip has no diesel entries yet - cannot calculate.' };
-  }
 
   const nextTripHasDiesel = Boolean(nextTrip?.dieselEntries?.length);
   const nextTripHasUnloadTurn = Boolean(nextTrip?.unTurnDate);
@@ -68,12 +64,12 @@ function computeTripSettlement(trip, nextTrip) {
     };
   }
 
-  const firstFill = dieselEntries[0];
+  const firstFill = dieselEntries[0] || null;
   const remainingFills = dieselEntries.slice(1); // everything except the first fill
   const nextTripFirstFill = nextTripHasDiesel ? nextTrip.dieselEntries[0] : null;
 
-  const hasTankFillMarkers = Boolean(nextTripFirstFill) && firstFill.loadingPointTankFill === true && nextTripFirstFill.loadingPointTankFill === true;
-  const currentFirstOdometerKm = Number(firstFill.odometerKm);
+  const hasTankFillMarkers = Boolean(firstFill) && Boolean(nextTripFirstFill) && firstFill.loadingPointTankFill === true && nextTripFirstFill.loadingPointTankFill === true;
+  const currentFirstOdometerKm = firstFill ? Number(firstFill.odometerKm) : null;
   const nextFirstOdometerKm = nextTripFirstFill ? Number(nextTripFirstFill.odometerKm) : null;
   const hasOdometerData = hasTankFillMarkers && Number.isFinite(currentFirstOdometerKm) && Number.isFinite(nextFirstOdometerKm);
   const totalKm = hasOdometerData ? nextFirstOdometerKm - currentFirstOdometerKm : null;
@@ -85,16 +81,17 @@ function computeTripSettlement(trip, nextTrip) {
     };
   }
 
-  // Diesel-derived figures are only computable once the next trip has its first fill - if it
-  // hasn't (closed via Unload Turn instead), they stay null and get filled in later once the
-  // diesel entry is added (refreshRelatedSettlements recomputes this trip's settlement then).
-  const dieselForTripLitres = nextTripFirstFill
+  // Diesel-derived figures are only computable once both this trip and the next trip have their
+  // fills recorded - if either is missing (closed via Unload Turn/unloading instead), they stay
+  // null and get filled in later once the diesel entries exist (refreshRelatedSettlements
+  // recomputes this trip's settlement whenever diesel entries change).
+  const dieselForTripLitres = (firstFill && nextTripFirstFill)
     ? sum(remainingFills, (e) => e.volumeLitres) + nextTripFirstFill.volumeLitres
     : null;
 
   // Cost of diesel is informational (not subtracted from advance per spec),
   // but useful for the printable report.
-  const dieselForTripCost = nextTripFirstFill
+  const dieselForTripCost = (firstFill && nextTripFirstFill)
     ? sum(remainingFills, (e) => e.amount) + nextTripFirstFill.amount
     : null;
 
