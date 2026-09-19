@@ -4,11 +4,9 @@ import * as api from '../api/api';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 
-// Shared date-picker bounds for Advance/Diesel/RTO/Other Expense entries: must be on or after
-// the previous trip's close date and on or before this trip's own close date (once it has one).
 // Uses local calendar date (not toISOString, which converts to UTC first) - otherwise, for any
 // timezone ahead of UTC (e.g. IST, UTC+5:30), "today" and stored dates can shift a day backward
-// during the first few hours of the local day, making min end up after max and locking the field.
+// during the first few hours of the local day.
 function toDateInputValue(value) {
   if (!value) return undefined;
   const date = new Date(value);
@@ -18,14 +16,16 @@ function toDateInputValue(value) {
   return `${year}-${month}-${day}`;
 }
 
-function minEntryDateValue(value) {
-  return toDateInputValue(value);
-}
-
-// Entries can't be dated after this trip's own close date - if that isn't set yet, they also
-// can't be dated in the future, so today is the fallback upper bound.
+// Late (backdated) entries are allowed for Advance/Diesel/RTO/Other Expense - they just can't be
+// dated after this trip's own close date, so today is the fallback upper bound.
 function getEntryMaxDate(trip) {
   return toDateInputValue(trip?.turnDate) || toDateInputValue(new Date());
+}
+
+// Nothing on this trip can predate whichever is later: the driver's joining date, or the
+// previous trip's close date (once the driver pressed Trip Close on it).
+function getEntryMinDate(trip) {
+  return toDateInputValue(trip?.entryMinDate);
 }
 
 // Custom combobox so the suggestions dropdown always matches the input's own
@@ -231,7 +231,7 @@ function AdvanceSection({ trip, tripId, onSaved }) {
   const [editDate, setEditDate] = useState('');
   const [error, setError] = useState('');
   const advances = trip.driverAdvances || [];
-  const minDate = minEntryDateValue(trip.entryFloorDate);
+  const minDate = getEntryMinDate(trip);
   const maxDate = getEntryMaxDate(trip);
 
   async function submit(e) {
@@ -355,7 +355,7 @@ function LoadingDetailsForm({ tripId, trip, meta, onSaved }) {
         </div>
         <div className="field" style={{ margin: 0 }}>
           <label>Date of Loading</label>
-          <input type="date" value={loadingDate} onChange={(e) => setDate(e.target.value)} min={toDateInputValue(trip.previousTripCloseDate)} required />
+          <input type="date" value={loadingDate} onChange={(e) => setDate(e.target.value)} min={toDateInputValue(trip.entryMinDate)} required />
         </div>
         <div className="field" style={{ margin: 0 }}>
           <label>Loading Cleaner Expense (Rs)</label>
@@ -642,7 +642,7 @@ function DieselForm({
   const [photo, setPhoto] = useState(null);
   const [dieselFilledConfirmed, setDieselFilledConfirmed] = useState(false);
   const [error, setError] = useState('');
-  const minDate = minEntryDateValue(trip?.entryFloorDate);
+  const minDate = getEntryMinDate(trip);
   const maxDate = getEntryMaxDate(trip);
 
   async function submit(e) {
@@ -718,7 +718,7 @@ function DieselSummary({ trip, tripId, onSaved }) {
   const [odometerKm, setOdometerKm] = useState('');
   const [date, setDate] = useState('');
   const [error, setError] = useState('');
-  const minDate = minEntryDateValue(trip.entryFloorDate);
+  const minDate = getEntryMinDate(trip);
   const maxDate = getEntryMaxDate(trip);
 
   function startEdit(index, entry) {
@@ -820,7 +820,7 @@ function RtoSummary({ trip, onSaved }) {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [error, setError] = useState('');
-  const minDate = minEntryDateValue(trip.entryFloorDate);
+  const minDate = getEntryMinDate(trip);
   const maxDate = getEntryMaxDate(trip);
 
   function startEdit(index, entry) {
@@ -883,7 +883,7 @@ function RtoForm({ tripId, trip, onSaved }) {
   const [date, setDate] = useState('');
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState('');
-  const minDate = minEntryDateValue(trip.entryFloorDate);
+  const minDate = getEntryMinDate(trip);
   const maxDate = getEntryMaxDate(trip);
 
   async function submit(e) {
@@ -923,7 +923,7 @@ function OtherExpenseForm({ tripId, trip, onSaved }) {
   const [category, setCategory] = useState('');
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState('');
-  const minDate = minEntryDateValue(trip.entryFloorDate);
+  const minDate = getEntryMinDate(trip);
   const maxDate = getEntryMaxDate(trip);
 
   async function submit(e) {
@@ -977,7 +977,7 @@ function OtherExpenseSummary({ trip, tripId, onSaved }) {
   const [date, setDate] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
-  const minDate = minEntryDateValue(trip.entryFloorDate);
+  const minDate = getEntryMinDate(trip);
   const maxDate = getEntryMaxDate(trip);
 
   function startEdit(index, entry) {

@@ -483,7 +483,7 @@ export default function DriverDetail() {
                   <div key={leave._id} className="list-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                     <div>
                       <strong>
-                        {new Date(leave.startDate).toLocaleDateString('en-IN')} - {new Date(leave.endDate).toLocaleDateString('en-IN')}
+                        {new Date(leave.startDate).toLocaleDateString('en-IN')} - {leave.endDate ? new Date(leave.endDate).toLocaleDateString('en-IN') : '-'}
                       </strong>
                       <div style={{ color: '#666', fontSize: 12, marginTop: 4 }}>{leave.reason || 'No reason provided'}</div>
                     </div>

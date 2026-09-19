@@ -675,7 +675,7 @@ export default function Dashboard() {
     setLeaveEditId(leave._id);
     setLeaveEditForm({
       startDate: new Date(leave.startDate).toISOString().slice(0, 10),
-      endDate: new Date(leave.endDate).toISOString().slice(0, 10),
+      endDate: leave.endDate ? new Date(leave.endDate).toISOString().slice(0, 10) : '',
       reason: leave.reason || '',
     });
     setLeaveError('');
@@ -1166,7 +1166,7 @@ export default function Dashboard() {
                   ) : (
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                       <div>
-                        <strong>{new Date(leave.startDate).toLocaleDateString('en-IN')} - {new Date(leave.endDate).toLocaleDateString('en-IN')}</strong>
+                        <strong>{new Date(leave.startDate).toLocaleDateString('en-IN')} - {leave.endDate ? new Date(leave.endDate).toLocaleDateString('en-IN') : '-'}</strong>
                         <div style={{ fontSize: 12, color: '#666' }}>{leave.reason || 'No reason provided'}</div>
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
@@ -1280,9 +1280,10 @@ export default function Dashboard() {
                 const leavesTaken = leaves.reduce((totalDays, leave) => {
                   if (String(leave.driver?._id || leave.driver?.id || leave.driver) !== String(driverId)) return totalDays;
                   const startDate = new Date(leave.startDate);
-                  const endDate = new Date(leave.endDate);
                   const monthStart = new Date(`${salaryMonth}-01T00:00:00`);
                   const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0, 23, 59, 59, 999);
+                  // No endDate yet means the leave is still ongoing - treat it as open through month end.
+                  const endDate = leave.endDate ? new Date(leave.endDate) : monthEnd;
                   if (startDate > monthEnd || endDate < monthStart) return totalDays;
                   const leaveStart = startDate > monthStart ? startDate : monthStart;
                   const leaveEnd = endDate < monthEnd ? endDate : monthEnd;
@@ -1425,7 +1426,7 @@ export default function Dashboard() {
                           </td>
                           <td style={{ padding: '8px 12px' }}>{leave.driver?.name || leave.driver?.username || 'Unknown driver'}</td>
                           <td style={{ padding: '8px 12px' }}>{new Date(leave.startDate).toLocaleDateString('en-IN')}</td>
-                          <td style={{ padding: '8px 12px' }}>{new Date(leave.endDate).toLocaleDateString('en-IN')}</td>
+                          <td style={{ padding: '8px 12px' }}>{leave.endDate ? new Date(leave.endDate).toLocaleDateString('en-IN') : '-'}</td>
                           <td style={{ padding: '8px 12px' }}>{leave.reason || '-'}</td>
                         </>
                       )}

@@ -248,7 +248,8 @@ function calculateBasicSalary(month, monthlyBasicSalary, joiningDate, resigningD
   const leaveDays = new Set();
   leaves.forEach((leave) => {
     const leaveStart = getCalendarDay(new Date(leave.startDate));
-    const leaveEnd = getCalendarDay(new Date(leave.endDate));
+    // No endDate yet means the leave is still ongoing - treat it as open through the payable period.
+    const leaveEnd = leave.endDate ? getCalendarDay(new Date(leave.endDate)) : payableEnd;
     const start = leaveStart > payableStart ? leaveStart : payableStart;
     const end = leaveEnd < payableEnd ? leaveEnd : payableEnd;
     for (let day = start; day <= end; day = new Date(day.getTime() + MS_PER_DAY)) {
@@ -357,7 +358,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
     customer: customerId,
     driver: userId,
     startDate: { $lt: monthEnd },
-    endDate: { $gte: monthStart },
+    $or: [{ endDate: { $gte: monthStart } }, { endDate: null }],
   }).select('startDate endDate');
   const trips = driver.vehicle
     ? await Trip.find({
@@ -730,17 +731,16 @@ async function updateVehicleUser(req, res) {
   res.json({ user: user.toSafeJSON() });
 }
 
-// DELETE /api/v1/customers/:customerId/users/:userId  (archive vehicle_user)
+// DELETE /api/v1/customers/:customerId/users/:userId  (permanently remove vehicle_user)
 async function deleteVehicleUser(req, res) {
   const { customerId, userId } = req.params;
 
   const user = await User.findOne({ _id: userId, customer: customerId, role: ROLES.VEHICLE_USER });
   if (!user) return res.status(404).json({ error: 'Driver user not found' });
 
-  user.isActive = false;
-  user.resigningDate = user.resigningDate || new Date();
-  await user.save();
-  res.json({ message: 'Driver archived successfully', userId });
+  await Leave.deleteMany({ driver: user._id });
+  await user.deleteOne();
+  res.json({ message: 'Driver deleted successfully', userId });
 }
 
 // PATCH /api/v1/customers/:customerId/users/bulk
@@ -775,11 +775,10 @@ async function bulkDeleteVehicleUsers(req, res) {
   const userIds = Array.isArray(req.body.userIds) ? req.body.userIds : [];
   if (!userIds.length) return res.status(400).json({ error: 'userIds are required' });
 
-  const result = await User.updateMany(
-    { _id: { $in: userIds }, customer: customerId, role: ROLES.VEHICLE_USER },
-    { $set: { isActive: false, resigningDate: new Date() } }
-  );
-  res.json({ archivedCount: result.modifiedCount });
+  const users = await User.find({ _id: { $in: userIds }, customer: customerId, role: ROLES.VEHICLE_USER }).select('_id');
+  await Leave.deleteMany({ driver: { $in: users.map((u) => u._id) } });
+  const result = await User.deleteMany({ _id: { $in: userIds }, customer: customerId, role: ROLES.VEHICLE_USER });
+  res.json({ deletedCount: result.deletedCount });
 }
 
 module.exports = {

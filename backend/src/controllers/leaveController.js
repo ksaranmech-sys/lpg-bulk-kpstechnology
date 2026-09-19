@@ -86,8 +86,11 @@ async function updateLeave(req, res) {
     return res.status(403).json({ error: 'Not allowed to edit this leave entry' });
   }
   const { startDate, endDate, reason } = req.body;
-  const start = startDate != null ? new Date(startDate) : leave.startDate;
-  const end = endDate != null ? new Date(endDate) : leave.endDate;
+  const start = startDate ? new Date(startDate) : leave.startDate;
+  const end = endDate ? new Date(endDate) : leave.endDate;
+  if (!end) {
+    return res.status(400).json({ error: 'endDate is required' });
+  }
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
     return res.status(400).json({ error: 'startDate and endDate must be valid dates' });
   }

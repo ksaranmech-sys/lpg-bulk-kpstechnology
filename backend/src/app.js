@@ -54,6 +54,16 @@ app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 // Centralized error handler
 app.use((err, req, res, next) => {
   console.error(err);
+  // Mongo duplicate key error (e.g. username already taken) - surface a friendly message
+  // instead of the raw driver error text.
+  if (err.code === 11000) {
+    const field = Object.keys(err.keyValue || err.keyPattern || {})[0] || 'value';
+    const value = err.keyValue ? err.keyValue[field] : undefined;
+    const label = field.charAt(0).toUpperCase() + field.slice(1);
+    return res.status(409).json({
+      error: value ? `${label} "${value}" is already in use` : `${label} is already in use`,
+    });
+  }
   const status = err.status || 500;
   res.status(status).json({ error: err.message || 'Internal server error' });
 });

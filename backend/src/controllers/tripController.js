@@ -23,45 +23,41 @@ function getTripCloseDate(trip) {
   return getClosingDieselDate(trip);
 }
 
-// The previous trip only counts as "closed" once the user actually pressed Trip Close
-// (status moved past OPEN) - a turnDate saved without that action doesn't count.
-async function getPreviousTripTurnDate(trip) {
+// Advance/Diesel/RTO/Other Expense entries can be backdated freely (late entries are allowed)
+// but can't predate whichever is later: the currently assigned driver's joining date, or the
+// previous trip's Load Turn (close) date. A trip counts as "closed" here as soon as the driver
+// presses Trip Close (status moves to pending_close or closed) - the settlement math finishing
+// in the background afterwards doesn't change that boundary. Entries also can't be dated after
+// this trip's own close date - if that isn't set yet, they also can't be dated in the future.
+async function getDriverJoiningDate(trip) {
+  const driver = await User.findOne({ role: ROLES.VEHICLE_USER, vehicle: trip.vehicle }).select('joiningDate');
+  return driver?.joiningDate ? new Date(driver.joiningDate) : null;
+}
+
+async function getPreviousTripCloseDate(trip) {
   const previousTrip = await Trip.findOne({
     vehicle: trip.vehicle,
     createdAt: { $lt: trip.createdAt },
     status: { $in: [TRIP_STATUS.PENDING_CLOSE, TRIP_STATUS.CLOSED] },
   }).sort('-createdAt');
-  return previousTrip?.turnDate || null;
+  return previousTrip?.turnDate ? new Date(previousTrip.turnDate) : null;
 }
 
-// The previous trip's close date can lag well behind when a temporary driver actually took over
-// the vehicle (it only closes once the next trip's first diesel fill happens) - so if a currently
-// assigned temporary driver's joining date is earlier, use that as the floor instead.
 async function getEntryFloorDate(trip) {
-  const previousTurnDate = await getPreviousTripTurnDate(trip);
-  const driver = await User.findOne({ role: ROLES.VEHICLE_USER, vehicle: trip.vehicle }).select('temporaryDriver');
-  const tempJoiningDate = driver?.temporaryDriver?.required && driver.temporaryDriver.joiningDate
-    ? new Date(driver.temporaryDriver.joiningDate)
-    : null;
-  if (previousTurnDate && tempJoiningDate) {
-    return tempJoiningDate < previousTurnDate ? tempJoiningDate : previousTurnDate;
+  const [driverJoiningDate, previousTripCloseDate] = await Promise.all([
+    getDriverJoiningDate(trip),
+    getPreviousTripCloseDate(trip),
+  ]);
+  if (driverJoiningDate && previousTripCloseDate) {
+    return driverJoiningDate > previousTripCloseDate ? driverJoiningDate : previousTripCloseDate;
   }
-  return previousTurnDate || tempJoiningDate || null;
+  return driverJoiningDate || previousTripCloseDate || null;
 }
 
-// Advance/Diesel/RTO/Other Expense entries must fall on or after the previous trip's close date
-// and on or before this trip's own close date - if that isn't set yet, they also can't be dated
-// in the future (there's nothing to bound them by otherwise). Once this trip's own loading date
-// is known, it's a stronger, more specific floor than either of those (nothing in the trip can
-// predate when it actually started loading), so it takes over from that point on.
 async function validateEntryDate(trip, date, label) {
-  let previousTurnDate = await getEntryFloorDate(trip);
-  if (trip.loadingDate) {
-    const loadingDate = new Date(trip.loadingDate);
-    if (!previousTurnDate || loadingDate > previousTurnDate) previousTurnDate = loadingDate;
-  }
-  if (previousTurnDate && date < previousTurnDate) {
-    return `${label} date must be on or after the previous trip's Load Turn (close) date.`;
+  const floor = await getEntryFloorDate(trip);
+  if (floor && date < floor) {
+    return `${label} date cannot be before the driver's joining date or the previous trip's close date.`;
   }
   const upperBound = trip.turnDate || new Date();
   if (date > upperBound) {
@@ -182,11 +178,9 @@ async function setLoadingDetails(req, res) {
   if (loadingDate != null) {
     const date = new Date(loadingDate);
     if (Number.isNaN(date.getTime())) return res.status(400).json({ error: 'loadingDate must be a valid date' });
-    // Loading date must not precede the vehicle's previous trip's Load Turn date (or the
-    // currently assigned temporary driver's joining date, if that's earlier).
-    const previousTurnDate = await getEntryFloorDate(trip);
-    if (previousTurnDate && date < previousTurnDate) {
-      return res.status(400).json({ error: "Loading date must be the same as or after the previous trip's Load Turn date." });
+    const floor = await getEntryFloorDate(trip);
+    if (floor && date < floor) {
+      return res.status(400).json({ error: "Loading date cannot be before the driver's joining date or the previous trip's close date." });
     }
     trip.loadingDate = date;
   }
@@ -250,7 +244,7 @@ async function getTrip(req, res) {
     vehicle: trip.vehicle._id,
     createdAt: { $lt: trip.createdAt },
   }).sort('-createdAt');
-  const driver = await User.findOne({ role: ROLES.VEHICLE_USER, vehicle: trip.vehicle._id }).select('name temporaryDriver');
+  const driver = await User.findOne({ role: ROLES.VEHICLE_USER, vehicle: trip.vehicle._id }).select('name temporaryDriver joiningDate');
   if (trip.status === TRIP_STATUS.CLOSED) await refreshTripSettlement(trip);
   const result = trip.toObject();
   result.odometerKm = trip.status === TRIP_STATUS.CLOSED && trip.settlement?.totalKm != null
@@ -266,23 +260,16 @@ async function getTrip(req, res) {
     metaRoutes.loadRouteKmTable()
   ).value;
   result.driverName = driver?.getDisplayName() || null;
-  // Only a previous trip the user actually Trip Closed (past OPEN) counts as a close date -
-  // used by the frontend to restrict Advance/RTO/Other Expense date pickers to valid dates.
-  // Pulled earlier to the currently assigned temporary driver's joining date if that's earlier,
-  // since the previous trip can stay open (and close late) well after the substitute took over.
-  const previousTurnDate = (previousTrip?.status !== TRIP_STATUS.OPEN && previousTrip?.turnDate) || null;
-  const tempJoiningDate = driver?.temporaryDriver?.required && driver.temporaryDriver.joiningDate
-    ? new Date(driver.temporaryDriver.joiningDate)
+  // Used by the frontend to grey out dates before whichever is later: the driver's joining date,
+  // or the previous trip's Load Turn date (that trip counts as closed once the driver pressed
+  // Trip Close, even if its settlement is still finalizing in the background).
+  const driverJoiningDate = driver?.joiningDate ? new Date(driver.joiningDate) : null;
+  const previousTripCloseDate = (previousTrip?.status !== TRIP_STATUS.OPEN && previousTrip?.turnDate)
+    ? new Date(previousTrip.turnDate)
     : null;
-  result.previousTripCloseDate = previousTurnDate && tempJoiningDate
-    ? (tempJoiningDate < previousTurnDate ? tempJoiningDate : previousTurnDate)
-    : (previousTurnDate || tempJoiningDate || null);
-  // Used by the frontend to restrict Advance/Diesel/RTO/Other Expense date pickers - once this
-  // trip's own loading date is known, nothing in it can predate that (a stronger, more specific
-  // floor than previousTripCloseDate alone), so it takes over from that point on.
-  result.entryFloorDate = trip.loadingDate && (!result.previousTripCloseDate || new Date(trip.loadingDate) > result.previousTripCloseDate)
-    ? trip.loadingDate
-    : result.previousTripCloseDate;
+  result.entryMinDate = driverJoiningDate && previousTripCloseDate
+    ? (driverJoiningDate > previousTripCloseDate ? driverJoiningDate : previousTripCloseDate)
+    : (driverJoiningDate || previousTripCloseDate || null);
   res.json({ trip: result });
 }
 
