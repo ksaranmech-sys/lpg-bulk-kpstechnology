@@ -15,6 +15,40 @@ function round0(value) {
   return Math.round(Number(value || 0));
 }
 
+// Validates the optional temporaryDriver block shared by createVehicleUser/updateVehicleUser.
+// Returns { value, error } - value is undefined when the caller didn't send temporaryDriver at all,
+// so an update request that omits it leaves the existing value untouched.
+function parseTemporaryDriver(temporaryDriver) {
+  if (temporaryDriver === undefined) return {};
+  const required = Boolean(temporaryDriver?.required);
+  if (!required) {
+    return { value: { required: false, name: null, joiningDate: null, returningDate: null } };
+  }
+
+  const name = String(temporaryDriver?.name || '').trim();
+  if (!name) return { error: 'Temporary driver name is required' };
+
+  const joiningDate = new Date(temporaryDriver?.joiningDate);
+  if (!temporaryDriver?.joiningDate || Number.isNaN(joiningDate.getTime())) {
+    return { error: 'Temporary driver joining date is required' };
+  }
+
+  // Returning date isn't known upfront - it gets filled in later once the temporary driver
+  // actually hands the vehicle back, so it's optional here but validated if supplied.
+  let returningDate = null;
+  if (temporaryDriver?.returningDate) {
+    returningDate = new Date(temporaryDriver.returningDate);
+    if (Number.isNaN(returningDate.getTime())) {
+      return { error: 'Temporary driver returning date must be a valid date' };
+    }
+    if (returningDate < joiningDate) {
+      return { error: 'Temporary driver returning date cannot be before the joining date' };
+    }
+  }
+
+  return { value: { required: true, name, joiningDate, returningDate } };
+}
+
 function loadRouteKmTable() {
   const filePath = path.join(__dirname, '../config/routeKmTable.json');
   try {
@@ -166,12 +200,49 @@ function calculateBasicSalary(month, monthlyBasicSalary, joiningDate, resigningD
   };
 }
 
+// Substitute-driver coverage entered directly on the driver record (while they're on leave),
+// computed as its own pro-rated basic salary (same per-day rate as the regular driver) plus the
+// expenses/diesel/advances of whichever trips closed while the joining->returning window was active.
+function calculateTemporaryDriverSegment(month, temporaryDriver, tripsWithBalances, monthlyBasicSalary) {
+  if (!temporaryDriver?.required || !temporaryDriver?.joiningDate) return null;
+
+  const { start: monthStart, end: monthEndExclusive } = getSalaryMonthBounds(month);
+  const monthEnd = new Date(monthEndExclusive.getTime() - MS_PER_DAY);
+  const daysInMonth = monthEnd.getDate();
+
+  const joiningDay = getCalendarDay(new Date(temporaryDriver.joiningDate));
+  // Returning date isn't set yet while the substitute is still covering the vehicle - treat the
+  // assignment as ongoing through the end of the salary month until it's filled in.
+  const returningDay = temporaryDriver.returningDate ? getCalendarDay(new Date(temporaryDriver.returningDate)) : monthEnd;
+  const periodStart = joiningDay > monthStart ? joiningDay : monthStart;
+  const periodEnd = returningDay < monthEnd ? returningDay : monthEnd;
+  const days = periodEnd >= periodStart ? Math.floor((periodEnd - periodStart) / MS_PER_DAY) + 1 : 0;
+
+  const tripsInPeriod = tripsWithBalances.filter((trip) => {
+    const closedDate = getTripClosedDate(trip);
+    return closedDate && closedDate >= joiningDay && closedDate <= returningDay;
+  });
+
+  return {
+    name: temporaryDriver.name,
+    joiningDate: temporaryDriver.joiningDate,
+    returningDate: temporaryDriver.returningDate,
+    days,
+    basicSalary: days > 0 ? round0((Number(monthlyBasicSalary || 0) / daysInMonth) * days) : 0,
+    tripsCount: tripsInPeriod.length,
+    totalAdvance: round0(sumTripAdvances(tripsInPeriod)),
+    totalDiesel: round0(sumTripDiesel(tripsInPeriod)),
+    totalDieselLitres: round0(sumTripDieselLitres(tripsInPeriod)),
+    totalExpense: round0(sumTripExpenses(tripsInPeriod)),
+  };
+}
+
 async function calculateDriverMonthlySalary(customerId, userId, month) {
   const driver = await User.findOne({
     _id: userId,
     customer: customerId,
     role: ROLES.VEHICLE_USER,
-  }).select('name username basicSalary kmCharges minKmCharges joiningDate resigningDate vehicle');
+  }).select('name username basicSalary kmCharges minKmCharges joiningDate resigningDate vehicle temporaryDriver');
   if (!driver) return null;
 
   const { start: monthStart, end: monthEnd } = getSalaryMonthBounds(month);
@@ -230,6 +301,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   const basicSalary = basicSalaryDetails.basicSalary;
   const kmCharges = Number(driver.kmCharges || 0);
   const kmBeta = round0(kmCharges * totalDriverKm);
+  const temporaryDriver = calculateTemporaryDriverSegment(month, driver.temporaryDriver, tripsWithBalances, driver.basicSalary);
   return {
     month,
     driver,
@@ -243,6 +315,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
     basicSalary,
     ...basicSalaryDetails,
     kmCharges,
+    temporaryDriver,
     corporationKm: round0(corporationKm),
     manualKmTotal: round0(manualKmTotal),
     totalDriverKm: round0(totalDriverKm),
@@ -300,7 +373,7 @@ async function getCustomer(req, res) {
     const driver = driverByVehicle.get(String(vehicle._id));
     return {
       ...vehicle.toObject(),
-      driverName: driver?.name || null,
+      driverName: driver?.displayName || driver?.name || null,
       driverMobile: driver?.mobileNumber || null,
     };
   });
@@ -455,9 +528,14 @@ async function addVehicle(req, res) {
 // body: { username, password, name, mobileNumber, joiningDate, resigningDate, vehicleId, basicSalary, kmCharges, minKmCharges }
 async function createVehicleUser(req, res) {
   const { customerId } = req.params;
-  const { username, password, name, mobileNumber, joiningDate, resigningDate, vehicleId, basicSalary, kmCharges, minKmCharges } = req.body;
+  const { username, password, name, mobileNumber, joiningDate, resigningDate, vehicleId, basicSalary, kmCharges, minKmCharges, temporaryDriver } = req.body;
   if (!username || !password) {
     return res.status(400).json({ error: 'username and password are required' });
+  }
+
+  const parsedTemporaryDriver = parseTemporaryDriver(temporaryDriver);
+  if (parsedTemporaryDriver.error) {
+    return res.status(400).json({ error: parsedTemporaryDriver.error });
   }
 
   if (vehicleId) {
@@ -478,6 +556,7 @@ async function createVehicleUser(req, res) {
     basicSalary,
     kmCharges,
     minKmCharges,
+    temporaryDriver: parsedTemporaryDriver.value,
     role: ROLES.VEHICLE_USER,
     customer: customerId,
     vehicle: vehicleId || null,
@@ -491,10 +570,15 @@ async function createVehicleUser(req, res) {
 // PATCH /api/v1/customers/:customerId/users/:userId  (customer_admin updates vehicle_user)
 async function updateVehicleUser(req, res) {
   const { customerId, userId } = req.params;
-  const { name, mobileNumber, joiningDate, resigningDate, username, password, vehicleId, basicSalary, kmCharges, minKmCharges } = req.body;
+  const { name, mobileNumber, joiningDate, resigningDate, username, password, vehicleId, basicSalary, kmCharges, minKmCharges, temporaryDriver } = req.body;
 
   const user = await User.findOne({ _id: userId, customer: customerId, role: ROLES.VEHICLE_USER });
   if (!user) return res.status(404).json({ error: 'Driver user not found' });
+
+  const parsedTemporaryDriver = parseTemporaryDriver(temporaryDriver);
+  if (parsedTemporaryDriver.error) {
+    return res.status(400).json({ error: parsedTemporaryDriver.error });
+  }
 
   if (vehicleId !== undefined && vehicleId !== null && vehicleId !== '') {
     const vehicle = await Vehicle.findOne({ _id: vehicleId, customer: customerId });
@@ -514,6 +598,7 @@ async function updateVehicleUser(req, res) {
   if (basicSalary !== undefined) user.basicSalary = basicSalary;
   if (kmCharges !== undefined) user.kmCharges = kmCharges;
   if (minKmCharges !== undefined) user.minKmCharges = minKmCharges;
+  if (parsedTemporaryDriver.value) user.temporaryDriver = parsedTemporaryDriver.value;
   if (username) {
     const normalized = username.trim().toLowerCase();
     const existing = await User.findOne({ username: normalized, _id: { $ne: user._id } });

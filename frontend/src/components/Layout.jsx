@@ -41,7 +41,7 @@ export default function Layout({ children }) {
           <h1>KPS Technology — Fleet Management</h1>
         </Link>
         <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {user && <span style={{ fontSize: 13 }}>{user.name || user.username} ({user.role})</span>}
+          {user && <span style={{ fontSize: 13 }}>{user.displayName || user.name || user.username} ({user.role})</span>}
           {user?.role === 'super_admin' && (
             <Link to="/admin/onboarding" className="btn secondary topbar-action" style={{ color: 'white', borderColor: 'rgba(255,255,255,0.4)', textDecoration: 'none' }}>
               Create Customer

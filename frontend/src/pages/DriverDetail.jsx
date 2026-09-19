@@ -318,6 +318,12 @@ export default function DriverDetail() {
               <div><strong>KM Charges:</strong> {driver.kmCharges ?? 0}</div>
               <div><strong>Less than 200KM Charges:</strong> {driver.minKmCharges ?? 0}</div>
             </div>
+            {driver.temporaryDriver?.required && (
+              <div style={{ marginTop: 12, color: '#4a5f52' }}>
+                <strong>Temporary Driver:</strong> {driver.temporaryDriver.name} (
+                {new Date(driver.temporaryDriver.joiningDate).toLocaleDateString('en-IN')} - {driver.temporaryDriver.returningDate ? new Date(driver.temporaryDriver.returningDate).toLocaleDateString('en-IN') : 'Ongoing'})
+              </div>
+            )}
           </div>
           <div className="card" style={{ marginTop: 24 }}>
             <h3 className="section-title" style={{ marginTop: 0 }}>Trip History</h3>
@@ -500,6 +506,24 @@ export default function DriverDetail() {
                     <tr><td><strong>Settlement to Driver</strong></td><td><strong>Rs {Math.round(salary.salaryBalance || 0)}</strong></td></tr>
                   </tbody>
                 </table>
+                {salary.temporaryDriver && (
+                  <div style={{ marginTop: 20 }}>
+                    <h4 className="section-title">Temporary Driver Settlement</h4>
+                    <table className="salary-summary">
+                      <tbody>
+                        <tr>
+                          <td colSpan={2}>
+                            <strong>{salary.temporaryDriver.name}</strong> ({new Date(salary.temporaryDriver.joiningDate).toLocaleDateString('en-IN')} - {salary.temporaryDriver.returningDate ? new Date(salary.temporaryDriver.returningDate).toLocaleDateString('en-IN') : 'Ongoing'})
+                          </td>
+                        </tr>
+                        <tr><td>Basic Salary (Days covered: {salary.temporaryDriver.days})</td><td>Rs {Math.round(salary.temporaryDriver.basicSalary || 0)}</td></tr>
+                        <tr><td>Trip Expenses ({salary.temporaryDriver.tripsCount} trips)</td><td>Rs {Math.round(salary.temporaryDriver.totalExpense || 0)}</td></tr>
+                        <tr><td>Diesel ({salary.temporaryDriver.totalDieselLitres || 0} L)</td><td>Rs {Math.round(salary.temporaryDriver.totalDiesel || 0)}</td></tr>
+                        <tr><td>Advances</td><td>Rs {Math.round(salary.temporaryDriver.totalAdvance || 0)}</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </>
             )}
           </div>

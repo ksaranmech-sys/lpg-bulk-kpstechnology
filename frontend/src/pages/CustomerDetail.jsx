@@ -36,11 +36,11 @@ export default function CustomerDetail() {
   const [vehicleBulkEditMode, setVehicleBulkEditMode] = useState(false);
   const [vehicleDrafts, setVehicleDrafts] = useState({});
   const [vehicleBulkSaving, setVehicleBulkSaving] = useState(false);
-  const [driverForm, setDriverForm] = useState({ name: '', mobileNumber: '', joiningDate: '', resigningDate: '', username: '', password: '', vehicleId: '', basicSalary: '', kmCharges: '', minKmCharges: '' });
+  const [driverForm, setDriverForm] = useState({ name: '', mobileNumber: '', joiningDate: '', resigningDate: '', username: '', password: '', vehicleId: '', basicSalary: '', kmCharges: '', minKmCharges: '', temporaryDriverRequired: false, temporaryDriverName: '', temporaryDriverJoiningDate: '', temporaryDriverReturningDate: '' });
   const [driverError, setDriverError] = useState('');
   const [driverSaving, setDriverSaving] = useState(false);
   const [driverEditId, setDriverEditId] = useState('');
-  const [driverEditForm, setDriverEditForm] = useState({ name: '', mobileNumber: '', joiningDate: '', resigningDate: '', username: '', password: '', vehicleId: '', basicSalary: '', kmCharges: '', minKmCharges: '' });
+  const [driverEditForm, setDriverEditForm] = useState({ name: '', mobileNumber: '', joiningDate: '', resigningDate: '', username: '', password: '', vehicleId: '', basicSalary: '', kmCharges: '', minKmCharges: '', temporaryDriverRequired: false, temporaryDriverName: '', temporaryDriverJoiningDate: '', temporaryDriverReturningDate: '' });
   const [driverEditError, setDriverEditError] = useState('');
   const [driverEditSaving, setDriverEditSaving] = useState(false);
   const [selectedDrivers, setSelectedDrivers] = useState([]);
@@ -254,17 +254,26 @@ export default function CustomerDetail() {
     setDriverError('');
     setDriverSaving(true);
     try {
-      const res = await api.createVehicleUser(customerId, driverForm);
+      const { temporaryDriverRequired, temporaryDriverName, temporaryDriverJoiningDate, temporaryDriverReturningDate, ...rest } = driverForm;
+      const res = await api.createVehicleUser(customerId, {
+        ...rest,
+        temporaryDriver: {
+          required: temporaryDriverRequired,
+          name: temporaryDriverName,
+          joiningDate: temporaryDriverJoiningDate || undefined,
+          returningDate: temporaryDriverReturningDate || undefined,
+        },
+      });
       setData((current) => ({
         ...current,
         vehicles: current.vehicles.map((vehicle) => (
           String(vehicle._id) === String(res.data.user.vehicle)
-            ? { ...vehicle, driverName: res.data.user.name, driverMobile: res.data.user.mobileNumber }
+            ? { ...vehicle, driverName: res.data.user.displayName || res.data.user.name, driverMobile: res.data.user.mobileNumber }
             : vehicle
         )),
         users: [...current.users, res.data.user].sort((a, b) => a.username.localeCompare(b.username)),
       }));
-      setDriverForm({ name: '', mobileNumber: '', joiningDate: '', resigningDate: '', username: '', password: '', vehicleId: '', basicSalary: '', kmCharges: '', minKmCharges: '' });
+      setDriverForm({ name: '', mobileNumber: '', joiningDate: '', resigningDate: '', username: '', password: '', vehicleId: '', basicSalary: '', kmCharges: '', minKmCharges: '', temporaryDriverRequired: false, temporaryDriverName: '', temporaryDriverJoiningDate: '', temporaryDriverReturningDate: '' });
       setShowAddDriverModal(false);
     } catch (err) {
       setDriverError(err.response?.data?.error || 'Failed to add driver');
@@ -378,6 +387,7 @@ export default function CustomerDetail() {
     setDriverEditError('');
     setDriverEditSaving(true);
     try {
+      const { temporaryDriverRequired, temporaryDriverName, temporaryDriverJoiningDate, temporaryDriverReturningDate } = driverEditForm;
       const res = await api.updateVehicleUser(customerId, driverEditId, {
         name: driverEditForm.name,
         mobileNumber: driverEditForm.mobileNumber,
@@ -389,6 +399,12 @@ export default function CustomerDetail() {
         basicSalary: Number(driverEditForm.basicSalary || 0),
         kmCharges: Number(driverEditForm.kmCharges || 0),
         minKmCharges: Number(driverEditForm.minKmCharges || 0),
+        temporaryDriver: {
+          required: temporaryDriverRequired,
+          name: temporaryDriverName,
+          joiningDate: temporaryDriverJoiningDate || undefined,
+          returningDate: temporaryDriverReturningDate || undefined,
+        },
       });
       setData((current) => ({
         ...current,
@@ -407,7 +423,7 @@ export default function CustomerDetail() {
         }),
       }));
       setDriverEditId('');
-      setDriverEditForm({ name: '', mobileNumber: '', joiningDate: '', resigningDate: '', username: '', password: '', vehicleId: '', basicSalary: '', kmCharges: '', minKmCharges: '' });
+      setDriverEditForm({ name: '', mobileNumber: '', joiningDate: '', resigningDate: '', username: '', password: '', vehicleId: '', basicSalary: '', kmCharges: '', minKmCharges: '', temporaryDriverRequired: false, temporaryDriverName: '', temporaryDriverJoiningDate: '', temporaryDriverReturningDate: '' });
     } catch (err) {
       setDriverEditError(err.response?.data?.error || 'Failed to update driver');
     } finally {
@@ -698,7 +714,7 @@ export default function CustomerDetail() {
                     <>
                       <div style={{ flex: 1 }}>
                         <Link to={`/customers/${customerId}/drivers/${driver.id || driver._id}`} style={{ color: 'var(--green-900)', fontWeight: 700 }}>
-                          {driver.name || 'Unnamed driver'}
+                          {driver.displayName || driver.name || 'Unnamed driver'}
                         </Link>
                         <div style={{ fontSize: 12, color: '#666' }}>
                           {driver.username} | {driver.mobileNumber || 'No phone'} | Joining Date: {driver.joiningDate ? new Date(driver.joiningDate).toLocaleDateString('en-IN') : 'Not set'}
@@ -768,6 +784,33 @@ export default function CustomerDetail() {
                   <input type="number" min="0" step="0.01" value={driverEditForm.minKmCharges} onChange={(e) => setDriverEditForm({ ...driverEditForm, minKmCharges: e.target.value })} />
                 </div>
               </div>
+              <div className="field">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="checkbox"
+                    checked={driverEditForm.temporaryDriverRequired}
+                    onChange={(e) => setDriverEditForm({ ...driverEditForm, temporaryDriverRequired: e.target.checked })}
+                    style={{ width: 'auto' }}
+                  />
+                  Temporary Driver
+                </label>
+              </div>
+              {driverEditForm.temporaryDriverRequired && (
+                <div className="grid-2">
+                  <div className="field">
+                    <label>Temporary Driver Name</label>
+                    <input value={driverEditForm.temporaryDriverName} onChange={(e) => setDriverEditForm({ ...driverEditForm, temporaryDriverName: e.target.value })} required />
+                  </div>
+                  <div className="field">
+                    <label>Joining Date</label>
+                    <input type="date" value={driverEditForm.temporaryDriverJoiningDate} onChange={(e) => setDriverEditForm({ ...driverEditForm, temporaryDriverJoiningDate: e.target.value })} required />
+                  </div>
+                  <div className="field">
+                    <label>Returning Date</label>
+                    <input type="date" value={driverEditForm.temporaryDriverReturningDate} onChange={(e) => setDriverEditForm({ ...driverEditForm, temporaryDriverReturningDate: e.target.value })} min={driverEditForm.temporaryDriverJoiningDate || undefined} />
+                  </div>
+                </div>
+              )}
               {driverEditError && <div className="error-text">{driverEditError}</div>}
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                 <button className="btn" disabled={driverEditSaving} type="submit">
@@ -775,7 +818,7 @@ export default function CustomerDetail() {
                 </button>
                 <button type="button" className="btn secondary" onClick={() => {
                   setDriverEditId('');
-                    setDriverEditForm({ name: '', mobileNumber: '', joiningDate: '', resigningDate: '', username: '', password: '', vehicleId: '', basicSalary: '', kmCharges: '', minKmCharges: '' });
+                    setDriverEditForm({ name: '', mobileNumber: '', joiningDate: '', resigningDate: '', username: '', password: '', vehicleId: '', basicSalary: '', kmCharges: '', minKmCharges: '', temporaryDriverRequired: false, temporaryDriverName: '', temporaryDriverJoiningDate: '', temporaryDriverReturningDate: '' });
                   setDriverEditError('');
                 }}>
                   Cancel
@@ -856,6 +899,33 @@ export default function CustomerDetail() {
                   Less than 200KM Charges
                 </label>
               </div>
+              <div className="field">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="checkbox"
+                    checked={driverForm.temporaryDriverRequired}
+                    onChange={(e) => setDriverForm({ ...driverForm, temporaryDriverRequired: e.target.checked })}
+                    style={{ width: 'auto' }}
+                  />
+                  Temporary Driver
+                </label>
+              </div>
+              {driverForm.temporaryDriverRequired && (
+                <div className="grid-2">
+                  <div className="field">
+                    <label>Temporary Driver Name</label>
+                    <input value={driverForm.temporaryDriverName} onChange={(e) => setDriverForm({ ...driverForm, temporaryDriverName: e.target.value })} required />
+                  </div>
+                  <div className="field">
+                    <label>Joining Date</label>
+                    <input type="date" value={driverForm.temporaryDriverJoiningDate} onChange={(e) => setDriverForm({ ...driverForm, temporaryDriverJoiningDate: e.target.value })} required />
+                  </div>
+                  <div className="field">
+                    <label>Returning Date</label>
+                    <input type="date" value={driverForm.temporaryDriverReturningDate} onChange={(e) => setDriverForm({ ...driverForm, temporaryDriverReturningDate: e.target.value })} min={driverForm.temporaryDriverJoiningDate || undefined} />
+                  </div>
+                </div>
+              )}
               {driverError && <div className="error-text">{driverError}</div>}
               <button className="btn" disabled={driverSaving}>
                 {driverSaving ? 'Adding...' : 'Add Driver'}

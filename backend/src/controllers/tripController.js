@@ -34,13 +34,28 @@ async function getPreviousTripTurnDate(trip) {
   return previousTrip?.turnDate || null;
 }
 
-// Advance/RTO/Other Expense entries must fall strictly after the previous trip's close date and
-// on or before this trip's own close date - if that isn't set yet, they also can't be dated in
-// the future (there's nothing to bound them by otherwise).
-async function validateEntryDate(trip, date, label) {
+// The previous trip's close date can lag well behind when a temporary driver actually took over
+// the vehicle (it only closes once the next trip's first diesel fill happens) - so if a currently
+// assigned temporary driver's joining date is earlier, use that as the floor instead.
+async function getEntryFloorDate(trip) {
   const previousTurnDate = await getPreviousTripTurnDate(trip);
-  if (previousTurnDate && date <= previousTurnDate) {
-    return `${label} date must be after the previous trip's Load Turn (close) date.`;
+  const driver = await User.findOne({ role: ROLES.VEHICLE_USER, vehicle: trip.vehicle }).select('temporaryDriver');
+  const tempJoiningDate = driver?.temporaryDriver?.required && driver.temporaryDriver.joiningDate
+    ? new Date(driver.temporaryDriver.joiningDate)
+    : null;
+  if (previousTurnDate && tempJoiningDate) {
+    return tempJoiningDate < previousTurnDate ? tempJoiningDate : previousTurnDate;
+  }
+  return previousTurnDate || tempJoiningDate || null;
+}
+
+// Advance/Diesel/RTO/Other Expense entries must fall on or after the previous trip's close date
+// and on or before this trip's own close date - if that isn't set yet, they also can't be dated
+// in the future (there's nothing to bound them by otherwise).
+async function validateEntryDate(trip, date, label) {
+  const previousTurnDate = await getEntryFloorDate(trip);
+  if (previousTurnDate && date < previousTurnDate) {
+    return `${label} date must be on or after the previous trip's Load Turn (close) date.`;
   }
   const upperBound = trip.turnDate || new Date();
   if (date > upperBound) {
@@ -161,8 +176,9 @@ async function setLoadingDetails(req, res) {
   if (loadingDate != null) {
     const date = new Date(loadingDate);
     if (Number.isNaN(date.getTime())) return res.status(400).json({ error: 'loadingDate must be a valid date' });
-    // Loading date must not precede the vehicle's previous trip's Load Turn date.
-    const previousTurnDate = await getPreviousTripTurnDate(trip);
+    // Loading date must not precede the vehicle's previous trip's Load Turn date (or the
+    // currently assigned temporary driver's joining date, if that's earlier).
+    const previousTurnDate = await getEntryFloorDate(trip);
     if (previousTurnDate && date < previousTurnDate) {
       return res.status(400).json({ error: "Loading date must be the same as or after the previous trip's Load Turn date." });
     }
@@ -228,7 +244,7 @@ async function getTrip(req, res) {
     vehicle: trip.vehicle._id,
     createdAt: { $lt: trip.createdAt },
   }).sort('-createdAt');
-  const driver = await User.findOne({ role: ROLES.VEHICLE_USER, vehicle: trip.vehicle._id }).select('name');
+  const driver = await User.findOne({ role: ROLES.VEHICLE_USER, vehicle: trip.vehicle._id }).select('name temporaryDriver');
   if (trip.status === TRIP_STATUS.CLOSED) await refreshTripSettlement(trip);
   const result = trip.toObject();
   result.odometerKm = trip.status === TRIP_STATUS.CLOSED && trip.settlement?.totalKm != null
@@ -243,10 +259,18 @@ async function getTrip(req, res) {
     result,
     metaRoutes.loadRouteKmTable()
   ).value;
-  result.driverName = driver?.name || null;
+  result.driverName = driver?.getDisplayName() || null;
   // Only a previous trip the user actually Trip Closed (past OPEN) counts as a close date -
   // used by the frontend to restrict Advance/RTO/Other Expense date pickers to valid dates.
-  result.previousTripCloseDate = (previousTrip?.status !== TRIP_STATUS.OPEN && previousTrip?.turnDate) || null;
+  // Pulled earlier to the currently assigned temporary driver's joining date if that's earlier,
+  // since the previous trip can stay open (and close late) well after the substitute took over.
+  const previousTurnDate = (previousTrip?.status !== TRIP_STATUS.OPEN && previousTrip?.turnDate) || null;
+  const tempJoiningDate = driver?.temporaryDriver?.required && driver.temporaryDriver.joiningDate
+    ? new Date(driver.temporaryDriver.joiningDate)
+    : null;
+  result.previousTripCloseDate = previousTurnDate && tempJoiningDate
+    ? (tempJoiningDate < previousTurnDate ? tempJoiningDate : previousTurnDate)
+    : (previousTurnDate || tempJoiningDate || null);
   res.json({ trip: result });
 }
 
