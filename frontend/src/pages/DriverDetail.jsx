@@ -58,6 +58,101 @@ function formatTripRoute(trip) {
   return `${trip.loadingLocation || 'Loading pending'} (${formatDate(trip.loadingDate)}) -> ${trip.unloadingLocation || 'Unloading pending'} (${formatDate(trip.unloadingDate)})`;
 }
 
+// Shared trip-rows table for both the regular driver's and the temporary driver's salary
+// breakdown - each shows only the trip entries attributed to that side, but both keep the same
+// per-trip "Closed" checkbox since Trip Close still acts on the whole trip.
+function SalaryTripsTable({ trips, closingTripId, onCloseTrip, totals }) {
+  return (
+    <div style={{ overflowX: 'auto', marginBottom: 16 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+        <thead>
+          <tr>
+            <th style={{ width: '4%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>S.No</th>
+            <th style={{ width: '11%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Location</th>
+            <th style={{ width: '9%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Date</th>
+            <th style={{ width: '11%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Unloading Location</th>
+            <th style={{ width: '9%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Unloading Date</th>
+            <th style={{ width: '11%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Divert Location</th>
+            <th style={{ width: '8%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Driver KM</th>
+            <th style={{ width: '8%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Diesel (Litres)</th>
+            <th style={{ width: '9%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Diesel</th>
+            <th style={{ width: '9%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Advance</th>
+            <th style={{ width: '9%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Expense</th>
+            <th style={{ width: '11%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip balance</th>
+            <th style={{ width: '6%', textAlign: 'center', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Closed</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(trips || []).length === 0 ? (
+            <tr><td colSpan="13" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No trips for this month.</td></tr>
+          ) : (trips || []).map((trip, index) => (
+            <tr key={trip._id || index}>
+              <td style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>{index + 1}</td>
+              <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingLocation || '-'}</td>
+              <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}</td>
+              <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingLocation || '-'}</td>
+              <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}</td>
+              <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.isDiverted ? trip.divertUnloadingLocation || '-' : '-'}</td>
+              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.corporationKm != null && trip.corporationKm > 0 ? `${Math.round(trip.corporationKm)} km` : '-'}</td>
+              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.dieselLitres ?? 0} L</td>
+              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.dieselTotal ?? 0}</td>
+              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.advanceTotal ?? 0}</td>
+              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.expenseTotal ?? 0}</td>
+              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.balance ?? 0}</td>
+              <td style={{ padding: '8px 12px', textAlign: 'center', border: '1px solid #d0d7de' }}>
+                <input
+                  type="checkbox"
+                  checked={trip.status === 'closed'}
+                  disabled={trip.status === 'closed' || closingTripId === trip._id}
+                  title={trip.status === 'closed' ? 'Trip already closed' : 'Mark this trip as closed'}
+                  onChange={() => onCloseTrip(trip._id)}
+                />
+              </td>
+            </tr>
+          ))}
+          <tr>
+            <td colSpan="6" style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
+            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>{Math.round(totals.corporationKm || 0)} km</td>
+            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>{totals.totalDieselLitres || 0} L</td>
+            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {totals.totalDiesel}</td>
+            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {totals.totalAdvance}</td>
+            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {totals.totalExpense}</td>
+            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {totals.totalBalance}</td>
+            <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Shared salary summary (Basic Salary/KM Beta/Special Trip Charges/Expenses/Advance/Settlement)
+// used for both the regular driver and, when assigned, the temporary driver.
+function SalarySummaryTable({ salary }) {
+  return (
+    <table className="salary-summary">
+      <tbody>
+        <tr>
+          <td>
+            {salary.payableDays != null
+              ? `Basic salary (Payable days: ${salary.payableDays}, Leaves taken: ${salary.unpaidLeaveDays})`
+              : `Basic salary (Days covered: ${salary.days})`}
+          </td>
+          <td>Rs {Math.round(salary.basicSalary || 0)}</td>
+        </tr>
+        <tr><td>KM Beta (Total Driver KM {Math.round(salary.corporationKm || 0)} x Rs {salary.kmCharges || 0})</td><td>Rs {Math.round(salary.kmBeta || 0)}</td></tr>
+        {Number(salary.specialTripCharges || 0) > 0 && (
+          <tr><td>Special Trip Charges ({salary.specialTripCount || 0} trips x Rs 1000)</td><td>Rs {Math.round(salary.specialTripCharges || 0)}</td></tr>
+        )}
+        <tr><td>Total Expenses ({salary.closedTrips} trips)</td><td>Rs {Math.round(salary.totalExpense || 0)}</td></tr>
+        <tr><td><strong>Sub Total</strong></td><td><strong>Rs {Math.round((salary.basicSalary || 0) + (salary.kmBeta || 0) + (salary.specialTripCharges || 0) + (salary.totalExpense || 0))}</strong></td></tr>
+        <tr><td>Total Advance ({salary.closedTrips} trips)</td><td>Rs {Math.round(salary.totalAdvance || 0)}</td></tr>
+        <tr><td><strong>Settlement</strong></td><td><strong>Rs {Math.round(salary.salaryBalance || 0)}</strong></td></tr>
+      </tbody>
+    </table>
+  );
+}
+
 function previousMonth() {
   const today = new Date();
   const previous = new Date(today.getFullYear(), today.getMonth() - 1, 1);
@@ -428,100 +523,39 @@ export default function DriverDetail() {
             </div>
             {!salary ? <p style={{ margin: 0 }}>Loading salary calculation...</p> : (
               <>
-                <div style={{ overflowX: 'auto', marginBottom: 16 }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                    <thead>
-                      <tr>
-                        <th style={{ width: '4%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>S.No</th>
-                        <th style={{ width: '11%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Location</th>
-                        <th style={{ width: '9%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Date</th>
-                        <th style={{ width: '11%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Unloading Location</th>
-                        <th style={{ width: '9%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Unloading Date</th>
-                        <th style={{ width: '11%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Divert Location</th>
-                        <th style={{ width: '8%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Driver KM</th>
-                        <th style={{ width: '8%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Diesel (Litres)</th>
-                        <th style={{ width: '9%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Diesel</th>
-                        <th style={{ width: '9%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Advance</th>
-                        <th style={{ width: '9%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Expense</th>
-                        <th style={{ width: '11%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip balance</th>
-                        <th style={{ width: '6%', textAlign: 'center', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Closed</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(salary.trips || []).length === 0 ? (
-                        <tr><td colSpan="13" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No trips for this month.</td></tr>
-                      ) : (salary.trips || []).map((trip, index) => (
-                        <tr key={trip._id || index}>
-                          <td style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>{index + 1}</td>
-                          <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingLocation || '-'}</td>
-                          <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}</td>
-                          <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingLocation || '-'}</td>
-                          <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}</td>
-                          <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.isDiverted ? trip.divertUnloadingLocation || '-' : '-'}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.corporationKm != null ? `${Math.round(trip.corporationKm)} km` : '-'}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.dieselLitres ?? 0} L</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.dieselTotal ?? 0}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.advanceTotal ?? 0}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.expenseTotal ?? 0}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.balance ?? 0}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'center', border: '1px solid #d0d7de' }}>
-                            <input
-                              type="checkbox"
-                              checked={trip.status === 'closed'}
-                              disabled={trip.status === 'closed' || closingTripId === trip._id}
-                              title={trip.status === 'closed' ? 'Trip already closed' : 'Mark this trip as closed'}
-                              onChange={() => closeTripFromSalary(trip._id)}
-                            />
-                          </td>
-                        </tr>
-                      ))}
-                      <tr>
-                        <td colSpan="6" style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>{Math.round(salary.corporationKm || 0)} km</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>{salary.totalDieselLitres || 0} L</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {salary.totalDiesel}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {salary.totalAdvance}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {salary.totalExpense}</td>
-                        <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {salary.totalBalance}</td>
-                        <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}></td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-                <table className="salary-summary">
-                  <tbody>
-                    <tr>
-                      <td>
-                        Basic salary (Payable days: {salary.payableDays}, Leaves taken: {salary.unpaidLeaveDays})
-                      </td>
-                      <td>Rs {Math.round(salary.basicSalary || 0)}</td>
-                    </tr>
-                    <tr><td>KM Beta (Total Driver KM {Math.round(salary.kmCharges || 0)})</td><td>Rs {Math.round(salary.kmBeta || 0)}</td></tr>
-                    {Number(salary.specialTripCharges || 0) > 0 && (
-                      <tr><td>Special Trip Charges ({salary.specialTripCount || 0} trips x Rs 1000)</td><td>Rs {Math.round(salary.specialTripCharges || 0)}</td></tr>
-                    )}
-                    <tr><td>Total Expenses ({salary.closedTrips} trips)</td><td>Rs {Math.round(salary.totalExpense || 0)}</td></tr>
-                    <tr><td><strong>Sub Total</strong></td><td><strong>Rs {Math.round((salary.basicSalary || 0) + (salary.kmBeta || 0) + (salary.specialTripCharges || 0) + (salary.totalExpense || 0))}</strong></td></tr>
-                    <tr><td>Total Advance ({salary.closedTrips} trips)</td><td>Rs {Math.round(salary.totalAdvance || 0)}</td></tr>
-                    <tr><td><strong>Settlement to Driver</strong></td><td><strong>Rs {Math.round(salary.salaryBalance || 0)}</strong></td></tr>
-                  </tbody>
-                </table>
+                <SalaryTripsTable
+                  trips={salary.trips}
+                  closingTripId={closingTripId}
+                  onCloseTrip={closeTripFromSalary}
+                  totals={{
+                    corporationKm: salary.corporationKm,
+                    totalDieselLitres: salary.totalDieselLitres,
+                    totalDiesel: salary.totalDiesel,
+                    totalAdvance: salary.totalAdvance,
+                    totalExpense: salary.totalExpense,
+                    totalBalance: salary.totalBalance,
+                  }}
+                />
+                <SalarySummaryTable salary={salary} />
                 {salary.temporaryDriver && (
-                  <div style={{ marginTop: 20 }}>
-                    <h4 className="section-title">Temporary Driver Settlement</h4>
-                    <table className="salary-summary">
-                      <tbody>
-                        <tr>
-                          <td colSpan={2}>
-                            <strong>{salary.temporaryDriver.name}</strong> ({new Date(salary.temporaryDriver.joiningDate).toLocaleDateString('en-IN')} - {salary.temporaryDriver.returningDate ? new Date(salary.temporaryDriver.returningDate).toLocaleDateString('en-IN') : 'Ongoing'})
-                          </td>
-                        </tr>
-                        <tr><td>Basic Salary (Days covered: {salary.temporaryDriver.days})</td><td>Rs {Math.round(salary.temporaryDriver.basicSalary || 0)}</td></tr>
-                        <tr><td>Trip Expenses ({salary.temporaryDriver.tripsCount} trips)</td><td>Rs {Math.round(salary.temporaryDriver.totalExpense || 0)}</td></tr>
-                        <tr><td>Diesel ({salary.temporaryDriver.totalDieselLitres || 0} L)</td><td>Rs {Math.round(salary.temporaryDriver.totalDiesel || 0)}</td></tr>
-                        <tr><td>Advances</td><td>Rs {Math.round(salary.temporaryDriver.totalAdvance || 0)}</td></tr>
-                      </tbody>
-                    </table>
+                  <div style={{ marginTop: 24 }}>
+                    <h4 className="section-title">
+                      Temporary Driver: {salary.temporaryDriver.name} ({new Date(salary.temporaryDriver.joiningDate).toLocaleDateString('en-IN')} - {salary.temporaryDriver.returningDate ? new Date(salary.temporaryDriver.returningDate).toLocaleDateString('en-IN') : 'Ongoing'})
+                    </h4>
+                    <SalaryTripsTable
+                      trips={salary.temporaryDriver.trips}
+                      closingTripId={closingTripId}
+                      onCloseTrip={closeTripFromSalary}
+                      totals={{
+                        corporationKm: salary.temporaryDriver.corporationKm,
+                        totalDieselLitres: salary.temporaryDriver.totalDieselLitres,
+                        totalDiesel: salary.temporaryDriver.totalDiesel,
+                        totalAdvance: salary.temporaryDriver.totalAdvance,
+                        totalExpense: salary.temporaryDriver.totalExpense,
+                        totalBalance: salary.temporaryDriver.totalBalance,
+                      }}
+                    />
+                    <SalarySummaryTable salary={salary.temporaryDriver} />
                   </div>
                 )}
               </>

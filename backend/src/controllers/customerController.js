@@ -71,10 +71,77 @@ function calculateTripBalance(trip) {
   return Math.round((totalAdvance - totalExpense + Number.EPSILON) * 100) / 100;
 }
 
+// Turns a raw trip (mongoose doc or plain object) into the summary row shape used by the salary
+// table. forceComputedBalance skips the trip's stored settlement.balance (computed from the FULL
+// trip at close time) and recomputes it from whatever entries this row actually carries - needed
+// once a trip has been split between a driver and a temporary driver so neither side double-counts.
+function buildTripRow(trip, routeKmTable, forceComputedBalance = false) {
+  const corporationKmDetails = getCorporationKmDetails(trip, routeKmTable);
+  return {
+    ...trip,
+    balance: (!forceComputedBalance && trip.settlement?.balance != null) ? Number(trip.settlement.balance) : calculateTripBalance(trip),
+    corpKm: findRouteKm(routeKmTable, trip.loadingLocation, trip.unloadingLocation),
+    corporationKm: corporationKmDetails.value || 0,
+    corporationKmSource: corporationKmDetails.source,
+    advanceTotal: (trip.driverAdvances || []).reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
+    dieselTotal: (trip.dieselEntries || []).reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
+    dieselLitres: (trip.dieselEntries || []).reduce((sum, entry) => sum + Number(entry.volumeLitres || 0), 0),
+    expenseTotal: calculateTripExpense(trip),
+  };
+}
+
+// True when `date` falls on/after joiningDate and (if set) on/before returningDate.
+function isDateInTempWindow(date, joiningDate, returningDate) {
+  if (!date) return false;
+  const value = new Date(date);
+  if (joiningDate && value < joiningDate) return false;
+  if (returningDate && value > returningDate) return false;
+  return true;
+}
+
+// Splits one trip's individually-dated entries (advances/diesel/RTO/other-expense), plus its
+// loading- and unloading-linked fixed expenses, between the regular driver and a temporary driver
+// based on each entry's own date relative to the temp driver's joining/returning window - so a
+// single trip (e.g. loaded before the driver went on leave, closed after the temp driver took
+// over) can contribute money to both sides without double-counting either one.
+function splitTripEntriesByDate(trip, joiningDate, returningDate) {
+  const inTemp = (date) => isDateInTempWindow(date, joiningDate, returningDate);
+  const splitArray = (arr, dateField) => ({
+    temp: arr.filter((entry) => inTemp(entry[dateField])),
+    driver: arr.filter((entry) => !inTemp(entry[dateField])),
+  });
+
+  const advances = splitArray(trip.driverAdvances || [], 'date');
+  const diesel = splitArray(trip.dieselEntries || [], 'filledAt');
+  const rto = splitArray(trip.rtoEntries || [], 'date');
+  const other = splitArray(trip.otherExpenses || [], 'date');
+  const loadingInTemp = inTemp(trip.loadingDate);
+  const unloadingInTemp = inTemp(trip.unloadingDate);
+
+  function buildVariant(useTemp) {
+    return {
+      ...trip,
+      driverAdvances: useTemp ? advances.temp : advances.driver,
+      dieselEntries: useTemp ? diesel.temp : diesel.driver,
+      rtoEntries: useTemp ? rto.temp : rto.driver,
+      otherExpenses: useTemp ? other.temp : other.driver,
+      loadingExpense: loadingInTemp === useTemp ? Number(trip.loadingExpense || 0) : 0,
+      turnExpense: loadingInTemp === useTemp ? Number(trip.turnExpense || 0) : 0,
+      parkingExpense: loadingInTemp === useTemp ? Number(trip.parkingExpense || 0) : 0,
+      unloadingExpense: unloadingInTemp === useTemp ? Number(trip.unloadingExpense || 0) : 0,
+    };
+  }
+
+  return { driverTrip: buildVariant(false), tempTrip: buildVariant(true) };
+}
+
 function sumTripBalances(trips) {
-  const total = trips.reduce((sum, trip) => (
-    sum + (trip.settlement?.balance != null ? Number(trip.settlement.balance) : calculateTripBalance(trip))
-  ), 0);
+  const total = trips.reduce((sum, trip) => {
+    const value = trip.balance != null
+      ? Number(trip.balance)
+      : (trip.settlement?.balance != null ? Number(trip.settlement.balance) : calculateTripBalance(trip));
+    return sum + value;
+  }, 0);
   return Math.round((total + Number.EPSILON) * 100) / 100;
 }
 
@@ -200,40 +267,80 @@ function calculateBasicSalary(month, monthlyBasicSalary, joiningDate, resigningD
   };
 }
 
-// Substitute-driver coverage entered directly on the driver record (while they're on leave),
-// computed as its own pro-rated basic salary (same per-day rate as the regular driver) plus the
-// expenses/diesel/advances of whichever trips closed while the joining->returning window was active.
-function calculateTemporaryDriverSegment(month, temporaryDriver, tripsWithBalances, monthlyBasicSalary) {
+// Substitute-driver coverage entered directly on the driver record (while they're on leave).
+// Money (advances/diesel/RTO/other-expense/fixed expenses) is split per entry by its own date
+// against joiningDate/returningDate - even entries within the same trip can land on either side.
+// KM/mileage stays whole per trip, attributed to whichever driver actually closed it, since a
+// single continuous drive can't meaningfully be split in two.
+function calculateTemporaryDriverSegment(month, temporaryDriver, monthTrips, routeKmTable, driver) {
   if (!temporaryDriver?.required || !temporaryDriver?.joiningDate) return null;
 
   const { start: monthStart, end: monthEndExclusive } = getSalaryMonthBounds(month);
   const monthEnd = new Date(monthEndExclusive.getTime() - MS_PER_DAY);
   const daysInMonth = monthEnd.getDate();
+  const joiningDate = new Date(temporaryDriver.joiningDate);
+  const returningDate = temporaryDriver.returningDate ? new Date(temporaryDriver.returningDate) : null;
 
-  const joiningDay = getCalendarDay(new Date(temporaryDriver.joiningDate));
+  const joiningDay = getCalendarDay(joiningDate);
   // Returning date isn't set yet while the substitute is still covering the vehicle - treat the
   // assignment as ongoing through the end of the salary month until it's filled in.
-  const returningDay = temporaryDriver.returningDate ? getCalendarDay(new Date(temporaryDriver.returningDate)) : monthEnd;
+  const returningDay = returningDate ? getCalendarDay(returningDate) : monthEnd;
   const periodStart = joiningDay > monthStart ? joiningDay : monthStart;
   const periodEnd = returningDay < monthEnd ? returningDay : monthEnd;
   const days = periodEnd >= periodStart ? Math.floor((periodEnd - periodStart) / MS_PER_DAY) + 1 : 0;
 
-  const tripsInPeriod = tripsWithBalances.filter((trip) => {
+  const tempRows = [];
+  monthTrips.forEach((tripDoc) => {
+    const trip = tripDoc.toObject();
     const closedDate = getTripClosedDate(trip);
-    return closedDate && closedDate >= joiningDay && closedDate <= returningDay;
+    const kmBelongsToTemp = isDateInTempWindow(closedDate, joiningDate, returningDate);
+
+    const { tempTrip } = splitTripEntriesByDate(trip, joiningDate, returningDate);
+    const tempRow = buildTripRow(tempTrip, routeKmTable, true);
+    if (!kmBelongsToTemp) {
+      tempRow.corporationKm = 0;
+      tempRow.corpKm = null;
+    }
+
+    const hasTempMoney = tempRow.advanceTotal > 0 || tempRow.dieselTotal > 0 || tempRow.expenseTotal > 0;
+    if (hasTempMoney || kmBelongsToTemp) tempRows.push(tempRow);
   });
+
+  const tempKmRows = monthTrips
+    .map((tripDoc) => tripDoc.toObject())
+    .filter((trip) => isDateInTempWindow(getTripClosedDate(trip), joiningDate, returningDate));
+  const corporationKm = sumRouteTableKm(tempKmRows, routeKmTable, Number(driver.minKmCharges || 0) > 0);
+  const kmCharges = Number(driver.kmCharges || 0);
+  const kmBeta = round0(kmCharges * corporationKm);
+  const { specialTripCount, specialTripCharges } = calculateSpecialTripCharges(tempKmRows, routeKmTable);
+
+  const totalAdvance = round0(sumTripAdvances(tempRows));
+  const totalDiesel = round0(sumTripDiesel(tempRows));
+  const totalDieselLitres = round0(sumTripDieselLitres(tempRows));
+  const totalExpense = round0(sumTripExpenses(tempRows));
+  const totalBalance = sumTripBalances(tempRows);
+  const basicSalary = days > 0 ? round0((Number(driver.basicSalary || 0) / daysInMonth) * days) : 0;
 
   return {
     name: temporaryDriver.name,
     joiningDate: temporaryDriver.joiningDate,
     returningDate: temporaryDriver.returningDate,
     days,
-    basicSalary: days > 0 ? round0((Number(monthlyBasicSalary || 0) / daysInMonth) * days) : 0,
-    tripsCount: tripsInPeriod.length,
-    totalAdvance: round0(sumTripAdvances(tripsInPeriod)),
-    totalDiesel: round0(sumTripDiesel(tripsInPeriod)),
-    totalDieselLitres: round0(sumTripDieselLitres(tripsInPeriod)),
-    totalExpense: round0(sumTripExpenses(tripsInPeriod)),
+    basicSalary,
+    trips: tempRows,
+    tripsCount: tempRows.length,
+    closedTrips: tempRows.length,
+    corporationKm: round0(corporationKm),
+    kmCharges,
+    kmBeta,
+    specialTripCount,
+    specialTripCharges: round0(specialTripCharges),
+    totalAdvance,
+    totalDiesel,
+    totalDieselLitres,
+    totalExpense,
+    totalBalance: round0(totalBalance),
+    salaryBalance: round0(basicSalary + kmBeta + specialTripCharges - totalBalance),
   };
 }
 
@@ -268,24 +375,36 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
     : [];
   const monthTrips = trips.filter((trip) => isTripInSalaryMonth(trip, monthStart, monthEnd));
   const routeKmTable = loadRouteKmTable();
-  const tripsWithBalances = monthTrips.map((trip) => {
-    const corporationKmDetails = getCorporationKmDetails(trip, routeKmTable);
-    return {
-      ...trip.toObject(),
-      balance: trip.settlement?.balance != null ? Number(trip.settlement.balance) : calculateTripBalance(trip),
-      corpKm: findRouteKm(routeKmTable, trip.loadingLocation, trip.unloadingLocation),
-      corporationKm: corporationKmDetails.value || 0,
-      corporationKmSource: corporationKmDetails.source,
-      advanceTotal: (trip.driverAdvances || []).reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
-      dieselTotal: (trip.dieselEntries || []).reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
-      dieselLitres: (trip.dieselEntries || []).reduce((sum, entry) => sum + Number(entry.volumeLitres || 0), 0),
-      expenseTotal: calculateTripExpense(trip),
-    };
+
+  const tempDriverInfo = driver.temporaryDriver?.required && driver.temporaryDriver?.joiningDate
+    ? driver.temporaryDriver
+    : null;
+  const joiningDate = tempDriverInfo ? new Date(tempDriverInfo.joiningDate) : null;
+  const returningDate = tempDriverInfo?.returningDate ? new Date(tempDriverInfo.returningDate) : null;
+
+  // Money is split per entry by date whenever a temporary driver is on record for this vehicle;
+  // KM/mileage is attributed whole-trip, to whichever driver actually closed that trip.
+  const tripsWithBalances = monthTrips.map((tripDoc) => {
+    const trip = tripDoc.toObject();
+    if (!tempDriverInfo) return buildTripRow(trip, routeKmTable);
+
+    const closedDate = getTripClosedDate(trip);
+    const kmBelongsToTemp = isDateInTempWindow(closedDate, joiningDate, returningDate);
+    const { driverTrip } = splitTripEntriesByDate(trip, joiningDate, returningDate);
+    const row = buildTripRow(driverTrip, routeKmTable, true);
+    if (kmBelongsToTemp) {
+      row.corporationKm = 0;
+      row.corpKm = null;
+    }
+    return row;
   });
-  const corporationKm = sumRouteTableKm(tripsWithBalances, routeKmTable, Number(driver.minKmCharges || 0) > 0);
+  const driverKmTrips = tempDriverInfo
+    ? monthTrips.map((tripDoc) => tripDoc.toObject()).filter((trip) => !isDateInTempWindow(getTripClosedDate(trip), joiningDate, returningDate))
+    : monthTrips.map((tripDoc) => tripDoc.toObject());
+  const corporationKm = sumRouteTableKm(driverKmTrips, routeKmTable, Number(driver.minKmCharges || 0) > 0);
   const manualKmTotal = 0;
   const totalDriverKm = corporationKm + manualKmTotal;
-  const { specialTripCount, specialTripCharges } = calculateSpecialTripCharges(tripsWithBalances, routeKmTable);
+  const { specialTripCount, specialTripCharges } = calculateSpecialTripCharges(driverKmTrips, routeKmTable);
   const totalBalance = sumTripBalances(tripsWithBalances);
   const totalAdvance = round0(sumTripAdvances(tripsWithBalances));
   const totalDiesel = round0(sumTripDiesel(tripsWithBalances));
@@ -301,7 +420,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   const basicSalary = basicSalaryDetails.basicSalary;
   const kmCharges = Number(driver.kmCharges || 0);
   const kmBeta = round0(kmCharges * totalDriverKm);
-  const temporaryDriver = calculateTemporaryDriverSegment(month, driver.temporaryDriver, tripsWithBalances, driver.basicSalary);
+  const temporaryDriver = calculateTemporaryDriverSegment(month, driver.temporaryDriver, monthTrips, routeKmTable, driver);
   return {
     month,
     driver,
