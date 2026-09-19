@@ -51,9 +51,15 @@ async function getEntryFloorDate(trip) {
 
 // Advance/Diesel/RTO/Other Expense entries must fall on or after the previous trip's close date
 // and on or before this trip's own close date - if that isn't set yet, they also can't be dated
-// in the future (there's nothing to bound them by otherwise).
+// in the future (there's nothing to bound them by otherwise). Once this trip's own loading date
+// is known, it's a stronger, more specific floor than either of those (nothing in the trip can
+// predate when it actually started loading), so it takes over from that point on.
 async function validateEntryDate(trip, date, label) {
-  const previousTurnDate = await getEntryFloorDate(trip);
+  let previousTurnDate = await getEntryFloorDate(trip);
+  if (trip.loadingDate) {
+    const loadingDate = new Date(trip.loadingDate);
+    if (!previousTurnDate || loadingDate > previousTurnDate) previousTurnDate = loadingDate;
+  }
   if (previousTurnDate && date < previousTurnDate) {
     return `${label} date must be on or after the previous trip's Load Turn (close) date.`;
   }
@@ -271,6 +277,12 @@ async function getTrip(req, res) {
   result.previousTripCloseDate = previousTurnDate && tempJoiningDate
     ? (tempJoiningDate < previousTurnDate ? tempJoiningDate : previousTurnDate)
     : (previousTurnDate || tempJoiningDate || null);
+  // Used by the frontend to restrict Advance/Diesel/RTO/Other Expense date pickers - once this
+  // trip's own loading date is known, nothing in it can predate that (a stronger, more specific
+  // floor than previousTripCloseDate alone), so it takes over from that point on.
+  result.entryFloorDate = trip.loadingDate && (!result.previousTripCloseDate || new Date(trip.loadingDate) > result.previousTripCloseDate)
+    ? trip.loadingDate
+    : result.previousTripCloseDate;
   res.json({ trip: result });
 }
 

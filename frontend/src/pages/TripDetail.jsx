@@ -231,7 +231,7 @@ function AdvanceSection({ trip, tripId, onSaved }) {
   const [editDate, setEditDate] = useState('');
   const [error, setError] = useState('');
   const advances = trip.driverAdvances || [];
-  const minDate = minEntryDateValue(trip.previousTripCloseDate);
+  const minDate = minEntryDateValue(trip.entryFloorDate);
   const maxDate = getEntryMaxDate(trip);
 
   async function submit(e) {
@@ -642,7 +642,7 @@ function DieselForm({
   const [photo, setPhoto] = useState(null);
   const [dieselFilledConfirmed, setDieselFilledConfirmed] = useState(false);
   const [error, setError] = useState('');
-  const minDate = minEntryDateValue(trip?.previousTripCloseDate);
+  const minDate = minEntryDateValue(trip?.entryFloorDate);
   const maxDate = getEntryMaxDate(trip);
 
   async function submit(e) {
@@ -718,7 +718,7 @@ function DieselSummary({ trip, tripId, onSaved }) {
   const [odometerKm, setOdometerKm] = useState('');
   const [date, setDate] = useState('');
   const [error, setError] = useState('');
-  const minDate = minEntryDateValue(trip.previousTripCloseDate);
+  const minDate = minEntryDateValue(trip.entryFloorDate);
   const maxDate = getEntryMaxDate(trip);
 
   function startEdit(index, entry) {
@@ -820,7 +820,7 @@ function RtoSummary({ trip, onSaved }) {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [error, setError] = useState('');
-  const minDate = minEntryDateValue(trip.previousTripCloseDate);
+  const minDate = minEntryDateValue(trip.entryFloorDate);
   const maxDate = getEntryMaxDate(trip);
 
   function startEdit(index, entry) {
@@ -883,7 +883,7 @@ function RtoForm({ tripId, trip, onSaved }) {
   const [date, setDate] = useState('');
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState('');
-  const minDate = minEntryDateValue(trip.previousTripCloseDate);
+  const minDate = minEntryDateValue(trip.entryFloorDate);
   const maxDate = getEntryMaxDate(trip);
 
   async function submit(e) {
@@ -923,7 +923,7 @@ function OtherExpenseForm({ tripId, trip, onSaved }) {
   const [category, setCategory] = useState('');
   const [photo, setPhoto] = useState(null);
   const [error, setError] = useState('');
-  const minDate = minEntryDateValue(trip.previousTripCloseDate);
+  const minDate = minEntryDateValue(trip.entryFloorDate);
   const maxDate = getEntryMaxDate(trip);
 
   async function submit(e) {
@@ -977,7 +977,7 @@ function OtherExpenseSummary({ trip, tripId, onSaved }) {
   const [date, setDate] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
-  const minDate = minEntryDateValue(trip.previousTripCloseDate);
+  const minDate = minEntryDateValue(trip.entryFloorDate);
   const maxDate = getEntryMaxDate(trip);
 
   function startEdit(index, entry) {
