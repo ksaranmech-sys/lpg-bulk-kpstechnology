@@ -46,8 +46,9 @@ function calculateClosingOdometerKm(currentTrip, previousTrip) {
  * @param {Trip} trip - the trip being closed/settled (mongoose doc or plain object)
  * @param {Trip|null} nextTrip - the following trip for this vehicle, if it exists yet.
  *   Settlement cannot be finalized until nextTrip records its first diesel fill, OR (if that
- *   hasn't happened yet) its Unload Turn date - either one confirms the next trip has genuinely
- *   started. Without a diesel fill though, the diesel/KM/mileage figures stay null until it's filled.
+ *   hasn't happened yet) its Unload Turn date, OR its own unloading is done - any one confirms
+ *   the next trip has genuinely started. Without a diesel fill though, the diesel/KM/mileage
+ *   figures stay null until it's filled.
  * @returns {{ ready: boolean, reason?: string, settlement?: object }}
  */
 function computeTripSettlement(trip, nextTrip) {
@@ -59,7 +60,8 @@ function computeTripSettlement(trip, nextTrip) {
 
   const nextTripHasDiesel = Boolean(nextTrip?.dieselEntries?.length);
   const nextTripHasUnloadTurn = Boolean(nextTrip?.unTurnDate);
-  if (!nextTrip || (!nextTripHasDiesel && !nextTripHasUnloadTurn)) {
+  const nextTripUnloadingDone = Boolean(nextTrip?.unloadingLocation && nextTrip?.unloadingDate);
+  if (!nextTrip || (!nextTripHasDiesel && !nextTripHasUnloadTurn && !nextTripUnloadingDone)) {
     return {
       ready: false,
       reason: 'Trip cannot be finalized until the next trip records its first diesel fill or its Unload Turn date.',

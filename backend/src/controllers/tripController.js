@@ -662,6 +662,9 @@ async function setUnloading(req, res) {
     }
   }
   await trip.save();
+  // Unloading being done is another signal (besides the first diesel fill or Unload Turn) that
+  // this trip has genuinely started, so it can also unblock closing the vehicle's previous trip.
+  await tryCloseVehiclePreviousTrip(trip);
   res.json({ trip });
 }
 
