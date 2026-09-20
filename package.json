@@ -6,7 +6,8 @@
   "workspaces": [
     "shared",
     "backend",
-    "frontend"
+    "frontend",
+    "mobile"
   ],
   "scripts": {
     "build": "npm run clean:build && npm --workspace frontend run build",

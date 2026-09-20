@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "LPG Fleet Driver",
+    "slug": "lpg-fleet-driver",
+    "scheme": "lpgfleet",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#183b4b"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "in.kpstechnology.lpgfleet",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "in.kpstechnology.lpgfleet",
+      "adaptiveIcon": {
+        "backgroundColor": "#183b4b",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      "expo-secure-store",
+      "expo-sharing",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "LPG Fleet Driver uses the camera to photograph diesel, RTO and expense receipts.",
+          "photosPermission": "LPG Fleet Driver needs photo access to attach receipt images.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "LPG Fleet Driver records your location when you log a diesel fill so the trip report shows where it happened."
+        }
+      ]
+    ],
+    "extra": {
+      "apiBaseUrl": "https://lpg-bulk-kpstechnology-fleet.onrender.com/api/v1"
+    }
+  }
+}
