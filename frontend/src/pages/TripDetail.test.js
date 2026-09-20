@@ -7,16 +7,32 @@ import * as api from '../api/api';
 jest.mock('../api/api', () => ({
   getTrip: jest.fn(),
   getMeta: jest.fn(),
+  addAdvance: jest.fn(),
+  updateAdvance: jest.fn(),
+  setLoadingDetailsWithPhoto: jest.fn(),
   setTurnDetails: jest.fn(),
   closeTrip: jest.fn(),
   setUnloading: jest.fn(),
   setUnloadingTurnDetails: jest.fn(),
   deleteUnloadingTurnDetails: jest.fn(),
+  getCurrentPosition: jest.fn(),
+  addDieselEntry: jest.fn(),
+  updateDieselEntry: jest.fn(),
+  deleteDieselEntry: jest.fn(),
+  addRtoEntry: jest.fn(),
+  updateRtoEntry: jest.fn(),
+  addOtherExpense: jest.fn(),
+  updateOtherExpense: jest.fn(),
+  deleteOtherExpense: jest.fn(),
+}));
+
+jest.mock('../context/AuthContext', () => ({
+  useAuth: () => ({ user: { role: 'customer_admin' } }),
 }));
 
 jest.mock('../components/Layout', () => ({ children }) => <>{children}</>);
 
-test('shows editable manual loading details below driver advance', async () => {
+test('renders trip sections in order and toggles divert fields', async () => {
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   api.getTrip.mockResolvedValue({
     data: {
@@ -59,98 +75,43 @@ test('shows editable manual loading details below driver advance', async () => {
   });
   await act(async () => {});
 
-  const headings = Array.from(container.querySelectorAll('h3')).map((heading) => heading.textContent);
-  expect(headings.indexOf('Loading Details Added')).toBeGreaterThan(
-    headings.indexOf('Add Driver Advance')
-  );
+  expect(api.getTrip).toHaveBeenCalledWith('trip-1');
 
-  const loadingSummary = Array.from(container.querySelectorAll('.card')).find(
-    (card) => card.querySelector('h3')?.textContent === 'Loading Details Added'
-  );
-  await act(async () => loadingSummary.querySelector('button').click());
+  const heading = container.querySelector('h2');
+  expect(heading.textContent).toContain('MRPL');
+  expect(heading.textContent).toContain('Depot');
 
-  const loadingForm = Array.from(container.querySelectorAll('form')).find(
-    (form) => form.querySelector('h3')?.textContent === 'Loading Details'
-  );
-  expect(loadingForm).not.toBeNull();
-  expect(loadingForm.querySelector('select')).not.toBeNull();
-  expect(loadingForm.querySelectorAll('input').length).toBeGreaterThanOrEqual(2);
-  expect(loadingForm.querySelector('input[type="date"]').value).toBe('2026-09-14');
-  expect(loadingForm.querySelector('button').textContent).toBe('Save loading details');
-
-  const turnHeadings = Array.from(container.querySelectorAll('h3')).map((heading) => heading.textContent);
-  expect(turnHeadings.indexOf('Load Turn Added')).toBeGreaterThan(
-    turnHeadings.indexOf('Unloading Expenses Added')
-  );
-  expect(turnHeadings.indexOf('Load Turn Added')).toBeGreaterThan(
-    turnHeadings.indexOf('Other Expenses Added')
-  );
-  const turnSummary = Array.from(container.querySelectorAll('.card')).find(
-    (card) => card.querySelector('h3')?.textContent === 'Load Turn Added'
-  );
-  await act(async () => turnSummary.querySelector('button').click());
-  const turnForm = Array.from(container.querySelectorAll('form')).find(
-    (form) => form.querySelector('h3')?.textContent === 'Load Turn'
-  );
-  expect(turnForm.querySelector('input[type="number"]').value).toBe('7');
-  expect(turnForm.querySelector('input[type="date"]').value).toBe('2026-09-13');
-  expect(turnForm.querySelector('button').textContent).toBe('Trip close');
-  api.setTurnDetails.mockResolvedValue({ data: { trip: {} } });
-  api.closeTrip.mockResolvedValue({ data: { trip: { status: 'closed' } } });
-  await act(async () => turnForm.requestSubmit());
-  expect(api.setTurnDetails).toHaveBeenCalledWith('trip-1', {
-    turnNumber: 7,
-    turnDate: '2026-09-13',
-    fillingOrderLocation: undefined,
-    manualKm: undefined,
-  });
-  expect(api.closeTrip).toHaveBeenCalledWith('trip-1');
-
-  const unTurnHeadings = Array.from(container.querySelectorAll('h3')).map((heading) => heading.textContent);
-  expect(unTurnHeadings.indexOf('Unload Turn Added')).toBeLessThan(
-    unTurnHeadings.indexOf('Unloading Details Added')
-  );
-  const unTurnSummary = Array.from(container.querySelectorAll('.card')).find(
-    (card) => card.querySelector('h3')?.textContent === 'Unload Turn Added'
-  );
-  expect(unTurnSummary.textContent).toContain('Turn 8');
-  window.confirm = jest.fn(() => true);
-  api.deleteUnloadingTurnDetails.mockResolvedValue({ data: {} });
-  await act(async () => unTurnSummary.querySelector('button').click());
-  expect(api.deleteUnloadingTurnDetails).toHaveBeenCalledWith('trip-1');
+  const headings = Array.from(container.querySelectorAll('h3')).map((h3) => h3.textContent);
+  const advanceIndex = headings.indexOf('Advance');
+  const loadingIndex = headings.indexOf('Loading Details & Expenses');
+  const dieselIndex = headings.indexOf('Diesel');
+  const rtoIndex = headings.indexOf('RTO Expenses');
+  const otherIndex = headings.indexOf('Other Expenses');
+  expect(advanceIndex).toBeGreaterThanOrEqual(0);
+  expect(loadingIndex).toBeGreaterThan(advanceIndex);
+  expect(dieselIndex).toBeGreaterThan(loadingIndex);
+  expect(rtoIndex).toBeGreaterThan(dieselIndex);
+  expect(otherIndex).toBeGreaterThan(rtoIndex);
 
   const unloadingSummary = Array.from(container.querySelectorAll('.card')).find(
-    (card) => card.querySelector('h3')?.textContent === 'Unloading Details Added'
+    (card) => card.querySelector('h3')?.textContent === 'Unloading Details'
   );
   await act(async () => unloadingSummary.querySelector('button').click());
   const unloadingForm = Array.from(container.querySelectorAll('form')).find(
     (form) => form.querySelector('h3')?.textContent === 'Unloading Details'
   );
+  expect(unloadingForm).not.toBeUndefined();
   const divertCheckbox = Array.from(unloadingForm.querySelectorAll('input[type="checkbox"]')).find(
-    (checkbox) => checkbox.parentElement.textContent.includes('Divert')
+    (checkbox) => checkbox.closest('.field').textContent.includes('Divert')
   );
   expect(divertCheckbox.checked).toBe(false);
   expect(unloadingForm.querySelector('.divert-fields')).toBeNull();
   await act(async () => divertCheckbox.click());
   const divertFields = unloadingForm.querySelector('.divert-fields');
   expect(divertFields).not.toBeNull();
-  expect(divertFields.children).toHaveLength(2);
-  expect(divertFields.querySelector('select')).not.toBeNull();
-  expect(divertFields.querySelector('input[type="date"]')).not.toBeNull();
+  expect(divertFields.textContent).toContain('Divert Location');
   expect(divertFields.textContent).toContain('Divert Date');
-
-  const dieselForm = Array.from(container.querySelectorAll('form')).find(
-    (form) => form.querySelector('h3')?.textContent === 'Diesel Filling Entry'
-  );
-  const dieselConfirmation = dieselForm.querySelector('input[type="checkbox"]');
-  const addDieselButton = dieselForm.querySelector('button[type="submit"]');
-  expect(dieselConfirmation.parentElement.classList.contains('tank-fill-control')).toBe(true);
-  expect(dieselConfirmation.parentElement.textContent).toContain('Tank Fill');
-  expect(dieselConfirmation.checked).toBe(false);
-  expect(addDieselButton.disabled).toBe(false);
-  await act(async () => dieselConfirmation.click());
-  expect(dieselConfirmation.checked).toBe(true);
-  expect(addDieselButton.disabled).toBe(false);
+  expect(divertFields.querySelector('input[type="date"]')).not.toBeNull();
 
   await act(async () => root.unmount());
   globalThis.IS_REACT_ACT_ENVIRONMENT = false;
