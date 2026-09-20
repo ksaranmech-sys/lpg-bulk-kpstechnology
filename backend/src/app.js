@@ -19,9 +19,10 @@ const app = express();
 const uploadsPath = path.resolve(__dirname, '../', config.storage.uploadDir);
 const frontendBuildPath = path.resolve(__dirname, '../../build');
 
-// Render/Vercel sit in front of this server; trust the first proxy hop so req.ip (used by the
-// rate limiter) is the real client address, not the proxy's.
-app.set('trust proxy', 1);
+// Website requests arrive via two proxies (Vercel rewrite -> Render load balancer); mobile app
+// requests via one. Trusting two hops resolves req.ip to the real client in both cases, so the
+// login rate limiter doesn't treat every website user as a single Vercel address.
+app.set('trust proxy', 2);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } })); // photos are embedded by other origins
 app.use(cors({

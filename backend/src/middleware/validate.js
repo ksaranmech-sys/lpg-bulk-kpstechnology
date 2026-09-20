@@ -33,6 +33,10 @@ const rules = {
     objectId('userId', body),
     password('newPassword'),
   ]),
+  changePassword: validate([
+    body('currentPassword').isString().notEmpty().withMessage('currentPassword is required'),
+    password('newPassword'),
+  ]),
   createCustomer: validate([
     body('companyName').isString().trim().notEmpty().withMessage('companyName is required').isLength({ max: 150 }),
     body('mobileNumber').isString().trim().notEmpty().withMessage('mobileNumber is required').isLength({ max: 20 }),

@@ -11,7 +11,8 @@ import axios from 'axios';
  *                                              should navigate to its login screen.
  */
 export function createApiClient({ baseURL, session, onSessionExpired }) {
-  const http = axios.create({ baseURL });
+  // 60s covers a Render free-tier cold start; without a timeout a dead connection hangs forever.
+  const http = axios.create({ baseURL, timeout: 60000 });
 
   http.interceptors.request.use(async (config) => {
     const { token } = (await session.getSession()) || {};
@@ -78,6 +79,7 @@ export function createEndpoints(api) {
     login: (username, password) => api.post('/auth/login', { username, password }),
     logout: () => api.post('/auth/logout'),
     getMe: () => api.get('/auth/me'),
+    changePassword: (currentPassword, newPassword) => api.post('/auth/change-password', { currentPassword, newPassword }),
 
     // ---- Meta ----
     getMeta: () => api.get('/meta'),

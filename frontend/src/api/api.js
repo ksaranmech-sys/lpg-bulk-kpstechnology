@@ -24,7 +24,7 @@ const client = createApiClient({
 const api = client.http;
 
 export const {
-  login, logout, getMe,
+  login, logout, getMe, changePassword,
   getMeta, updateRouteKmTable,
   listVehicles, getVehicle, updateVehicle, deleteVehicle, updateVehicleReminderDates, sendVehicleReminder,
   listTripsForVehicle, createTrip, getTrip, deleteTrip,

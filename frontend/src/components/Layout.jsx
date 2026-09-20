@@ -42,6 +42,11 @@ export default function Layout({ children }) {
         </Link>
         <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {user && <span style={{ fontSize: 13 }}>{user.displayName || user.name || user.username} ({user.role})</span>}
+          {user && (
+            <Link to="/account/password" className="btn secondary topbar-action" style={{ color: 'white', borderColor: 'rgba(255,255,255,0.4)', textDecoration: 'none' }}>
+              Change Password
+            </Link>
+          )}
           {user?.role === 'super_admin' && (
             <Link to="/admin/onboarding" className="btn secondary topbar-action" style={{ color: 'white', borderColor: 'rgba(255,255,255,0.4)', textDecoration: 'none' }}>
               Create Customer

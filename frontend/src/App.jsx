@@ -9,6 +9,7 @@ const TripDetail = lazy(() => import('./pages/TripDetail'));
 const AdminOnboarding = lazy(() => import('./pages/AdminOnboarding'));
 const DriverDetail = lazy(() => import('./pages/DriverDetail'));
 const CustomerDetail = lazy(() => import('./pages/CustomerDetail'));
+const ChangePassword = lazy(() => import('./pages/ChangePassword'));
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/admin/onboarding" element={<PrivateRoute><AdminOnboarding /></PrivateRoute>} />
           <Route path="/customers/:customerId" element={<PrivateRoute><CustomerDetail /></PrivateRoute>} />
           <Route path="/drivers/:customerId/:driverId" element={<PrivateRoute><DriverDetail /></PrivateRoute>} />
+          <Route path="/account/password" element={<PrivateRoute><ChangePassword /></PrivateRoute>} />
           <Route path="*" element={<PrivateRoute><Navigate to="/" replace /></PrivateRoute>} />
         </Routes>
       </AuthProvider>

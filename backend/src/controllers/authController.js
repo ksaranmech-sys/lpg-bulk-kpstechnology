@@ -89,4 +89,22 @@ async function resetUserPassword(req, res) {
   res.json({ message: 'Password reset successfully', user: user.toSafeJSON() });
 }
 
-module.exports = { login, refresh, logout, me, resetUserPassword };
+// POST /api/v1/auth/change-password  { currentPassword, newPassword }
+// Any signed-in user changes their own password; other sessions are signed out.
+async function changePassword(req, res) {
+  const { currentPassword, newPassword } = req.body;
+
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  const valid = await user.checkPassword(currentPassword);
+  if (!valid) return res.status(400).json({ error: 'Current password is incorrect' });
+
+  await user.setPassword(newPassword);
+  user.tokenVersion = (user.tokenVersion || 0) + 1;
+  await user.save();
+
+  res.json({ message: 'Password changed successfully', ...issueTokens(user) });
+}
+
+module.exports = { login, refresh, logout, me, resetUserPassword, changePassword };
