@@ -113,7 +113,7 @@ function buildTripSettlementPdf(trip, previousTrip = trip.previousTrip) {
   });
 }
 
-function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trips }) {
+function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trips, detailTrips = trips }) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 24, size: 'A4', layout: 'landscape' });
     const chunks = [];
@@ -151,7 +151,13 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
       });
     }
 
-    trips.forEach((trip) => renderMonthlyTripDetailsPage(doc, trip, driver, vehicle, customer));
+    detailTrips.forEach((trip) => renderMonthlyTripDetailsPage(
+      doc,
+      trip,
+      trip.driverNames?.length ? { name: trip.driverNames.join(', ') } : driver,
+      vehicle,
+      customer
+    ));
     doc.end();
   });
 }
@@ -323,10 +329,11 @@ function renderTripOverview(doc, trip, customer, driver, vehicle, odometerKm = n
     });
     if (row[2]) {
       const driverRow = row[2] === 'Driver';
+      // Wide value cell so "Regular, Temp (Temporary)" fits on one line when both worked a trip.
       const driverLabelX = driverRow ? x + width * 0.50 : x + labelWidth * 2;
-      const driverValueX = driverRow ? x + width * 0.82 : x + labelWidth * 3;
-      const driverLabelWidth = driverRow ? width * 0.32 - 16 : labelWidth - 16;
-      const driverValueWidth = driverRow ? width * 0.18 - 24 : valueWidth - 24;
+      const driverValueX = driverRow ? x + width * 0.60 : x + labelWidth * 3;
+      const driverLabelWidth = driverRow ? width * 0.10 - 16 : labelWidth - 16;
+      const driverValueWidth = driverRow ? width * 0.40 - 24 : valueWidth - 24;
       doc.font('Helvetica-Bold').text(row[2], driverLabelX + 8, rowY + 5, { width: driverLabelWidth, align: 'right', lineBreak: false });
       doc.font('Helvetica').text(row[3], driverValueX + 8, rowY + 5, { width: driverValueWidth, align: 'right', lineBreak: false });
     }

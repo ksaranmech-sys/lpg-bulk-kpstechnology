@@ -190,6 +190,33 @@ test('trip expense includes cleaner loading, turn and parking like the trip prin
   assert.equal(expense, 650);
 });
 
+test('single trip pages name the regular driver, the temporary driver, or both when a trip straddles the handover', () => {
+  const driver = { name: 'Kumar' };
+  const temp = { name: 'Ravi' };
+  const joining = new Date('2026-08-15');
+  const base = { dieselEntries: [], rtoEntries: [], otherExpenses: [], loadingExpense: 0, unloadingExpense: 0 };
+
+  assert.deepEqual(customerController.getTripDriverNames(
+    { ...base, loadingDate: new Date('2026-08-02'), turnDate: new Date('2026-08-05'), driverAdvances: [{ date: new Date('2026-08-02'), amount: 500 }] },
+    driver, temp, joining, null
+  ), ['Kumar']);
+
+  assert.deepEqual(customerController.getTripDriverNames(
+    { ...base, loadingDate: new Date('2026-08-20'), turnDate: new Date('2026-08-22'), driverAdvances: [{ date: new Date('2026-08-20'), amount: 500 }] },
+    driver, temp, joining, null
+  ), ['Ravi (Temporary)']);
+
+  assert.deepEqual(customerController.getTripDriverNames(
+    { ...base, loadingDate: new Date('2026-08-12'), turnDate: new Date('2026-08-17'), driverAdvances: [{ date: new Date('2026-08-12'), amount: 500 }] },
+    driver, temp, joining, null
+  ), ['Kumar', 'Ravi (Temporary)']);
+
+  assert.deepEqual(customerController.getTripDriverNames(
+    { ...base, loadingDate: new Date('2026-08-12'), turnDate: new Date('2026-08-17') },
+    driver, null, null, null
+  ), ['Kumar']);
+});
+
 test('monthly salary sums trip expenses across every trip in the month', () => {
   const total = customerController.sumTripExpenses([
     { loadingExpense: 300, unloadingExpense: 200, rtoEntries: [], otherExpenses: [] },

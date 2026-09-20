@@ -148,6 +148,23 @@ function sumTripBalances(trips) {
   return Math.round((total + Number.EPSILON) * 100) / 100;
 }
 
+function hasTripMoney(trip) {
+  return sumTripAdvances([trip]) > 0 || sumTripDiesel([trip]) > 0 || sumTripExpenses([trip]) > 0;
+}
+
+// Names of everyone who worked on this trip in the salary month - the regular driver, the
+// temporary driver, or both when a trip's entries straddle the temp driver's window.
+function getTripDriverNames(trip, driver, temporaryDriver, joiningDate, returningDate) {
+  const regularName = driver.name || driver.username || '-';
+  if (!temporaryDriver) return [regularName];
+  const kmBelongsToTemp = isDateInTempWindow(getTripClosedDate(trip), joiningDate, returningDate);
+  const { driverTrip, tempTrip } = splitTripEntriesByDate(trip, joiningDate, returningDate);
+  const names = [];
+  if (!kmBelongsToTemp || hasTripMoney(driverTrip)) names.push(regularName);
+  if (kmBelongsToTemp || hasTripMoney(tempTrip)) names.push(`${temporaryDriver.name} (Temporary)`);
+  return names;
+}
+
 function sumTripAdvances(trips) {
   return trips.reduce((sum, trip) => (
     sum + (trip.driverAdvances || []).reduce((total, entry) => total + Number(entry.amount || 0), 0)
@@ -371,7 +388,8 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
     })
       .select(
         'loadingLocation loadingDate unloadingLocation unloadingDate fillingOrderLocation turnDate closedAt status ' +
-        'dieselEntries.filledAt dieselEntries.amount dieselEntries.volumeLitres settlement.balance settlement.totalKm ' +
+        'dieselEntries.filledAt dieselEntries.amount dieselEntries.volumeLitres dieselEntries.paymentMethod dieselEntries.odometerKm ' +
+        'settlement.balance settlement.totalKm settlement.mileageKmPerLitre settlement.totalDieselLitres ' +
         'driverAdvances loadingExpense parkingExpense turnExpense unloadingExpense rtoEntries otherExpenses manualKm manualKmDivert manualKmReturn ' +
         'isDiverted divertUnloadingLocation divertDate'
       )
@@ -425,10 +443,20 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   const kmCharges = Number(driver.kmCharges || 0);
   const kmBeta = round0(kmCharges * totalDriverKm);
   const temporaryDriver = calculateTemporaryDriverSegment(month, driver.temporaryDriver, monthTrips, routeKmTable, driver);
+  // Unsplit trips for the PDF's single-trip pages: every expense on the trip, tagged with
+  // whichever driver(s) worked it.
+  const detailTrips = monthTrips.map((tripDoc) => {
+    const trip = tripDoc.toObject();
+    return {
+      ...buildTripRow(trip, routeKmTable),
+      driverNames: getTripDriverNames(trip, driver, tempDriverInfo, joiningDate, returningDate),
+    };
+  });
   return {
     month,
     driver,
     trips: tripsWithBalances,
+    detailTrips,
     closedTrips: tripsWithBalances.length,
     totalBalance: round0(totalBalance),
     totalAdvance,
@@ -518,7 +546,7 @@ async function getDriverMonthlySalary(req, res) {
 
   const summary = await calculateDriverMonthlySalary(customerId, userId, month);
   if (!summary) return res.status(404).json({ error: 'Driver not found' });
-  const { driver, ...response } = summary;
+  const { driver, detailTrips, ...response } = summary;
   res.json(response);
 }
 
@@ -557,6 +585,7 @@ async function downloadDriverMonthlySummary(req, res) {
     customer,
     summary,
     trips: summary.trips,
+    detailTrips: summary.detailTrips,
   });
   const cleanFilenamePart = (value) => String(value || 'Unknown').trim()
     .replace(/[\\/:*?"<>|]+/g, '-')
@@ -817,6 +846,7 @@ module.exports = {
   sumRouteTableKm,
   calculateSpecialTripCharges,
   calculateBasicSalary,
+  getTripDriverNames,
   calculateDriverMonthlySalary,
   createCustomer,
   listCustomers,
