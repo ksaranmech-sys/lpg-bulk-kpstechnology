@@ -20,8 +20,8 @@
  *
  * - Mileage = KM / dieselForTrip (km per litre).
  *
- * - Expense total = loadingExpense + unloadingExpense + sum(otherExpenses)
- *                   + sum(rtoEntries)   <-- RTO IS included; only diesel is excluded.
+ * - Expense total = loadingExpense + turnExpense + parkingExpense + unloadingExpense
+ *                   + sum(otherExpenses) + sum(rtoEntries)   <-- RTO IS included; only diesel is excluded.
  *
  * - Balance = totalAdvance - totalExpense
  *   (positive => driver has money left / must return it,
@@ -100,7 +100,8 @@ function computeTripSettlement(trip, nextTrip) {
   const rtoTotal = sum(trip.rtoEntries || [], (e) => e.amount);
   const otherTotal = sum(trip.otherExpenses || [], (e) => e.amount);
   const totalExpense =
-    (trip.loadingExpense || 0) + (trip.unloadingExpense || 0) + rtoTotal + otherTotal;
+    (trip.loadingExpense || 0) + (trip.turnExpense || 0) + (trip.parkingExpense || 0)
+    + (trip.unloadingExpense || 0) + rtoTotal + otherTotal;
 
   const totalAdvance = sum(trip.driverAdvances || [], (e) => e.amount);
 

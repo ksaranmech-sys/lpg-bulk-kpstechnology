@@ -353,47 +353,18 @@ export default function DriverDetail() {
     }
   }
 
-  // With responseType: 'blob', a JSON error response also arrives as a Blob - axios never
-  // parses it, so err.response.data.error is always undefined unless we decode it ourselves.
-  async function extractBlobErrorMessage(err, fallback) {
-    const data = err.response?.data;
-    if (data instanceof Blob) {
-      try {
-        const parsed = JSON.parse(await data.text());
-        return parsed.error || fallback;
-      } catch {
-        return fallback;
-      }
-    }
-    return err.response?.data?.error || fallback;
-  }
-
   async function printMonthlySummary(month = salaryMonth) {
     const printWindow = window.open('', '_blank');
     setSummaryPrinting(true);
     try {
-      const res = await api.downloadDriverMonthlySummary(customerId, driverId, month);
-      const cleanFilenamePart = (value) => String(value || 'Unknown').trim()
-        .replace(/[\\/:*?"<>|]+/g, '-')
-        .replace(/\s+/g, '-');
-      const filename = [
-        cleanFilenamePart(data?.customer?.companyName),
-        cleanFilenamePart(driver?.name || driver?.username),
-        cleanFilenamePart(formatMonthLabel(month)),
-      ].join('-') + '.pdf';
-      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
-      // Browsers ignore File names on blob URLs and suggest a random UUID on save, so save
-      // through an anchor's download attribute - the only reliable way to set the filename.
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = filename;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
+      // Open the server URL directly (with a short-lived token) so the PDF viewer's Save
+      // suggests the Content-Disposition filename - blob URLs always save as a random UUID.
+      const url = await api.getDriverMonthlySummaryUrl(customerId, driverId, month);
       if (printWindow) printWindow.location.href = url;
+      else window.location.href = url;
     } catch (err) {
       printWindow?.close();
-      setError(await extractBlobErrorMessage(err, 'Failed to generate monthly summary'));
+      setError(err.response?.data?.error || 'Failed to generate monthly summary');
     } finally {
       setSummaryPrinting(false);
     }

@@ -128,6 +128,13 @@ export const downloadDriverMonthlySummary = (customerId, driverId, month) =>
     params: { month },
     responseType: 'blob',
   });
+// Direct browser URL for the salary PDF - opened in a new tab so the PDF viewer's "Save"
+// uses the server's Content-Disposition filename instead of a random blob UUID.
+export const getDriverMonthlySummaryUrl = async (customerId, driverId, month) => {
+  const res = await api.post(`/customers/${customerId}/users/${driverId}/monthly-summary/token`, null, { params: { month } });
+  const query = new URLSearchParams({ month, token: res.data.token });
+  return `${api.defaults.baseURL}/customers/${customerId}/users/${driverId}/monthly-summary?${query}`;
+};
 export const updateCustomer = (customerId, data) => api.patch(`/customers/${customerId}`, data);
 export const setCustomerStatus = (customerId, isActive) =>
   api.patch(`/customers/${customerId}/status`, { isActive });

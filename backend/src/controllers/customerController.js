@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const { ROLES } = require('../config/constants');
 const { buildDriverMonthlySummaryPdf, formatMonth } = require('../utils/pdfGenerator');
+const { signPdfToken } = require('../middleware/auth');
 const Leave = require('../models/Leave');
 const { findRouteKm, getCorporationKmDetails } = require('../utils/corporationKm');
 
@@ -62,7 +63,9 @@ function loadRouteKmTable() {
 function calculateTripExpense(trip) {
   const rtoExpense = (trip.rtoEntries || []).reduce((total, entry) => total + Number(entry.amount || 0), 0);
   const otherExpense = (trip.otherExpenses || []).reduce((total, entry) => total + Number(entry.amount || 0), 0);
-  return Number(trip.loadingExpense || 0) + Number(trip.unloadingExpense || 0) + rtoExpense + otherExpense;
+  // Mirrors the trip print: Cleaner Loading + Turn + Parking + Unloading + RTO + Other.
+  return Number(trip.loadingExpense || 0) + Number(trip.turnExpense || 0) + Number(trip.parkingExpense || 0)
+    + Number(trip.unloadingExpense || 0) + rtoExpense + otherExpense;
 }
 
 function calculateTripBalance(trip) {
@@ -369,7 +372,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
       .select(
         'loadingLocation loadingDate unloadingLocation unloadingDate fillingOrderLocation turnDate closedAt status ' +
         'dieselEntries.filledAt dieselEntries.amount dieselEntries.volumeLitres settlement.balance settlement.totalKm ' +
-        'driverAdvances loadingExpense unloadingExpense rtoEntries otherExpenses manualKm manualKmDivert manualKmReturn ' +
+        'driverAdvances loadingExpense parkingExpense turnExpense unloadingExpense rtoEntries otherExpenses manualKm manualKmDivert manualKmReturn ' +
         'isDiverted divertUnloadingLocation divertDate'
       )
       .sort('-loadingDate -closedAt')
@@ -519,12 +522,28 @@ async function getDriverMonthlySalary(req, res) {
   res.json(response);
 }
 
+// POST /api/v1/customers/:customerId/users/:userId/monthly-summary/token?month=YYYY-MM
+// Issues a short-lived token so the browser can open the PDF URL directly in a new tab and
+// pick up the Content-Disposition filename (blob URLs always save as a random UUID).
+async function createDriverMonthlySummaryToken(req, res) {
+  const { customerId, userId } = req.params;
+  const month = req.query.month || new Date().toISOString().slice(0, 7);
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    return res.status(400).json({ error: 'month must use YYYY-MM format' });
+  }
+  const token = signPdfToken(req.user, { customerId, userId, month });
+  res.json({ token });
+}
+
 // GET /api/v1/customers/:customerId/users/:userId/monthly-summary?month=YYYY-MM
 async function downloadDriverMonthlySummary(req, res) {
   const { customerId, userId } = req.params;
   const month = req.query.month || new Date().toISOString().slice(0, 7);
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
     return res.status(400).json({ error: 'month must use YYYY-MM format' });
+  }
+  if (req.user.scope && (req.user.customerId !== customerId || req.user.userId !== userId || req.user.month !== month)) {
+    return res.status(403).json({ error: 'Token is not valid for this report' });
   }
   const summary = await calculateDriverMonthlySalary(customerId, userId, month);
   if (!summary) return res.status(404).json({ error: 'Driver not found' });
@@ -803,6 +822,7 @@ module.exports = {
   listCustomers,
   getCustomer,
   getDriverMonthlySalary,
+  createDriverMonthlySummaryToken,
   downloadDriverMonthlySummary,
   updateCustomer,
   setCustomerStatus,

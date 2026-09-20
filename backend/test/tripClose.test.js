@@ -178,6 +178,18 @@ test('trip expense excludes diesel and driver advance, includes loading/unloadin
   assert.equal(expense, 650);
 });
 
+test('trip expense includes cleaner loading, turn and parking like the trip print', () => {
+  const expense = customerController.calculateTripExpense({
+    loadingExpense: 300,
+    turnExpense: 120,
+    parkingExpense: 80,
+    rtoEntries: [{ amount: 100 }],
+    otherExpenses: [{ amount: 50 }],
+  });
+
+  assert.equal(expense, 650);
+});
+
 test('monthly salary sums trip expenses across every trip in the month', () => {
   const total = customerController.sumTripExpenses([
     { loadingExpense: 300, unloadingExpense: 200, rtoEntries: [], otherExpenses: [] },

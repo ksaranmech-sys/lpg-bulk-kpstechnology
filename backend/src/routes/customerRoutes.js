@@ -26,6 +26,7 @@ router.get('/', requireRole(ROLES.SUPER_ADMIN), ctrl.listCustomers);
 router.get('/:customerId', requireRole(ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN), ownCustomerOnly, ctrl.getCustomer);
 router.get('/:customerId/users/:userId/salary', requireRole(ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN), ownCustomerOnly, ctrl.getDriverMonthlySalary);
 router.get('/:customerId/users/:userId/monthly-summary', requireRole(ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN), ownCustomerOnly, ctrl.downloadDriverMonthlySummary);
+router.post('/:customerId/users/:userId/monthly-summary/token', requireRole(ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN), ownCustomerOnly, ctrl.createDriverMonthlySummaryToken);
 router.patch('/:customerId', requireRole(ROLES.SUPER_ADMIN), ctrl.updateCustomer);
 router.patch('/:customerId/status', requireRole(ROLES.SUPER_ADMIN), ctrl.setCustomerStatus);
 router.delete('/:customerId', requireRole(ROLES.SUPER_ADMIN), ctrl.deleteCustomer);

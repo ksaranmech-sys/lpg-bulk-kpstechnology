@@ -33,10 +33,12 @@ function buildTripSettlementPdf(trip, previousTrip = trip.previousTrip) {
       .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
     const totalDiesel = dieselEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
     const loadingExpenseTotal = Number(trip.loadingExpense || 0);
+    const turnExpenseTotal = Number(trip.turnExpense || 0);
+    const parkingExpenseTotal = Number(trip.parkingExpense || 0);
     const unloadingExpenseTotal = Number(trip.unloadingExpense || 0);
     const rtoExpenseTotal = rtoEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
     const otherExpenseTotal = otherExpenses.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-    const totalExpenses = loadingExpenseTotal + rtoExpenseTotal + unloadingExpenseTotal + otherExpenseTotal;
+    const totalExpenses = loadingExpenseTotal + turnExpenseTotal + parkingExpenseTotal + unloadingExpenseTotal + rtoExpenseTotal + otherExpenseTotal;
     const balance = totalAdvance - (dieselCashTotal + totalExpenses);
 
     doc.fontSize(14).font('Helvetica-Bold').fillColor('#102f52').text('Single Trip', { align: 'left' });
@@ -81,15 +83,14 @@ function buildTripSettlementPdf(trip, previousTrip = trip.previousTrip) {
     doc.moveDown(0.25);
 
     styledSectionHeader(doc, 'Expenses');
-    renderTable(doc, ['Loading Expenses', 'Amount', 'Unloading Expenses', 'Amount'], [
-      [
-        fmtDate(trip.loadingDate), `Rs ${fmtMoney(loadingExpenseTotal)}`,
-        fmtDate(trip.unloadingDate), `Rs ${fmtMoney(unloadingExpenseTotal)}`,
-      ],
+    renderTable(doc, ['Item', 'Date', 'Amount'], [
+      ['Cleaner Loading', fmtDate(trip.loadingDate), `Rs ${fmtMoney(loadingExpenseTotal)}`],
+      ['Turn', fmtDate(trip.turnDate), `Rs ${fmtMoney(turnExpenseTotal)}`],
+      ['Parking', '-', `Rs ${fmtMoney(parkingExpenseTotal)}`],
+      ...(unloadingExpenseTotal > 0 ? [['Unloading', fmtDate(trip.unloadingDate), `Rs ${fmtMoney(unloadingExpenseTotal)}`]] : []),
+      ...rtoEntries.map((entry) => ['RTO', fmtDate(entry.date), `Rs ${fmtMoney(entry.amount)}`]),
+      ...otherExpenses.map((entry) => [entry.description || 'Other', fmtDate(entry.date), `Rs ${fmtMoney(entry.amount)}`]),
     ], { totalLabel: 'Total Expenses', totalValue: `Rs ${fmtMoney(totalExpenses)}` }, { styled: true });
-    renderTable(doc, ['RTO Expenses', 'Amount', 'Other Expenses', 'Amount'], [
-      ['RTO Expenses', `Rs ${fmtMoney(rtoExpenseTotal)}`, 'Other Expenses', `Rs ${fmtMoney(otherExpenseTotal)}`],
-    ], null, { styled: true });
     doc.moveDown(0.25);
 
     styledSectionHeader(doc, 'Balance');
@@ -258,10 +259,12 @@ function renderMonthlyTripDetailsPage(doc, trip, driver, vehicle, customer) {
   const dieselCashTotal = dieselEntries.filter((entry) => entry.paymentMethod === 'cash').reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
   const totalDiesel = dieselEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
   const loadingExpense = Number(trip.loadingExpense || 0);
+  const turnExpense = Number(trip.turnExpense || 0);
+  const parkingExpense = Number(trip.parkingExpense || 0);
   const unloadingExpense = Number(trip.unloadingExpense || 0);
   const rtoExpense = rtoEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
   const otherExpense = otherExpenses.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-  const totalExpenses = loadingExpense + unloadingExpense + rtoExpense + otherExpense;
+  const totalExpenses = loadingExpense + turnExpense + parkingExpense + unloadingExpense + rtoExpense + otherExpense;
   const balance = totalAdvance - dieselCashTotal - totalExpenses;
   const settlement = trip.settlement || {};
 
@@ -284,7 +287,14 @@ function renderMonthlyTripDetailsPage(doc, trip, driver, vehicle, customer) {
   styledSectionHeader(doc, 'Diesel Filled Details');
   renderTable(doc, ['Date', 'Purchase Type', 'Amount'], dieselEntries.length ? dieselEntries.map((entry) => [fmtDate(entry.filledAt), entry.paymentMethod === 'cash' ? 'Cash' : 'Diesel Card', `Rs ${fmtMoney(entry.amount)}`]) : [['-', 'No diesel entries', '-']], { totalLabel: 'Diesel Card', totalValue: `Rs ${fmtMoney(dieselCardTotal)}`, extraRows: [['Cash', '', `Rs ${fmtMoney(dieselCashTotal)}`], ['Total', '', `Rs ${fmtMoney(totalDiesel)}`]] }, { styled: true });
   styledSectionHeader(doc, 'Expenses');
-  renderTable(doc, ['Item', 'Amount'], [['Loading Expenses', `Rs ${fmtMoney(loadingExpense)}`], ['RTO Expenses', `Rs ${fmtMoney(rtoExpense)}`], ['Unloading Expenses', `Rs ${fmtMoney(unloadingExpense)}`], ['Other Expenses', `Rs ${fmtMoney(otherExpense)}`]], { totalLabel: 'Total', totalValue: `Rs ${fmtMoney(totalExpenses)}` }, { styled: true });
+  renderTable(doc, ['Item', 'Date', 'Amount'], [
+    ['Cleaner Loading', fmtDate(trip.loadingDate), `Rs ${fmtMoney(loadingExpense)}`],
+    ['Turn', fmtDate(trip.turnDate), `Rs ${fmtMoney(turnExpense)}`],
+    ['Parking', '-', `Rs ${fmtMoney(parkingExpense)}`],
+    ...(unloadingExpense > 0 ? [['Unloading', fmtDate(trip.unloadingDate), `Rs ${fmtMoney(unloadingExpense)}`]] : []),
+    ...rtoEntries.map((entry) => ['RTO', fmtDate(entry.date), `Rs ${fmtMoney(entry.amount)}`]),
+    ...otherExpenses.map((entry) => [entry.description || 'Other', fmtDate(entry.date), `Rs ${fmtMoney(entry.amount)}`]),
+  ], { totalLabel: 'Total', totalValue: `Rs ${fmtMoney(totalExpenses)}` }, { styled: true });
   styledSectionHeader(doc, 'Balance');
   renderSalaryRows(doc, [['Trip balance', `Rs ${fmtMoney(balance)}`]]);
   doc.roundedRect(x - 8, startY, width + 16, doc.y - startY + 8, 8).lineWidth(1).strokeColor('#1f4d2b').stroke();
