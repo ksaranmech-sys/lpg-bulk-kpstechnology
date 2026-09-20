@@ -31,9 +31,12 @@ export default function TripDetail() {
 
   function load() {
     api.getTrip(tripId).then((res) => setTrip(res.data.trip));
-    api.getMeta().then((res) => setMeta(res.data));
   }
   useEffect(load, [tripId]);
+  // Location lists / KM table change rarely - fetch once per page visit, not after every save.
+  useEffect(() => {
+    api.getMeta().then((res) => setMeta(res.data));
+  }, []);
 
   if (!trip) return <Layout><p>Loading...</p></Layout>;
 

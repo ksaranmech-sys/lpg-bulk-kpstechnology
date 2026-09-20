@@ -1,18 +1,20 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import TripDetail from './pages/TripDetail';
-import AdminOnboarding from './pages/AdminOnboarding';
-import DriverDetail from './pages/DriverDetail';
-import CustomerDetail from './pages/CustomerDetail';
+
+// Each page is its own bundle so the login screen loads without the whole app.
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const TripDetail = lazy(() => import('./pages/TripDetail'));
+const AdminOnboarding = lazy(() => import('./pages/AdminOnboarding'));
+const DriverDetail = lazy(() => import('./pages/DriverDetail'));
+const CustomerDetail = lazy(() => import('./pages/CustomerDetail'));
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (!user) return <Navigate to="/login" replace />;
-  return children;
+  return <Suspense fallback={<div className="container"><p>Loading...</p></div>}>{children}</Suspense>;
 }
 
 export default function App() {

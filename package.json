@@ -12,6 +12,8 @@
     "build": "npm run clean:build && npm --workspace frontend run build",
     "build:frontend": "npm --workspace frontend run build",
     "clean:build": "node -e \"const fs=require('fs'); const path=require('path'); const dir=path.join(process.cwd(),'build'); if (fs.existsSync(dir)) fs.rmSync(dir,{recursive:true,force:true});\"",
+    "test": "npm --workspace backend test && npm --workspace frontend test -- --watchAll=false",
+    "lint": "npx eslint backend/src backend/test --ext .js && npm --workspace frontend exec -- eslint src --ext .js,.jsx",
     "start": "node backend/src/server.js",
     "dev": "npm --workspace backend run dev",
     "seed": "npm --workspace backend run seed"

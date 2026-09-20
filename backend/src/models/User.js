@@ -51,6 +51,10 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Customer pages list users per customer; vehicle lookups find the active driver per vehicle.
+userSchema.index({ customer: 1, role: 1 });
+userSchema.index({ vehicle: 1, isActive: 1 });
+
 userSchema.methods.setPassword = async function (plainPassword) {
   const salt = await bcrypt.genSalt(10);
   this.passwordHash = await bcrypt.hash(plainPassword, salt);

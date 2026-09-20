@@ -13,4 +13,8 @@ const leaveSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// listLeaves filters by customer or driver and sorts by startDate desc.
+leaveSchema.index({ customer: 1, startDate: -1 });
+leaveSchema.index({ driver: 1, startDate: -1 });
+
 module.exports = mongoose.model('Leave', leaveSchema);
