@@ -546,7 +546,7 @@ async function downloadDriverMonthlySummary(req, res) {
     cleanFilenamePart(customer?.companyName),
     cleanFilenamePart(summary.driver?.name || summary.driver?.username),
     cleanFilenamePart(formatMonth(month)),
-  ].join('_');
+  ].join('-');
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `inline; filename="${monthlyFilename}.pdf"`);
   res.send(pdfBuffer);

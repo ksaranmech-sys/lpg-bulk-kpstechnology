@@ -381,12 +381,16 @@ export default function DriverDetail() {
         cleanFilenamePart(driver?.name || driver?.username),
         cleanFilenamePart(formatMonthLabel(month)),
       ].join('-') + '.pdf';
-      // Naming the Blob (via File) is what makes Chrome's PDF viewer suggest the right
-      // filename in "Save As" - a plain object URL from a Blob has no filename metadata.
-      const namedFile = new File([res.data], filename, { type: 'application/pdf' });
-      const url = URL.createObjectURL(namedFile);
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      // Browsers ignore File names on blob URLs and suggest a random UUID on save, so save
+      // through an anchor's download attribute - the only reliable way to set the filename.
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
       if (printWindow) printWindow.location.href = url;
-      else window.location.href = url;
     } catch (err) {
       printWindow?.close();
       setError(await extractBlobErrorMessage(err, 'Failed to generate monthly summary'));
