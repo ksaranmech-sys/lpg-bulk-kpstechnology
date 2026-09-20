@@ -26,7 +26,11 @@
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+      },
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -53,7 +57,12 @@
       ]
     ],
     "extra": {
-      "apiBaseUrl": "https://lpg-bulk-kpstechnology-fleet.onrender.com/api/v1"
-    }
+      "apiBaseUrl": "https://lpg-bulk-kpstechnology-fleet.onrender.com/api/v1",
+      "router": {},
+      "eas": {
+        "projectId": "870bb448-97a7-441a-9f26-91210a364026"
+      }
+    },
+    "owner": "kpstechnology"
   }
 }
