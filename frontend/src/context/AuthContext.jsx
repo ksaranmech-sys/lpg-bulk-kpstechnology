@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import * as api from '../api/api';
+import { getSession, saveSession, clearSession } from '../api/session';
 
 const AuthContext = createContext(null);
 
@@ -22,15 +23,11 @@ function normalizeUser(rawUser) {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const raw = localStorage.getItem('kps_user');
-    return raw ? normalizeUser(JSON.parse(raw)) : null;
-  });
+  const [user, setUser] = useState(() => normalizeUser(getSession().user));
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('kps_token');
-    if (!token) {
+    if (!getSession().token) {
       setLoading(false);
       return;
     }
@@ -39,7 +36,7 @@ export function AuthProvider({ children }) {
       .then((res) => {
         const nextUser = normalizeUser(res.data.user);
         setUser(nextUser);
-        localStorage.setItem('kps_user', JSON.stringify(nextUser));
+        saveSession({ user: nextUser });
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -48,14 +45,14 @@ export function AuthProvider({ children }) {
   async function signIn(username, password) {
     const res = await api.login(username, password);
     const nextUser = normalizeUser(res.data.user);
-    localStorage.setItem('kps_token', res.data.token);
-    localStorage.setItem('kps_user', JSON.stringify(nextUser));
+    saveSession({ token: res.data.token, refreshToken: res.data.refreshToken, user: nextUser });
     setUser(nextUser);
   }
 
-  function signOut() {
-    localStorage.removeItem('kps_token');
-    localStorage.removeItem('kps_user');
+  async function signOut() {
+    // Best-effort server-side revoke; the local session is cleared regardless.
+    try { await api.logout(); } catch (err) { /* already signed out or offline */ }
+    clearSession();
     setUser(null);
   }
 

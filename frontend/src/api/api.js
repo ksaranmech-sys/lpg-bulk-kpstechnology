@@ -1,8 +1,8 @@
 import axios from 'axios';
+import { getSession, saveSession, clearSession } from './session';
 
-// This client is intentionally framework-agnostic in shape: a React Native
-// mobile app can reuse almost this exact file (swap localStorage for
-// AsyncStorage) since it just talks to the versioned JSON REST API.
+// This client is intentionally framework-agnostic in shape: the React Native mobile app reuses
+// the same request/refresh logic with a SecureStore-backed session module.
 function getBaseURL() {
   const envUrl = process.env.REACT_APP_API_BASE_URL;
   // In a browser environment, if envUrl is missing, relative, or points to a vercel.app domain,
@@ -20,25 +20,57 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('kps_token');
+  const { token } = getSession();
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
+function redirectToLogin() {
+  clearSession();
+  if (window.location.pathname !== '/login') window.location.href = '/login';
+}
+
+// Access tokens are short-lived (15 min). On the first 401 we swap the refresh token for a new
+// pair and replay the original request; concurrent 401s share one refresh call.
+let refreshPromise = null;
+function refreshSession() {
+  if (!refreshPromise) {
+    const { refreshToken } = getSession();
+    if (!refreshToken) return Promise.reject(new Error('No refresh token'));
+    refreshPromise = axios
+      .post(`${api.defaults.baseURL}/auth/refresh`, { refreshToken })
+      .then((res) => {
+        saveSession(res.data);
+        return res.data.token;
+      })
+      .finally(() => { refreshPromise = null; });
+  }
+  return refreshPromise;
+}
+
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem('kps_token');
-      localStorage.removeItem('kps_user');
-      window.location.href = '/login';
+  async (err) => {
+    const original = err.config || {};
+    const isAuthCall = /\/auth\/(login|refresh)$/.test(original.url || '');
+    if (err.response?.status !== 401 || original._retried || isAuthCall) {
+      return Promise.reject(err);
     }
-    return Promise.reject(err);
+    try {
+      const token = await refreshSession();
+      original._retried = true;
+      original.headers = { ...original.headers, Authorization: `Bearer ${token}` };
+      return api(original);
+    } catch (refreshErr) {
+      redirectToLogin();
+      return Promise.reject(err);
+    }
   }
 );
 
 // ---- Auth ----
 export const login = (username, password) => api.post('/auth/login', { username, password });
+export const logout = () => api.post('/auth/logout');
 export const getMe = () => api.get('/auth/me');
 
 // ---- Meta ----
