@@ -1,150 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import {
-  expiresWithin30Days, isExpired, formatTripRoute, latestCalculableMonth,
-  isCurrentOrPreviousMonth, formatMonthLabel, monthKey as toMonthKey,
-} from '@kps/shared';
 import * as api from '../api/api';
 import Layout from '../components/Layout';
-import { ReminderDaySummary as ReminderSummary, reminderDayStatus as getReminderDayStatus } from '../components/ReminderSummary';
 import { useAuth } from '../context/AuthContext';
-
-// Shared trip-rows table for both the regular driver's and the temporary driver's salary
-// breakdown - each shows only the trip entries attributed to that side, but both keep the same
-// per-trip "Closed" checkbox since Trip Close still acts on the whole trip.
-function SalaryTripsTable({ trips, closingTripId, onCloseTrip, totals }) {
-  return (
-    <div style={{ overflowX: 'auto', marginBottom: 16 }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-        <thead>
-          <tr>
-            <th style={{ width: '4%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>S.No</th>
-            <th style={{ width: '11%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Location</th>
-            <th style={{ width: '9%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Date</th>
-            <th style={{ width: '11%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Unloading Location</th>
-            <th style={{ width: '9%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Unloading Date</th>
-            <th style={{ width: '11%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Divert Location</th>
-            <th style={{ width: '8%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Driver KM</th>
-            <th style={{ width: '8%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Diesel (Litres)</th>
-            <th style={{ width: '9%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Diesel</th>
-            <th style={{ width: '9%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Advance</th>
-            <th style={{ width: '9%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Expense</th>
-            <th style={{ width: '11%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }} title="Trip Advance - Trip Expenses">Trip balance</th>
-            <th style={{ width: '6%', textAlign: 'center', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Closed</th>
-          </tr>
-        </thead>
-        <tbody>
-          {(trips || []).length === 0 ? (
-            <tr><td colSpan="13" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No trips for this month.</td></tr>
-          ) : (trips || []).map((trip, index) => (
-            <tr key={trip._id || index}>
-              <td style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>{index + 1}</td>
-              <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingLocation || '-'}</td>
-              <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}</td>
-              <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingLocation || '-'}</td>
-              <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}</td>
-              <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.isDiverted ? trip.divertUnloadingLocation || '-' : '-'}</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.corporationKm != null && trip.corporationKm > 0 ? `${Math.round(trip.corporationKm)} km` : '-'}</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.dieselLitres ?? 0} L</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.dieselTotal ?? 0}</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.advanceTotal ?? 0}</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.expenseTotal ?? 0}</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.balance ?? 0}</td>
-              <td style={{ padding: '8px 12px', textAlign: 'center', border: '1px solid #d0d7de' }}>
-                <input
-                  type="checkbox"
-                  checked={trip.status === 'closed'}
-                  disabled={trip.status === 'closed' || closingTripId === trip._id}
-                  title={trip.status === 'closed' ? 'Trip already closed' : 'Mark this trip as closed'}
-                  onChange={() => onCloseTrip(trip._id)}
-                />
-              </td>
-            </tr>
-          ))}
-          <tr>
-            <td colSpan="6" style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
-            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>{Math.round(totals.corporationKm || 0)} km</td>
-            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>{totals.totalDieselLitres || 0} L</td>
-            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {totals.totalDiesel}</td>
-            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {totals.totalAdvance}</td>
-            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {totals.totalExpense}</td>
-            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {totals.totalBalance}</td>
-            <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// Shared salary summary (Basic Salary/KM Beta/Special Trip Charges/Expenses/Advance/Settlement)
-// used for both the regular driver and, when assigned, the temporary driver.
-function SalarySummaryTable({ salary }) {
-  return (
-    <table className="salary-summary">
-      <tbody>
-        <tr>
-          <td>
-            {salary.payableDays != null
-              ? `Basic salary (Payable days: ${salary.payableDays}, Leaves taken: ${salary.unpaidLeaveDays})`
-              : `Basic salary (Days covered: ${salary.days})`}
-          </td>
-          <td>Rs {Math.round(salary.basicSalary || 0)}</td>
-        </tr>
-        <tr><td>KM Beta (Total Driver KM {Math.round(salary.corporationKm || 0)} x Rs {salary.kmCharges || 0})</td><td>Rs {Math.round(salary.kmBeta || 0)}</td></tr>
-        {Number(salary.specialTripCharges || 0) > 0 && (
-          <tr><td>Special Trip Charges ({salary.specialTripCount || 0} trips x Rs 1000)</td><td>Rs {Math.round(salary.specialTripCharges || 0)}</td></tr>
-        )}
-        <tr><td>Total Expenses ({salary.closedTrips} trips)</td><td>Rs {Math.round(salary.totalExpense || 0)}</td></tr>
-        <tr><td><strong>Sub Total</strong></td><td><strong>Rs {Math.round((salary.basicSalary || 0) + (salary.kmBeta || 0) + (salary.specialTripCharges || 0) + (salary.totalExpense || 0))}</strong></td></tr>
-        <tr><td>Total Advance ({salary.closedTrips} trips)</td><td>Rs {Math.round(salary.totalAdvance || 0)}</td></tr>
-        <tr><td><strong>Settlement</strong></td><td><strong>Rs {Math.round(salary.salaryBalance || 0)}</strong></td></tr>
-      </tbody>
-    </table>
-  );
-}
-
-// Closed trips grouped by close month, newest first, each month sorted newest close date first.
-function groupClosedTripsByCloseMonth(trips) {
-  const groups = new Map();
-  trips
-    .filter((trip) => trip.status === 'closed')
-    .forEach((trip) => {
-      const closeDate = trip.turnDate || trip.closedAt;
-      const key = toMonthKey(closeDate);
-      if (!key) return;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push({ trip, closeDate });
-    });
-
-  return Array.from(groups.entries())
-    .sort(([leftMonth], [rightMonth]) => (leftMonth < rightMonth ? 1 : -1))
-    .map(([key, monthTrips]) => ({
-      monthKey: key,
-      monthTrips: monthTrips.sort((left, right) => new Date(right.closeDate) - new Date(left.closeDate)),
-    }));
-}
+import DriverInfoCard from '../features/driver/DriverInfoCard';
+import DriverTripsByMonth from '../features/driver/DriverTripsByMonth';
+import DriverLeavesList from '../features/driver/DriverLeavesList';
+import DriverSalaryPanel from '../features/driver/DriverSalaryPanel';
+import DriverReminderEditor from '../features/driver/DriverReminderEditor';
 
 export default function DriverDetail() {
   const { user } = useAuth();
   const { customerId, driverId } = useParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
-  const [reminderDates, setReminderDates] = useState({});
-  const [reminderDirty, setReminderDirty] = useState(false);
-  const [reminderSaving, setReminderSaving] = useState(false);
-  const [salaryMonth, setSalaryMonth] = useState(latestCalculableMonth);
-  const [salary, setSalary] = useState(null);
-  const [salaryError, setSalaryError] = useState('');
-  const [showArchivedSalary, setShowArchivedSalary] = useState(false);
-  const [archivedSalaryMonth, setArchivedSalaryMonth] = useState(latestCalculableMonth);
-  const [summaryPrinting, setSummaryPrinting] = useState(false);
-  const [closingTripId, setClosingTripId] = useState(null);
-  const [trips, setTrips] = useState([]);
-  const [tripsLoading, setTripsLoading] = useState(false);
-  const [showArchivedTrips, setShowArchivedTrips] = useState(false);
-  const [driverLeaves, setDriverLeaves] = useState([]);
-  const [leavesLoading, setLeavesLoading] = useState(false);
   const [showArchivedLeaves, setShowArchivedLeaves] = useState(false);
 
   useEffect(() => {
@@ -157,94 +26,6 @@ export default function DriverDetail() {
 
   const driver = data?.users?.find((entry) => String(entry.id || entry._id) === String(driverId));
   const vehicle = data?.vehicles?.find((entry) => String(entry._id) === String(driver?.vehicle));
-  const openTrips = trips.filter((trip) => trip.status !== 'closed');
-  const closedTrips = trips.filter((trip) => trip.status === 'closed');
-  const archivedTrips = closedTrips.filter((trip) => {
-    const key = toMonthKey(trip.turnDate || trip.closedAt);
-    return !key || !isCurrentOrPreviousMonth(key);
-  });
-  const visibleClosedTrips = showArchivedTrips
-    ? closedTrips
-    : closedTrips.filter((trip) => !archivedTrips.includes(trip));
-  const closedTripGroups = groupClosedTripsByCloseMonth(visibleClosedTrips);
-  const archivedLeaves = driverLeaves.filter((leave) => {
-    const key = toMonthKey(leave.startDate);
-    return !key || !isCurrentOrPreviousMonth(key);
-  });
-  const visibleLeaves = showArchivedLeaves
-    ? driverLeaves
-    : driverLeaves.filter((leave) => !archivedLeaves.includes(leave));
-
-  function loadSalary() {
-    if (!driver) return;
-    setSalaryError('');
-    api
-      .getDriverMonthlySalary(customerId, driverId, salaryMonth)
-      .then((res) => setSalary(res.data))
-      .catch((err) => {
-        setSalary(null);
-        setSalaryError(err.response?.data?.error || 'Failed to load salary calculation');
-      });
-  }
-
-  useEffect(loadSalary, [customerId, driver, driverId, salaryMonth]);
-
-  async function closeTripFromSalary(tripId) {
-    if (!window.confirm('Mark this trip as closed for salary purposes?')) return;
-    setError('');
-    setClosingTripId(tripId);
-    try {
-      await api.closeTrip(tripId);
-      loadSalary();
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to close trip');
-    } finally {
-      setClosingTripId(null);
-    }
-  }
-
-  useEffect(() => {
-    if (!driver) return;
-    setLeavesLoading(true);
-    api
-      .listLeaves(customerId)
-      .then((res) => {
-        const leaves = (res.data.leaves || []).filter((leave) => (
-          String(leave.driver?._id || leave.driver?.id || leave.driver) === String(driverId)
-        ));
-        setDriverLeaves(leaves);
-      })
-      .catch((err) => setError(err.response?.data?.error || 'Failed to load leave details'))
-      .finally(() => setLeavesLoading(false));
-  }, [customerId, driver, driverId]);
-
-  useEffect(() => {
-    if (!vehicle) return;
-    setReminderDates(Object.fromEntries(
-      Object.entries(vehicle.documentReminders || {}).map(([key, reminder]) => [
-        key,
-        reminder.expiryDate ? new Date(reminder.expiryDate).toISOString().slice(0, 10) : '',
-      ])
-    ));
-    setReminderDirty(false);
-  }, [vehicle]);
-
-  useEffect(() => {
-    if (!vehicle) {
-      setTrips([]);
-      setShowArchivedTrips(false);
-      setShowArchivedLeaves(false);
-      return;
-    }
-    setShowArchivedTrips(false);
-    setShowArchivedLeaves(false);
-    setTripsLoading(true);
-    api
-      .listTripsForVehicle(vehicle._id)
-      .then((res) => setTrips(res.data.trips || []))
-      .catch((err) => setError(err.response?.data?.error || 'Failed to load driver trips'))
-      .finally(() => setTripsLoading(false));
-  }, [vehicle]);
 
   if (!['super_admin', 'customer_admin'].includes(user?.role)) {
     return <Layout><p>You do not have access to this page.</p></Layout>;
@@ -259,48 +40,6 @@ export default function DriverDetail() {
     );
   }
 
-  async function saveReminderDates(event) {
-    event.preventDefault();
-    if (!vehicle) return;
-    setReminderSaving(true);
-    setError('');
-    try {
-      const res = await api.updateVehicleReminderDates(vehicle._id, {
-        documentReminders: Object.fromEntries(
-          Object.entries(reminderDates).map(([key, value]) => [key, { expiryDate: value || null }])
-        ),
-      });
-      setData((current) => ({
-        ...current,
-        vehicles: current.vehicles.map((entry) => (
-          String(entry._id) === String(vehicle._id) ? res.data.vehicle : entry
-        )),
-      }));
-      setReminderDirty(false);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to save reminder dates');
-    } finally {
-      setReminderSaving(false);
-    }
-  }
-
-  async function printMonthlySummary(month = salaryMonth) {
-    const printWindow = window.open('', '_blank');
-    setSummaryPrinting(true);
-    try {
-      // Open the server URL directly (with a short-lived token) so the PDF viewer's Save
-      // suggests the Content-Disposition filename - blob URLs always save as a random UUID.
-      const url = await api.getDriverMonthlySummaryUrl(customerId, driverId, month);
-      if (printWindow) printWindow.location.href = url;
-      else window.location.href = url;
-    } catch (err) {
-      printWindow?.close();
-      setError(err.response?.data?.error || 'Failed to generate monthly summary');
-    } finally {
-      setSummaryPrinting(false);
-    }
-  }
-
   return (
     <Layout>
       <Link to="/">&larr; Back to dashboard</Link>
@@ -308,238 +47,26 @@ export default function DriverDetail() {
         <p className="error-text">Driver not found.</p>
       ) : (
         <>
-          <div className="card">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, marginBottom: 12 }}>
-              <div><strong>User Name:</strong> {driver.name || 'Unnamed driver'}</div>
-              <div><strong>Mobile Number:</strong> {driver.mobileNumber || 'No phone'}</div>
-              <div><strong>Vehicle:</strong> {vehicle?.vehicleNumber || 'Unassigned'}</div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
-              <div><strong>Basic Salary:</strong> {driver.basicSalary ?? 0}</div>
-              <div><strong>KM Charges:</strong> {driver.kmCharges ?? 0}</div>
-              <div><strong>Less than 200KM Charges:</strong> {driver.minKmCharges ?? 0}</div>
-            </div>
-            {driver.temporaryDriver?.required && (
-              <div style={{ marginTop: 12, color: '#4a5f52' }}>
-                <strong>Temporary Driver:</strong> {driver.temporaryDriver.name} (
-                {new Date(driver.temporaryDriver.joiningDate).toLocaleDateString('en-IN')} - {driver.temporaryDriver.returningDate ? new Date(driver.temporaryDriver.returningDate).toLocaleDateString('en-IN') : 'Ongoing'})
-              </div>
-            )}
-          </div>
-          <div className="card" style={{ marginTop: 24 }}>
-            <h3 className="section-title" style={{ marginTop: 0 }}>Trip History</h3>
-            {tripsLoading ? <p>Loading trips...</p> : (
-              <div className="grid-2">
-                <div>
-                  <h4 className="section-title">Open Trips ({openTrips.length})</h4>
-                  {openTrips.length === 0 ? (
-                    <p style={{ color: '#666' }}>No open trips.</p>
-                  ) : openTrips.map((trip) => (
-                    <Link key={trip._id} to={`/trips/${trip._id}`} className="list-item" style={{ display: 'block' }}>
-                      <strong>{trip.loadingLocation || 'Loading pending'}</strong> &rarr; {trip.unloadingLocation || 'Unloading pending'}
-                      <div style={{ color: '#666', fontSize: 12, marginTop: 4 }}>
-                        {trip.status === 'pending_close' ? 'Pending customer close' : 'Open'}
-                        {trip.createdAt ? ` • ${new Date(trip.createdAt).toLocaleDateString('en-IN')}` : ''}
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-                <div>
-                  <h4 className="section-title">Closed Trips ({visibleClosedTrips.length})</h4>
-                  {visibleClosedTrips.length === 0 ? (
-                    <p style={{ color: '#666' }}>No closed trips.</p>
-                  ) : closedTripGroups.map(({ monthKey, monthTrips }) => (
-                    <div key={monthKey} style={{ marginBottom: 16 }}>
-                      <div style={{ fontWeight: 700, color: '#4a5f52', fontSize: 13, margin: '8px 0' }}>
-                        {formatMonthLabel(monthKey)}
-                      </div>
-                      {monthTrips.map(({ trip, closeDate }) => (
-                        <div key={trip._id} className="list-item" style={{ display: 'flex', gap: 12 }}>
-                          <Link to={`/trips/${trip._id}`} style={{ display: 'block', flex: 1, minWidth: 0 }}>
-                            <strong>{formatTripRoute(trip)}</strong>
-                            <div style={{ color: '#666', fontSize: 12, marginTop: 4 }}>
-                              Trip close: {new Date(closeDate).toLocaleDateString('en-IN')}
-                            </div>
-                          </Link>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                  {archivedTrips.length > 0 && (
-                    <button
-                      type="button"
-                      className="btn secondary"
-                      style={{ marginTop: 12 }}
-                      onClick={() => setShowArchivedTrips((current) => !current)}
-                    >
-                      {showArchivedTrips ? 'Hide archived trips' : `View archived trips (${archivedTrips.length})`}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="card" style={{ marginTop: 24 }}>
-            <h3 className="section-title" style={{ marginTop: 0 }}>Leave Details</h3>
-            {leavesLoading ? <p>Loading leave details...</p> : visibleLeaves.length === 0 ? (
-              <p style={{ margin: 0, color: '#666' }}>No leave entries found.</p>
-            ) : (
-              <div style={{ display: 'grid', gap: 10 }}>
-                {visibleLeaves.map((leave) => (
-                  <div key={leave._id} className="list-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                    <div>
-                      <strong>
-                        {new Date(leave.startDate).toLocaleDateString('en-IN')} - {leave.endDate ? new Date(leave.endDate).toLocaleDateString('en-IN') : '-'}
-                      </strong>
-                      <div style={{ color: '#666', fontSize: 12, marginTop: 4 }}>{leave.reason || 'No reason provided'}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-            {archivedLeaves.length > 0 && (
-              <button
-                type="button"
-                className="btn secondary"
-                style={{ marginTop: 12 }}
-                onClick={() => setShowArchivedLeaves((current) => !current)}
-              >
-                {showArchivedLeaves ? 'Hide archived leaves' : `View archived leaves (${archivedLeaves.length})`}
-              </button>
-            )}
-          </div>
-          <div className="card" style={{ marginTop: 24 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12, alignItems: 'center', marginBottom: 12 }}>
-              <div><strong>Customer:</strong> {data.customer?.companyName || '-'}</div>
-              <div><strong>Driver:</strong> {driver.name || driver.username || '-'}</div>
-              <div style={{ textAlign: 'center' }}><strong>Vehicle:</strong> {vehicle?.vehicleNumber || '-'}</div>
-              <div style={{ textAlign: 'right' }}><strong>Month:</strong> {formatMonthLabel(salaryMonth)}</div>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-              <h3 className="section-title" style={{ margin: 0 }}>Salary Calculation</h3>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input
-                  aria-label="Salary month"
-                  type="month"
-                  value={salaryMonth}
-                  max={latestCalculableMonth()}
-                  onChange={(event) => setSalaryMonth(event.target.value)}
-                  style={{ maxWidth: 170 }}
-                />
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => printMonthlySummary(salaryMonth)}
-                  disabled={!salary || summaryPrinting}
-                >
-                  {summaryPrinting ? 'Preparing...' : 'Print Salary PDF'}
-                </button>
-              </div>
-            </div>
-            <p style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
-              Salary for a month is calculated from the 5th of the following month (latest available: {formatMonthLabel(latestCalculableMonth())}).
-            </p>
-            {salaryError ? <p className="error-text" style={{ margin: 0 }}>{salaryError}</p>
-              : !salary ? <p style={{ margin: 0 }}>Loading salary calculation...</p> : (
-              <>
-                <SalaryTripsTable
-                  trips={salary.trips}
-                  closingTripId={closingTripId}
-                  onCloseTrip={closeTripFromSalary}
-                  totals={{
-                    corporationKm: salary.corporationKm,
-                    totalDieselLitres: salary.totalDieselLitres,
-                    totalDiesel: salary.totalDiesel,
-                    totalAdvance: salary.totalAdvance,
-                    totalExpense: salary.totalExpense,
-                    totalBalance: salary.totalBalance,
-                  }}
-                />
-                <SalarySummaryTable salary={salary} />
-                {salary.temporaryDriver && (
-                  <div style={{ marginTop: 24 }}>
-                    <h4 className="section-title">
-                      Temporary Driver: {salary.temporaryDriver.name} ({new Date(salary.temporaryDriver.joiningDate).toLocaleDateString('en-IN')} - {salary.temporaryDriver.returningDate ? new Date(salary.temporaryDriver.returningDate).toLocaleDateString('en-IN') : 'Ongoing'})
-                    </h4>
-                    <SalaryTripsTable
-                      trips={salary.temporaryDriver.trips}
-                      closingTripId={closingTripId}
-                      onCloseTrip={closeTripFromSalary}
-                      totals={{
-                        corporationKm: salary.temporaryDriver.corporationKm,
-                        totalDieselLitres: salary.temporaryDriver.totalDieselLitres,
-                        totalDiesel: salary.temporaryDriver.totalDiesel,
-                        totalAdvance: salary.temporaryDriver.totalAdvance,
-                        totalExpense: salary.temporaryDriver.totalExpense,
-                        totalBalance: salary.temporaryDriver.totalBalance,
-                      }}
-                    />
-                    <SalarySummaryTable salary={salary.temporaryDriver} />
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-          <div className="salary-archive-footer">
-            <button
-              type="button"
-              className="salary-archive-link"
-              onClick={() => {
-                setShowArchivedSalary((current) => {
-                  return !current;
-                });
-              }}
-            >
-              {showArchivedSalary ? 'Hide archived Salary PDF' : 'View archived Salary PDF'}
-            </button>
-          </div>
-          {showArchivedSalary && (
-            <div className="card" style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-              <label htmlFor="archived-salary-month" style={{ margin: 0 }}>Archive month</label>
-              <input
-                id="archived-salary-month"
-                aria-label="Archived salary month"
-                type="month"
-                value={archivedSalaryMonth}
-                max={latestCalculableMonth()}
-                onChange={(event) => setArchivedSalaryMonth(event.target.value)}
-                style={{ maxWidth: 170 }}
-              />
-              <button type="button" className="btn" onClick={() => printMonthlySummary(archivedSalaryMonth)} disabled={!archivedSalaryMonth || summaryPrinting}>
-                {summaryPrinting ? 'Preparing...' : 'Print archived Salary PDF'}
-              </button>
-            </div>
-          )}
+          <DriverInfoCard driver={driver} vehicle={vehicle} />
+          <DriverTripsByMonth vehicle={vehicle} setError={setError} setShowArchivedLeaves={setShowArchivedLeaves} />
+          <DriverLeavesList
+            customerId={customerId}
+            driverId={driverId}
+            driver={driver}
+            setError={setError}
+            showArchivedLeaves={showArchivedLeaves}
+            setShowArchivedLeaves={setShowArchivedLeaves}
+          />
+          <DriverSalaryPanel
+            customerId={customerId}
+            driverId={driverId}
+            data={data}
+            driver={driver}
+            vehicle={vehicle}
+            setError={setError}
+          />
           {vehicle && (
-            <div className="card" style={{ marginTop: 24 }}>
-              <h3 className="section-title" style={{ marginTop: 0 }}>Reminder / Expiry Dates</h3>
-              <ReminderSummary reminders={vehicle.documentReminders} />
-              <form className="reminder-form" onSubmit={saveReminderDates}>
-                <div style={{ display: 'grid', gap: 8 }}>
-                  {Object.entries(vehicle.documentReminders || {}).map(([key, reminder]) => (
-                    <div key={key} className="list-item" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 0, background: isExpired(reminder.expiryDate) ? '#ffe5e5' : expiresWithin30Days(reminder.expiryDate) ? '#fff4bf' : undefined }}>
-                      <strong>{reminder.label || key}</strong>
-                      <input
-                        type="date"
-                        value={reminderDates[key] || ''}
-                        onChange={(event) => {
-                          setReminderDates((current) => ({ ...current, [key]: event.target.value }));
-                          setReminderDirty(true);
-                        }}
-                      />
-                      <span style={{ color: isExpired(reminder.expiryDate) ? '#b42318' : '#4a5f52' }}>
-                        {getReminderDayStatus(reminder.expiryDate)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                {reminderDirty && (
-                  <button className="btn" type="submit" disabled={reminderSaving} style={{ marginTop: 12 }}>
-                    {reminderSaving ? 'Saving...' : 'Save Reminder Dates'}
-                  </button>
-                )}
-              </form>
-            </div>
+            <DriverReminderEditor vehicle={vehicle} setData={setData} setError={setError} />
           )}
         </>
       )}
