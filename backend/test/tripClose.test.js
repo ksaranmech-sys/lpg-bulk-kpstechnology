@@ -165,17 +165,17 @@ test('monthly salary sums diesel litres across every trip in the month', () => {
   assert.equal(total, 350);
 });
 
-test('trip expense excludes diesel and driver advance, includes loading/unloading/RTO/other expenses', () => {
+test('trip expense includes cash diesel and trip expenses, but excludes diesel card and driver advance', () => {
   const expense = customerController.calculateTripExpense({
     loadingExpense: 300,
     unloadingExpense: 200,
     rtoEntries: [{ amount: 100 }],
     otherExpenses: [{ amount: 50 }],
     driverAdvances: [{ amount: 99999 }],
-    dieselEntries: [{ amount: 99999 }],
+    dieselEntries: [{ amount: 99999, paymentMethod: 'diesel_card' }, { amount: 400, paymentMethod: 'cash' }],
   });
 
-  assert.equal(expense, 650);
+  assert.equal(expense, 1050);
 });
 
 test('trip expense includes cleaner loading, turn and parking like the trip print', () => {

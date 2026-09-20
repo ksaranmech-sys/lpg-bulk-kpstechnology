@@ -1299,8 +1299,8 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
   const rtoExpenseTotal = rtoEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
   const otherExpenses = trip.otherExpenses || [];
   const otherExpenseTotal = otherExpenses.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-  const totalExpenses = loadingExpenseTotal + parkingExpenseTotal + turnExpenseTotal + rtoExpenseTotal + otherExpenseTotal;
-  const balance = totalAdvance - (dieselCashTotal + totalExpenses);
+  const totalExpenses = dieselCashTotal + loadingExpenseTotal + parkingExpenseTotal + turnExpenseTotal + rtoExpenseTotal + otherExpenseTotal;
+  const balance = totalAdvance - totalExpenses;
 
   function printTripDetails() {
     const printDate = trip.loadingDate || trip.unloadingDate || new Date();
@@ -1467,6 +1467,11 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
                         </tr>
                       </thead>
                       <tbody>
+                        <tr>
+                          <td style={{ padding: '8px 12px 8px 12px' }}>Cash Diesel</td>
+                          <td style={{ padding: '8px 12px 8px 0', color: '#666' }}>-</td>
+                          <td style={{ padding: '8px 12px 8px 0', textAlign: 'right' }}>Rs {dieselCashTotal}</td>
+                        </tr>
                         <tr>
                           <td style={{ padding: '8px 12px', border: '1px solid #1f4d2b', textAlign: 'right' }}>{trip.odometerKm != null ? `${trip.odometerKm} km` : 'NA'}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #1f4d2b', textAlign: 'right' }}>{totalDieselLitres > 0 ? `${totalDieselLitres} L` : 'NA'}</td>
@@ -1651,7 +1656,7 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
                   <td colSpan="3" style={{ padding: '8px 12px 0 0' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '2px' }}>
                       <span style={{ fontWeight: 800, fontSize: 15, color: '#1f2d1f' }}>Balance</span>
-                      <span style={{ fontWeight: 500, color: '#4a5f52', fontSize: 11 }}>(Driver Advance - (Cash Diesel + Expenses Total))</span>
+                      <span style={{ fontWeight: 500, color: '#4a5f52', fontSize: 11 }}>(Driver Advance - Expenses Total)</span>
                     </div>
                   </td>
                   <td style={{ padding: '8px 0 0 0', textAlign: 'right', fontWeight: 800, fontSize: 16, color: '#1f2d1f' }}>Rs {balance}</td>

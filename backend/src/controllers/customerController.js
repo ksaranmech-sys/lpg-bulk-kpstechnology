@@ -61,10 +61,13 @@ function loadRouteKmTable() {
 }
 
 function calculateTripExpense(trip) {
+  const cashDieselExpense = (trip.dieselEntries || [])
+    .filter((entry) => entry.paymentMethod === 'cash')
+    .reduce((total, entry) => total + Number(entry.amount || 0), 0);
   const rtoExpense = (trip.rtoEntries || []).reduce((total, entry) => total + Number(entry.amount || 0), 0);
   const otherExpense = (trip.otherExpenses || []).reduce((total, entry) => total + Number(entry.amount || 0), 0);
-  // Mirrors the trip print: Cleaner Loading + Turn + Parking + Unloading + RTO + Other.
-  return Number(trip.loadingExpense || 0) + Number(trip.turnExpense || 0) + Number(trip.parkingExpense || 0)
+  // Mirrors the trip print: cash diesel + Cleaner Loading + Turn + Parking + Unloading + RTO + Other.
+  return cashDieselExpense + Number(trip.loadingExpense || 0) + Number(trip.turnExpense || 0) + Number(trip.parkingExpense || 0)
     + Number(trip.unloadingExpense || 0) + rtoExpense + otherExpense;
 }
 
