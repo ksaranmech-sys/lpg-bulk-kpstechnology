@@ -86,8 +86,8 @@ function buildTripSettlementPdf(trip, previousTrip = trip.previousTrip) {
     renderTable(doc, ['Item', 'Date', 'Amount'], [
       ['Cash Diesel', '-', `Rs ${fmtMoney(dieselCashTotal)}`],
       ['Cleaner Loading', fmtDate(trip.loadingDate), `Rs ${fmtMoney(loadingExpenseTotal)}`],
-      ['Turn', fmtDate(trip.turnDate), `Rs ${fmtMoney(turnExpenseTotal)}`],
-      ['Parking', '-', `Rs ${fmtMoney(parkingExpenseTotal)}`],
+      ['Turn', fmtDate(trip.loadingDate), `Rs ${fmtMoney(turnExpenseTotal)}`],
+      ['Parking', fmtDate(trip.loadingDate), `Rs ${fmtMoney(parkingExpenseTotal)}`],
       ...(unloadingExpenseTotal > 0 ? [['Unloading', fmtDate(trip.unloadingDate), `Rs ${fmtMoney(unloadingExpenseTotal)}`]] : []),
       ...rtoEntries.map((entry) => ['RTO', fmtDate(entry.date), `Rs ${fmtMoney(entry.amount)}`]),
       ...otherExpenses.map((entry) => [entry.description || 'Other', fmtDate(entry.date), `Rs ${fmtMoney(entry.amount)}`]),
@@ -299,8 +299,8 @@ function renderMonthlyTripDetailsPage(doc, trip, driver, vehicle, customer) {
   renderTable(doc, ['Item', 'Date', 'Amount'], [
     ['Cash Diesel', '-', `Rs ${fmtMoney(dieselCashTotal)}`],
     ['Cleaner Loading', fmtDate(trip.loadingDate), `Rs ${fmtMoney(loadingExpense)}`],
-    ['Turn', fmtDate(trip.turnDate), `Rs ${fmtMoney(turnExpense)}`],
-    ['Parking', '-', `Rs ${fmtMoney(parkingExpense)}`],
+    ['Turn', fmtDate(trip.loadingDate), `Rs ${fmtMoney(turnExpense)}`],
+    ['Parking', fmtDate(trip.loadingDate), `Rs ${fmtMoney(parkingExpense)}`],
     ...(unloadingExpense > 0 ? [['Unloading', fmtDate(trip.unloadingDate), `Rs ${fmtMoney(unloadingExpense)}`]] : []),
     ...rtoEntries.map((entry) => ['RTO', fmtDate(entry.date), `Rs ${fmtMoney(entry.amount)}`]),
     ...otherExpenses.map((entry) => [entry.description || 'Other', fmtDate(entry.date), `Rs ${fmtMoney(entry.amount)}`]),

@@ -1616,12 +1616,12 @@ function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
                         </tr>
                         <tr>
                           <td style={{ padding: '8px 12px 8px 12px' }}>Turn</td>
-                          <td style={{ padding: '8px 12px 8px 0', color: '#666' }}>{trip.turnDate ? new Date(trip.turnDate).toLocaleDateString('en-IN') : '-'}</td>
+                          <td style={{ padding: '8px 12px 8px 0', color: '#666' }}>{trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}</td>
                           <td style={{ padding: '8px 12px 8px 0', textAlign: 'right' }}>Rs {turnExpenseTotal}</td>
                         </tr>
                         <tr>
                           <td style={{ padding: '8px 12px 8px 12px' }}>Parking</td>
-                          <td style={{ padding: '8px 12px 8px 0', color: '#666' }}>{trip.parkingPhoto?.url ? <a href={trip.parkingPhoto.url} target="_blank" rel="noreferrer">photo</a> : '-'}</td>
+                          <td style={{ padding: '8px 12px 8px 0', color: '#666' }}>{trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}</td>
                           <td style={{ padding: '8px 12px 8px 0', textAlign: 'right' }}>Rs {parkingExpenseTotal}</td>
                         </tr>
                         {rtoEntries.map((entry, index) => (
