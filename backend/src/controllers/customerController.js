@@ -195,17 +195,20 @@ function getSalaryMonthBounds(month) {
   };
 }
 
-// A month's salary is calculable only once the FOLLOWING month has ended - trips that straddle
-// the month boundary close during the next month, so waiting for it to finish gives every
+// A month's salary is calculable from the 5th of the FOLLOWING month - trips that straddle the
+// month boundary close in the first days of the next month, so the grace period gives every
 // advance/expense a chance to be entered before settlement.
+const SALARY_AVAILABLE_DAY = 5;
+
 function getSalaryMonthAvailability(month, today = new Date()) {
   const [year, monthNumber] = month.split('-').map(Number);
-  const availableFrom = new Date(year, monthNumber + 1, 1);
+  const availableFrom = new Date(year, monthNumber, SALARY_AVAILABLE_DAY);
   return { available: today >= availableFrom, availableFrom };
 }
 
 function getLatestCalculableSalaryMonth(today = new Date()) {
-  const latest = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+  const monthsBack = today.getDate() >= SALARY_AVAILABLE_DAY ? 1 : 2;
+  const latest = new Date(today.getFullYear(), today.getMonth() - monthsBack, 1);
   return `${latest.getFullYear()}-${String(latest.getMonth() + 1).padStart(2, '0')}`;
 }
 
@@ -214,9 +217,7 @@ function validateSalaryMonth(month) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return 'month must use YYYY-MM format';
   const { available, availableFrom } = getSalaryMonthAvailability(month);
   if (!available) {
-    const [year, monthNumber] = month.split('-').map(Number);
-    const nextMonth = formatMonth(`${monthNumber === 12 ? year + 1 : year}-${String((monthNumber % 12) + 1).padStart(2, '0')}`);
-    return `Salary for ${formatMonth(month)} can be calculated only after ${nextMonth} ends (available from ${availableFrom.toLocaleDateString('en-IN')})`;
+    return `Salary for ${formatMonth(month)} can be calculated only from ${availableFrom.toLocaleDateString('en-IN')} (${SALARY_AVAILABLE_DAY}th of the following month)`;
   }
   return null;
 }

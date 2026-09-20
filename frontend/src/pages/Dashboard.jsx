@@ -77,10 +77,11 @@ function completedMonth() {
   return `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, '0')}`;
 }
 
-// Salary for a month can only be calculated once the following month has ended.
+// Salary for a month can be calculated from the 5th of the following month.
 function latestCalculableMonth() {
   const today = new Date();
-  const latest = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+  const monthsBack = today.getDate() >= 5 ? 1 : 2;
+  const latest = new Date(today.getFullYear(), today.getMonth() - monthsBack, 1);
   return `${latest.getFullYear()}-${String(latest.getMonth() + 1).padStart(2, '0')}`;
 }
 
@@ -1276,7 +1277,7 @@ export default function Dashboard() {
             <h3 className="section-title" style={{ marginTop: 0 }}>Salary Details ({formatMonthLabel(salaryMonth)})</h3>
           </div>
           <p style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
-            Salary for a month is calculated after the following month ends (latest available: {formatMonthLabel(latestCalculableMonth())}).
+            Salary for a month is calculated from the 5th of the following month (latest available: {formatMonthLabel(latestCalculableMonth())}).
           </p>
           {driverUsers.length === 0 ? (
             <p>No drivers found.</p>
