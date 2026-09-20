@@ -1,130 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  expiresWithin30Days, isExpired, remindersExpiringWithin7Days, reminderStatusText,
+  formatTripRoute, latestCalculableMonth, formatMonthLabel, groupTripsByMonth,
+  tripHistoryMonthKey, isCurrentOrPreviousMonth, monthKey as toMonthKey, EMPTY_DRIVER_FORM,
+} from '@kps/shared';
 import * as api from '../api/api';
 import Layout from '../components/Layout';
+import { ReminderSummary } from '../components/ReminderSummary';
 import { useAuth } from '../context/AuthContext';
 
-function expiresWithin30Days(date) {
-  if (!date) return false;
-  const expiry = new Date(date);
-  const today = new Date();
-  expiry.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-  const days = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
-  return days >= 0 && days <= 30;
-}
-
-function isExpired(date) {
-  if (!date) return false;
-  const expiry = new Date(date);
-  const today = new Date();
-  expiry.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-  return expiry < today;
-}
-
-function getExpiringWithin7Days(reminders) {
-  return Object.entries(reminders || {}).filter(([, reminder]) => {
-    if (!reminder.expiryDate) return false;
-    const expiry = new Date(reminder.expiryDate);
-    const today = new Date();
-    expiry.setHours(0, 0, 0, 0);
-    today.setHours(0, 0, 0, 0);
-    const days = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
-    return days <= 7;
-  });
-}
-
-function getReminderPopupStatus(date) {
-  if (isExpired(date)) return 'Expired';
-  const expiry = new Date(date);
-  const today = new Date();
-  expiry.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-  const days = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
-  return `${days} day(s) remaining`;
-}
-
-function ReminderSummary({ reminders }) {
-  const dates = Object.values(reminders || {}).map((reminder) => reminder.expiryDate).filter(Boolean);
-  const expired = dates.filter(isExpired).length;
-  return (
-    <p style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
-      Remaining dates: {dates.length - expired} | Expired dates: {expired}
-    </p>
-  );
-}
-
-function getReminderStatusText(date) {
-  if (!date) return 'Not set';
-  if (isExpired(date)) return 'Expired';
-  const expiry = new Date(date);
-  const today = new Date();
-  expiry.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-  const days = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
-  return `${days} day(s) remaining`;
-}
-
-function formatTripRoute(trip) {
-  const formatDate = (value) => value ? new Date(value).toLocaleDateString('en-IN') : 'Date pending';
-  return `${trip.loadingLocation || 'Loading pending'} (${formatDate(trip.loadingDate)}) -> ${trip.unloadingLocation || 'Unloading pending'} (${formatDate(trip.unloadingDate)})`;
-}
-
-function completedMonth() {
-  const today = new Date();
-  const previous = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  return `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, '0')}`;
-}
-
-// Salary for a month can be calculated from the 5th of the following month.
-function latestCalculableMonth() {
-  const today = new Date();
-  const monthsBack = today.getDate() >= 5 ? 1 : 2;
-  const latest = new Date(today.getFullYear(), today.getMonth() - monthsBack, 1);
-  return `${latest.getFullYear()}-${String(latest.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function formatMonthLabel(month) {
-  const [year, monthNumber] = month.split('-').map(Number);
-  return new Date(year, monthNumber - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-}
-
-function groupTripsByMonth(trips) {
-  const groups = new Map();
-  trips.forEach((trip) => {
-    const date = new Date(trip.turnDate || trip.closedAt || trip.loadingDate || trip.createdAt);
-    if (Number.isNaN(date.getTime())) return;
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    if (!groups.has(monthKey)) groups.set(monthKey, []);
-    groups.get(monthKey).push(trip);
-  });
-  return Array.from(groups.entries())
-    .sort(([leftMonth], [rightMonth]) => (leftMonth < rightMonth ? 1 : -1))
-    .map(([monthKey, monthTrips]) => ({ monthKey, monthTrips }));
-}
-
-function tripHistoryDate(trip) {
-  return new Date(trip.turnDate || trip.closedAt || trip.loadingDate || trip.createdAt);
-}
-
-function tripHistoryMonthKey(trip) {
-  const date = tripHistoryDate(trip);
-  if (Number.isNaN(date.getTime())) return '';
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function isCurrentOrPreviousMonth(monthKey) {
-  const today = new Date();
-  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-  return monthKey === currentMonth || monthKey === completedMonth();
-}
-
 function isLeaveInCurrentOrPreviousMonth(leave) {
-  const date = new Date(leave.startDate);
-  if (Number.isNaN(date.getTime())) return false;
-  const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-  return isCurrentOrPreviousMonth(monthKey);
+  const key = toMonthKey(leave.startDate);
+  return Boolean(key) && isCurrentOrPreviousMonth(key);
 }
 
 export default function Dashboard() {
@@ -160,11 +48,11 @@ export default function Dashboard() {
   const [routeKmHasChanges, setRouteKmHasChanges] = useState(false);
   const [selectedRouteKmRows, setSelectedRouteKmRows] = useState([]);
   const [routeKmEditMode, setRouteKmEditMode] = useState(false);
-  const [driverForm, setDriverForm] = useState({ name: '', mobileNumber: '', joiningDate: '', resigningDate: '', username: '', password: '', vehicleId: '', basicSalary: '', kmCharges: '', minKmCharges: '', temporaryDriverRequired: false, temporaryDriverName: '', temporaryDriverJoiningDate: '', temporaryDriverReturningDate: '' });
+  const [driverForm, setDriverForm] = useState(EMPTY_DRIVER_FORM);
   const [driverError, setDriverError] = useState('');
   const [driverSaving, setDriverSaving] = useState(false);
   const [driverEditId, setDriverEditId] = useState('');
-  const [driverEditForm, setDriverEditForm] = useState({ name: '', mobileNumber: '', joiningDate: '', resigningDate: '', username: '', password: '', vehicleId: '', basicSalary: '', kmCharges: '', minKmCharges: '', temporaryDriverRequired: false, temporaryDriverName: '', temporaryDriverJoiningDate: '', temporaryDriverReturningDate: '' });
+  const [driverEditForm, setDriverEditForm] = useState(EMPTY_DRIVER_FORM);
   const [driverEditError, setDriverEditError] = useState('');
   const [driverEditSaving, setDriverEditSaving] = useState(false);
   const [selectedDrivers, setSelectedDrivers] = useState([]);
@@ -215,7 +103,7 @@ export default function Dashboard() {
       return;
     }
     const entries = vehicles.flatMap((vehicle) => (
-      getExpiringWithin7Days(vehicle.documentReminders).map(([key, reminder]) => ({
+      remindersExpiringWithin7Days(vehicle.documentReminders).map(([key, reminder]) => ({
         key: `${vehicle._id}-${key}`,
         label: reminder.label || key,
         date: reminder.expiryDate,
@@ -760,7 +648,7 @@ export default function Dashboard() {
             <ul style={{ margin: '0 0 20px', paddingLeft: 18 }}>
               {expiringReminders.map(({ key, label, date, vehicleNumber }) => (
                 <li key={key} style={{ marginBottom: 8 }}>
-                  <strong>{vehicleNumber}</strong> - {label} - {new Date(date).toLocaleDateString('en-IN')} ({getReminderPopupStatus(date)})
+                  <strong>{vehicleNumber}</strong> - {label} - {new Date(date).toLocaleDateString('en-IN')} ({reminderStatusText(date)})
                 </li>
               ))}
             </ul>
@@ -1124,7 +1012,7 @@ export default function Dashboard() {
                     }}
                   />
                   <span style={{ color: isExpired(reminder.expiryDate) ? '#b42318' : '#4a5f52' }}>
-                    {getReminderStatusText(reminder.expiryDate)}
+                    {reminderStatusText(reminder.expiryDate)}
                   </span>
                 </div>
               ))}

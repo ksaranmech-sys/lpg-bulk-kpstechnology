@@ -1,62 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import {
+  expiresWithin30Days, isExpired, formatTripRoute, latestCalculableMonth,
+  isCurrentOrPreviousMonth, formatMonthLabel, monthKey as toMonthKey,
+} from '@kps/shared';
 import * as api from '../api/api';
 import Layout from '../components/Layout';
+import { ReminderDaySummary as ReminderSummary, reminderDayStatus as getReminderDayStatus } from '../components/ReminderSummary';
 import { useAuth } from '../context/AuthContext';
-
-function expiresWithin30Days(date) {
-  if (!date) return false;
-  const expiry = new Date(date);
-  const today = new Date();
-  expiry.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-  const days = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
-  return days >= 0 && days <= 30;
-}
-
-function isExpired(date) {
-  if (!date) return false;
-  const expiry = new Date(date);
-  const today = new Date();
-  expiry.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-  return expiry < today;
-}
-
-function getReminderDayStatus(date) {
-  if (!date) return 'Remaining days: 0 | Expired days: 0';
-  const expiry = new Date(date);
-  const today = new Date();
-  expiry.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-  const days = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
-  return days < 0
-    ? `Remaining days: 0 | Expired days: ${Math.abs(days)}`
-    : `Remaining days: ${days} | Expired days: 0`;
-}
-
-function ReminderSummary({ reminders }) {
-  const dates = Object.values(reminders || {}).map((reminder) => reminder.expiryDate).filter(Boolean);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dayTotals = dates.reduce((totals, date) => {
-    const expiry = new Date(date);
-    expiry.setHours(0, 0, 0, 0);
-    const days = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
-    if (days < 0) return { ...totals, expired: totals.expired + Math.abs(days) };
-    return { ...totals, remaining: totals.remaining + days };
-  }, { remaining: 0, expired: 0 });
-  return (
-    <p style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
-      Remaining days: {dayTotals.remaining} | Expired days: {dayTotals.expired}
-    </p>
-  );
-}
-
-function formatTripRoute(trip) {
-  const formatDate = (value) => value ? new Date(value).toLocaleDateString('en-IN') : 'Date pending';
-  return `${trip.loadingLocation || 'Loading pending'} (${formatDate(trip.loadingDate)}) -> ${trip.unloadingLocation || 'Unloading pending'} (${formatDate(trip.unloadingDate)})`;
-}
 
 // Shared trip-rows table for both the regular driver's and the temporary driver's salary
 // breakdown - each shows only the trip entries attributed to that side, but both keep the same
@@ -153,53 +104,25 @@ function SalarySummaryTable({ salary }) {
   );
 }
 
-function previousMonth() {
-  const today = new Date();
-  const previous = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  return `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, '0')}`;
-}
-
-// Salary for a month can be calculated from the 5th of the following month.
-function latestCalculableMonth() {
-  const today = new Date();
-  const monthsBack = today.getDate() >= 5 ? 1 : 2;
-  const latest = new Date(today.getFullYear(), today.getMonth() - monthsBack, 1);
-  return `${latest.getFullYear()}-${String(latest.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function currentMonth() {
-  const today = new Date();
-  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function isCurrentOrPreviousMonth(monthKey) {
-  return monthKey === currentMonth() || monthKey === previousMonth();
-}
-
+// Closed trips grouped by close month, newest first, each month sorted newest close date first.
 function groupClosedTripsByCloseMonth(trips) {
   const groups = new Map();
   trips
     .filter((trip) => trip.status === 'closed')
     .forEach((trip) => {
       const closeDate = trip.turnDate || trip.closedAt;
-      const date = new Date(closeDate);
-      if (Number.isNaN(date.getTime())) return;
-      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      if (!groups.has(monthKey)) groups.set(monthKey, []);
-      groups.get(monthKey).push({ trip, closeDate });
+      const key = toMonthKey(closeDate);
+      if (!key) return;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({ trip, closeDate });
     });
 
   return Array.from(groups.entries())
     .sort(([leftMonth], [rightMonth]) => (leftMonth < rightMonth ? 1 : -1))
-    .map(([monthKey, monthTrips]) => ({
-      monthKey,
+    .map(([key, monthTrips]) => ({
+      monthKey: key,
       monthTrips: monthTrips.sort((left, right) => new Date(right.closeDate) - new Date(left.closeDate)),
     }));
-}
-
-function formatMonthLabel(month) {
-  const [year, monthNumber] = month.split('-').map(Number);
-  return new Date(year, monthNumber - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
 
 export default function DriverDetail() {
@@ -237,21 +160,16 @@ export default function DriverDetail() {
   const openTrips = trips.filter((trip) => trip.status !== 'closed');
   const closedTrips = trips.filter((trip) => trip.status === 'closed');
   const archivedTrips = closedTrips.filter((trip) => {
-    const closeDate = trip.turnDate || trip.closedAt;
-    const date = new Date(closeDate);
-    if (Number.isNaN(date.getTime())) return true;
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    return !isCurrentOrPreviousMonth(monthKey);
+    const key = toMonthKey(trip.turnDate || trip.closedAt);
+    return !key || !isCurrentOrPreviousMonth(key);
   });
   const visibleClosedTrips = showArchivedTrips
     ? closedTrips
     : closedTrips.filter((trip) => !archivedTrips.includes(trip));
   const closedTripGroups = groupClosedTripsByCloseMonth(visibleClosedTrips);
   const archivedLeaves = driverLeaves.filter((leave) => {
-    const date = new Date(leave.startDate);
-    if (Number.isNaN(date.getTime())) return true;
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    return !isCurrentOrPreviousMonth(monthKey);
+    const key = toMonthKey(leave.startDate);
+    return !key || !isCurrentOrPreviousMonth(key);
   });
   const visibleLeaves = showArchivedLeaves
     ? driverLeaves

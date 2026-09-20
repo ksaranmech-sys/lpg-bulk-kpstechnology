@@ -4,6 +4,7 @@
   "private": true,
   "description": "KPS Technology website and fleet management application",
   "workspaces": [
+    "shared",
     "backend",
     "frontend"
   ],

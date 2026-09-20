@@ -1,20 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { toDateInputValue } from '@kps/shared';
 import * as api from '../api/api';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
-
-// Uses local calendar date (not toISOString, which converts to UTC first) - otherwise, for any
-// timezone ahead of UTC (e.g. IST, UTC+5:30), "today" and stored dates can shift a day backward
-// during the first few hours of the local day.
-function toDateInputValue(value) {
-  if (!value) return undefined;
-  const date = new Date(value);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
 
 // Late (backdated) entries are allowed for Advance/Diesel/RTO/Other Expense - they just can't be
 // dated after this trip's own close date, so today is the fallback upper bound.

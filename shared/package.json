@@ -1,0 +1,11 @@
+{
+  "name": "@kps/shared",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Framework-agnostic code shared by the KPS Fleet web app and mobile app (plain JS, no JSX).",
+  "main": "index.js",
+  "sideEffects": false,
+  "peerDependencies": {
+    "axios": "^1.7.2"
+  }
+}

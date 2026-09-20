@@ -1,27 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { formatTripRoute, isArchivedTrip, EMPTY_DRIVER_FORM } from '@kps/shared';
 import * as api from '../api/api';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
-
-function formatTripRoute(trip) {
-  const formatDate = (value) => value ? new Date(value).toLocaleDateString('en-IN') : 'Date pending';
-  return `${trip.loadingLocation || 'Loading pending'} (${formatDate(trip.loadingDate)}) -> ${trip.unloadingLocation || 'Unloading pending'} (${formatDate(trip.unloadingDate)})`;
-}
-
-function tripHistoryMonthKey(trip) {
-  const date = new Date(trip.closedAt || trip.loadingDate || trip.createdAt);
-  if (Number.isNaN(date.getTime())) return '';
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function isCurrentOrPreviousMonth(monthKey) {
-  const today = new Date();
-  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-  const previous = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-  const previousMonth = `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, '0')}`;
-  return monthKey === currentMonth || monthKey === previousMonth;
-}
 
 export default function CustomerDetail() {
   const { user } = useAuth();
@@ -36,11 +18,11 @@ export default function CustomerDetail() {
   const [vehicleBulkEditMode, setVehicleBulkEditMode] = useState(false);
   const [vehicleDrafts, setVehicleDrafts] = useState({});
   const [vehicleBulkSaving, setVehicleBulkSaving] = useState(false);
-  const [driverForm, setDriverForm] = useState({ name: '', mobileNumber: '', joiningDate: '', resigningDate: '', username: '', password: '', vehicleId: '', basicSalary: '', kmCharges: '', minKmCharges: '', temporaryDriverRequired: false, temporaryDriverName: '', temporaryDriverJoiningDate: '', temporaryDriverReturningDate: '' });
+  const [driverForm, setDriverForm] = useState(EMPTY_DRIVER_FORM);
   const [driverError, setDriverError] = useState('');
   const [driverSaving, setDriverSaving] = useState(false);
   const [driverEditId, setDriverEditId] = useState('');
-  const [driverEditForm, setDriverEditForm] = useState({ name: '', mobileNumber: '', joiningDate: '', resigningDate: '', username: '', password: '', vehicleId: '', basicSalary: '', kmCharges: '', minKmCharges: '', temporaryDriverRequired: false, temporaryDriverName: '', temporaryDriverJoiningDate: '', temporaryDriverReturningDate: '' });
+  const [driverEditForm, setDriverEditForm] = useState(EMPTY_DRIVER_FORM);
   const [driverEditError, setDriverEditError] = useState('');
   const [driverEditSaving, setDriverEditSaving] = useState(false);
   const [selectedDrivers, setSelectedDrivers] = useState([]);
@@ -141,10 +123,10 @@ export default function CustomerDetail() {
     }
   }
 
-  const archivedTrips = closedTrips.filter((trip) => trip.status === 'closed' && !isCurrentOrPreviousMonth(tripHistoryMonthKey(trip)));
+  const archivedTrips = closedTrips.filter(isArchivedTrip);
   const visibleClosedTrips = showArchivedTrips
     ? closedTrips
-    : closedTrips.filter((trip) => trip.status !== 'closed' || isCurrentOrPreviousMonth(tripHistoryMonthKey(trip)));
+    : closedTrips.filter((trip) => !isArchivedTrip(trip));
 
   useEffect(() => {
     if (!data) return;
