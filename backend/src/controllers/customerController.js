@@ -195,6 +195,32 @@ function getSalaryMonthBounds(month) {
   };
 }
 
+// A month's salary is calculable only once the FOLLOWING month has ended - trips that straddle
+// the month boundary close during the next month, so waiting for it to finish gives every
+// advance/expense a chance to be entered before settlement.
+function getSalaryMonthAvailability(month, today = new Date()) {
+  const [year, monthNumber] = month.split('-').map(Number);
+  const availableFrom = new Date(year, monthNumber + 1, 1);
+  return { available: today >= availableFrom, availableFrom };
+}
+
+function getLatestCalculableSalaryMonth(today = new Date()) {
+  const latest = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+  return `${latest.getFullYear()}-${String(latest.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Shared month validation for the salary endpoints - returns an error message or null.
+function validateSalaryMonth(month) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return 'month must use YYYY-MM format';
+  const { available, availableFrom } = getSalaryMonthAvailability(month);
+  if (!available) {
+    const [year, monthNumber] = month.split('-').map(Number);
+    const nextMonth = formatMonth(`${monthNumber === 12 ? year + 1 : year}-${String((monthNumber % 12) + 1).padStart(2, '0')}`);
+    return `Salary for ${formatMonth(month)} can be calculated only after ${nextMonth} ends (available from ${availableFrom.toLocaleDateString('en-IN')})`;
+  }
+  return null;
+}
+
 function getClosedTripsMonthFilter(monthStart, monthEnd) {
   // Still-open trips are included too, so the admin can see and manually close them from the
   // salary table instead of waiting for the automatic next-trip close.
@@ -539,10 +565,9 @@ async function getCustomer(req, res) {
 // GET /api/v1/customers/:customerId/users/:userId/salary?month=YYYY-MM
 async function getDriverMonthlySalary(req, res) {
   const { customerId, userId } = req.params;
-  const month = req.query.month || new Date().toISOString().slice(0, 7);
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
-    return res.status(400).json({ error: 'month must use YYYY-MM format' });
-  }
+  const month = req.query.month || getLatestCalculableSalaryMonth();
+  const monthError = validateSalaryMonth(month);
+  if (monthError) return res.status(400).json({ error: monthError });
 
   const summary = await calculateDriverMonthlySalary(customerId, userId, month);
   if (!summary) return res.status(404).json({ error: 'Driver not found' });
@@ -555,10 +580,9 @@ async function getDriverMonthlySalary(req, res) {
 // pick up the Content-Disposition filename (blob URLs always save as a random UUID).
 async function createDriverMonthlySummaryToken(req, res) {
   const { customerId, userId } = req.params;
-  const month = req.query.month || new Date().toISOString().slice(0, 7);
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
-    return res.status(400).json({ error: 'month must use YYYY-MM format' });
-  }
+  const month = req.query.month || getLatestCalculableSalaryMonth();
+  const monthError = validateSalaryMonth(month);
+  if (monthError) return res.status(400).json({ error: monthError });
   const token = signPdfToken(req.user, { customerId, userId, month });
   res.json({ token });
 }
@@ -566,10 +590,9 @@ async function createDriverMonthlySummaryToken(req, res) {
 // GET /api/v1/customers/:customerId/users/:userId/monthly-summary?month=YYYY-MM
 async function downloadDriverMonthlySummary(req, res) {
   const { customerId, userId } = req.params;
-  const month = req.query.month || new Date().toISOString().slice(0, 7);
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
-    return res.status(400).json({ error: 'month must use YYYY-MM format' });
-  }
+  const month = req.query.month || getLatestCalculableSalaryMonth();
+  const monthError = validateSalaryMonth(month);
+  if (monthError) return res.status(400).json({ error: monthError });
   if (req.user.scope && (req.user.customerId !== customerId || req.user.userId !== userId || req.user.month !== month)) {
     return res.status(403).json({ error: 'Token is not valid for this report' });
   }
@@ -838,6 +861,9 @@ module.exports = {
   sumTripDieselLitres,
   sumTripExpenses,
   getSalaryMonthBounds,
+  getSalaryMonthAvailability,
+  getLatestCalculableSalaryMonth,
+  validateSalaryMonth,
   getClosedTripsMonthFilter,
   getTripClosedDate,
   isTripInSalaryMonth,

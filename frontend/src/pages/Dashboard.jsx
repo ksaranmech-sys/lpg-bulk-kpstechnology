@@ -77,6 +77,13 @@ function completedMonth() {
   return `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// Salary for a month can only be calculated once the following month has ended.
+function latestCalculableMonth() {
+  const today = new Date();
+  const latest = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+  return `${latest.getFullYear()}-${String(latest.getMonth() + 1).padStart(2, '0')}`;
+}
+
 function formatMonthLabel(month) {
   const [year, monthNumber] = month.split('-').map(Number);
   return new Date(year, monthNumber - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
@@ -163,7 +170,7 @@ export default function Dashboard() {
   const [showAddDriverForm, setShowAddDriverForm] = useState(false);
   const [driverSalaries, setDriverSalaries] = useState({});
   const [driverSalariesLoading, setDriverSalariesLoading] = useState(false);
-  const [salaryMonth, setSalaryMonth] = useState(completedMonth);
+  const [salaryMonth, setSalaryMonth] = useState(latestCalculableMonth);
   const [showArchivedSalary, setShowArchivedSalary] = useState(false);
   const [leaves, setLeaves] = useState([]);
   const [leavesLoading, setLeavesLoading] = useState(false);
@@ -1268,6 +1275,9 @@ export default function Dashboard() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <h3 className="section-title" style={{ marginTop: 0 }}>Salary Details ({formatMonthLabel(salaryMonth)})</h3>
           </div>
+          <p style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
+            Salary for a month is calculated after the following month ends (latest available: {formatMonthLabel(latestCalculableMonth())}).
+          </p>
           {driverUsers.length === 0 ? (
             <p>No drivers found.</p>
           ) : driverSalariesLoading ? (
@@ -1358,6 +1368,7 @@ export default function Dashboard() {
                   id="salary-month"
                   type="month"
                   value={salaryMonth}
+                  max={latestCalculableMonth()}
                   onChange={(event) => setSalaryMonth(event.target.value)}
                 />
               </div>

@@ -190,6 +190,17 @@ test('trip expense includes cleaner loading, turn and parking like the trip prin
   assert.equal(expense, 650);
 });
 
+test('salary month is calculable only after the following month has ended', () => {
+  const sep20 = new Date(2026, 8, 20);
+  assert.equal(customerController.getSalaryMonthAvailability('2026-07', sep20).available, true);
+  assert.equal(customerController.getSalaryMonthAvailability('2026-08', sep20).available, false);
+  assert.equal(customerController.getSalaryMonthAvailability('2026-08', new Date(2026, 9, 1)).available, true);
+  assert.equal(customerController.getSalaryMonthAvailability('2026-12', new Date(2027, 1, 1)).available, true);
+  assert.equal(customerController.getSalaryMonthAvailability('2026-12', new Date(2027, 0, 31)).available, false);
+  assert.equal(customerController.getLatestCalculableSalaryMonth(sep20), '2026-07');
+  assert.equal(customerController.getLatestCalculableSalaryMonth(new Date(2027, 0, 15)), '2026-11');
+});
+
 test('single trip pages name the regular driver, the temporary driver, or both when a trip straddles the handover', () => {
   const driver = { name: 'Kumar' };
   const temp = { name: 'Ravi' };

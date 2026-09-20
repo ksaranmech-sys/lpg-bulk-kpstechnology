@@ -159,6 +159,13 @@ function previousMonth() {
   return `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// Salary for a month can only be calculated once the following month has ended.
+function latestCalculableMonth() {
+  const today = new Date();
+  const latest = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+  return `${latest.getFullYear()}-${String(latest.getMonth() + 1).padStart(2, '0')}`;
+}
+
 function currentMonth() {
   const today = new Date();
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -202,10 +209,11 @@ export default function DriverDetail() {
   const [reminderDates, setReminderDates] = useState({});
   const [reminderDirty, setReminderDirty] = useState(false);
   const [reminderSaving, setReminderSaving] = useState(false);
-  const [salaryMonth, setSalaryMonth] = useState(previousMonth);
+  const [salaryMonth, setSalaryMonth] = useState(latestCalculableMonth);
   const [salary, setSalary] = useState(null);
+  const [salaryError, setSalaryError] = useState('');
   const [showArchivedSalary, setShowArchivedSalary] = useState(false);
-  const [archivedSalaryMonth, setArchivedSalaryMonth] = useState(previousMonth);
+  const [archivedSalaryMonth, setArchivedSalaryMonth] = useState(latestCalculableMonth);
   const [summaryPrinting, setSummaryPrinting] = useState(false);
   const [closingTripId, setClosingTripId] = useState(null);
   const [trips, setTrips] = useState([]);
@@ -250,10 +258,14 @@ export default function DriverDetail() {
 
   function loadSalary() {
     if (!driver) return;
+    setSalaryError('');
     api
       .getDriverMonthlySalary(customerId, driverId, salaryMonth)
       .then((res) => setSalary(res.data))
-      .catch((err) => setError(err.response?.data?.error || 'Failed to load salary calculation'));
+      .catch((err) => {
+        setSalary(null);
+        setSalaryError(err.response?.data?.error || 'Failed to load salary calculation');
+      });
   }
 
   useEffect(loadSalary, [customerId, driver, driverId, salaryMonth]);
@@ -491,6 +503,7 @@ export default function DriverDetail() {
                   aria-label="Salary month"
                   type="month"
                   value={salaryMonth}
+                  max={latestCalculableMonth()}
                   onChange={(event) => setSalaryMonth(event.target.value)}
                   style={{ maxWidth: 170 }}
                 />
@@ -504,7 +517,11 @@ export default function DriverDetail() {
                 </button>
               </div>
             </div>
-            {!salary ? <p style={{ margin: 0 }}>Loading salary calculation...</p> : (
+            <p style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
+              Salary for a month is calculated after the following month ends (latest available: {formatMonthLabel(latestCalculableMonth())}).
+            </p>
+            {salaryError ? <p className="error-text" style={{ margin: 0 }}>{salaryError}</p>
+              : !salary ? <p style={{ margin: 0 }}>Loading salary calculation...</p> : (
               <>
                 <SalaryTripsTable
                   trips={salary.trips}
@@ -565,6 +582,7 @@ export default function DriverDetail() {
                 aria-label="Archived salary month"
                 type="month"
                 value={archivedSalaryMonth}
+                max={latestCalculableMonth()}
                 onChange={(event) => setArchivedSalaryMonth(event.target.value)}
                 style={{ maxWidth: 170 }}
               />
