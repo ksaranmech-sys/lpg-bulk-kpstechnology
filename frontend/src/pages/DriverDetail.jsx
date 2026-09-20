@@ -519,6 +519,14 @@ export default function DriverDetail() {
                   onChange={(event) => setSalaryMonth(event.target.value)}
                   style={{ maxWidth: 170 }}
                 />
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => printMonthlySummary(salaryMonth)}
+                  disabled={!salary || summaryPrinting}
+                >
+                  {summaryPrinting ? 'Preparing...' : 'Print Salary PDF'}
+                </button>
               </div>
             </div>
             {!salary ? <p style={{ margin: 0 }}>Loading salary calculation...</p> : (

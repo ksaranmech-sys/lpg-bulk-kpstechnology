@@ -115,95 +115,133 @@ function buildTripSettlementPdf(trip, previousTrip = trip.previousTrip) {
 function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trips }) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 24, size: 'A4', layout: 'landscape' });
-    const reportStartY = doc.page.margins.top - 10;
     const chunks = [];
     doc.on('data', (chunk) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    doc.fontSize(13).font('Helvetica-Bold').text('Monthly Salary Calculation', { align: 'center' });
-    doc.moveDown(0.2);
-    doc.font('Helvetica').fontSize(8.5);
-    const metadataWidth = (doc.page.width - doc.page.margins.left - doc.page.margins.right) / 4;
-    const metadataY = doc.y;
-    doc.text(`Customer: ${customer?.companyName || '-'}`, doc.page.margins.left, metadataY, {
-      width: metadataWidth,
-      align: 'left',
+    renderSalarySheet(doc, {
+      title: 'Monthly Salary Calculation',
+      driverLabel: `Driver: ${driver?.name || driver?.username || '-'}`,
+      vehicle,
+      customer,
+      month: summary.month,
+      summary,
+      trips,
+      basicSalaryLabel: `Basic Salary Payable (Payable days: ${summary.payableDays || 0}, Leaves taken: ${summary.unpaidLeaveDays || 0})`,
     });
-    doc.text(`Driver: ${driver?.name || driver?.username || '-'}`, doc.page.margins.left + metadataWidth, metadataY, {
-      width: metadataWidth,
-      align: 'center',
-    });
-    doc.text(`Vehicle: ${vehicle?.vehicleNumber || '-'}`, doc.page.margins.left + metadataWidth * 2, metadataY, {
-      width: metadataWidth,
-      align: 'center',
-    });
-    doc.text(`Month: ${formatMonth(summary.month)}`, doc.page.margins.left + metadataWidth * 3, metadataY, {
-      width: metadataWidth,
-      align: 'right',
-    });
-    doc.y = metadataY + 12;
-    doc.x = doc.page.margins.left;
-    doc.text(`Closed trips: ${trips.length}`, { align: 'center' });
-    doc.moveDown(0.2);
-    doc.x = doc.page.margins.left;
 
-    styledSectionHeader(doc, 'Closed Trips');
-    renderSalaryTripsTable(doc, ['S.No', 'Loading Location', 'Unloading Location', 'Unloading Date', 'Divert Location', 'Divert Date', 'Driver KM', 'Diesel (Litres)', 'Trip Diesel', 'Trip Advance', 'Trip Expense', 'Balance'],
-      trips.length ? trips.map((trip, index) => [
-        String(index + 1),
-        trip.loadingLocation || '-',
-        trip.unloadingLocation || '-',
-        fmtDate(trip.unloadingDate),
-        trip.isDiverted ? trip.divertUnloadingLocation || '-' : '-',
-        trip.isDiverted ? fmtDate(trip.divertDate) : '-',
-        trip.corporationKm != null ? `${fmtMoney(trip.corporationKm)} km` : '-',
-        `${fmtMoney(trip.dieselLitres || 0)} L`,
-        `Rs ${fmtMoney(trip.dieselTotal || 0)}`,
-        `Rs ${fmtMoney(trip.advanceTotal || 0)}`,
-        `Rs ${fmtMoney(trip.expenseTotal || 0)}`,
-        `Rs ${fmtMoney(trip.balance || 0)}`,
-      ]) : [['-', 'No closed trips for this month', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-']]);
-    doc.moveDown(0.12);
-    doc.x = doc.page.margins.left;
-
-
-    styledSectionHeader(doc, 'Salary Calculation');
-    const specialTripCharges = Number(summary.specialTripCharges || 0);
-    // Sub Total = Basic + KM Beta + Special Trip Charges + Total Expenses (earnings and
-    // reimbursable expenses owed to the driver). Settlement to Driver = Sub Total - Total
-    // Advance (money already paid out) - this matches summary.salaryBalance exactly.
-    const subTotal = Number(summary.basicSalary || 0) + Number(summary.kmBeta || 0) + specialTripCharges + Number(summary.totalExpense || 0);
-    const salaryRows = [
-      [`Basic Salary Payable (Payable days: ${summary.payableDays || 0}, Leaves taken: ${summary.unpaidLeaveDays || 0})`, `Rs ${fmtMoney(summary.basicSalary)}`],
-      [`KM Beta (Total Driver KM x Rs ${fmtMoney(summary.kmCharges)})`, `Rs ${fmtMoney(summary.kmBeta)}`],
-      ['Total Expenses', `Rs ${fmtMoney(summary.totalExpense)}`],
-      ['Sub Total', `Rs ${fmtMoney(subTotal)}`],
-      ['Total Advance', `Rs ${fmtMoney(summary.totalAdvance)}`],
-      ['Settlement to Driver', `Rs ${fmtMoney(summary.salaryBalance)}`],
-    ];
-    if (specialTripCharges > 0) {
-      salaryRows.splice(2, 0, [
-        `Special Trip Charges (${summary.specialTripCount || 0} trips x Rs 1000)`,
-        `Rs ${fmtMoney(summary.specialTripCharges)}`,
-      ]);
+    // Temporary (substitute) driver gets their own sheet so both settlements can be handed
+    // out independently - the split rows never overlap with the regular driver's sheet.
+    const temporaryDriver = summary.temporaryDriver;
+    if (temporaryDriver) {
+      doc.addPage({ size: 'A4', layout: 'landscape', margin: 24 });
+      const period = `${fmtDate(temporaryDriver.joiningDate)} - ${temporaryDriver.returningDate ? fmtDate(temporaryDriver.returningDate) : 'Ongoing'}`;
+      renderSalarySheet(doc, {
+        title: 'Temporary Driver Salary Calculation',
+        driverLabel: `Temporary Driver: ${temporaryDriver.name || '-'}`,
+        vehicle,
+        customer,
+        month: summary.month,
+        summary: temporaryDriver,
+        trips: temporaryDriver.trips || [],
+        subtitle: `Covering for ${driver?.name || driver?.username || '-'} (${period})`,
+        basicSalaryLabel: `Basic Salary Payable (Days covered: ${temporaryDriver.days || 0})`,
+      });
     }
-    renderSalaryRows(doc, salaryRows);
-    doc.moveDown(0.25);
-    doc.fontSize(7).fillColor('gray').text(
-      `Generated on ${new Date().toLocaleString('en-IN')} by KPS Fleet Management System`,
-      { align: 'center' }
-    );
-    doc.roundedRect(
-      doc.page.margins.left - 8,
-      reportStartY,
-      doc.page.width - doc.page.margins.left - doc.page.margins.right + 16,
-      doc.y - reportStartY + 8,
-      8
-    ).lineWidth(1).strokeColor('#1f4d2b').stroke();
+
     trips.forEach((trip) => renderMonthlyTripDetailsPage(doc, trip, driver, vehicle, customer));
     doc.end();
   });
+}
+
+function renderSalarySheet(doc, { title, driverLabel, vehicle, customer, month, summary, trips, subtitle, basicSalaryLabel }) {
+  const reportStartY = doc.page.margins.top - 10;
+  doc.x = doc.page.margins.left;
+  doc.y = doc.page.margins.top;
+  doc.fillColor('black').fontSize(13).font('Helvetica-Bold').text(title, { align: 'center' });
+  doc.moveDown(0.2);
+  doc.font('Helvetica').fontSize(8.5);
+  const metadataWidth = (doc.page.width - doc.page.margins.left - doc.page.margins.right) / 4;
+  const metadataY = doc.y;
+  doc.text(`Customer: ${customer?.companyName || '-'}`, doc.page.margins.left, metadataY, {
+    width: metadataWidth,
+    align: 'left',
+  });
+  doc.text(driverLabel, doc.page.margins.left + metadataWidth, metadataY, {
+    width: metadataWidth,
+    align: 'center',
+  });
+  doc.text(`Vehicle: ${vehicle?.vehicleNumber || '-'}`, doc.page.margins.left + metadataWidth * 2, metadataY, {
+    width: metadataWidth,
+    align: 'center',
+  });
+  doc.text(`Month: ${formatMonth(month)}`, doc.page.margins.left + metadataWidth * 3, metadataY, {
+    width: metadataWidth,
+    align: 'right',
+  });
+  doc.y = metadataY + 12;
+  doc.x = doc.page.margins.left;
+  if (subtitle) {
+    doc.text(subtitle, { align: 'center' });
+    doc.x = doc.page.margins.left;
+  }
+  doc.text(`Closed trips: ${trips.length}`, { align: 'center' });
+  doc.moveDown(0.2);
+  doc.x = doc.page.margins.left;
+
+  styledSectionHeader(doc, 'Closed Trips');
+  renderSalaryTripsTable(doc, ['S.No', 'Loading Location', 'Unloading Location', 'Unloading Date', 'Divert Location', 'Divert Date', 'Driver KM', 'Diesel (Litres)', 'Trip Diesel', 'Trip Advance', 'Trip Expense', 'Balance'],
+    trips.length ? trips.map((trip, index) => [
+      String(index + 1),
+      trip.loadingLocation || '-',
+      trip.unloadingLocation || '-',
+      fmtDate(trip.unloadingDate),
+      trip.isDiverted ? trip.divertUnloadingLocation || '-' : '-',
+      trip.isDiverted ? fmtDate(trip.divertDate) : '-',
+      trip.corporationKm != null ? `${fmtMoney(trip.corporationKm)} km` : '-',
+      `${fmtMoney(trip.dieselLitres || 0)} L`,
+      `Rs ${fmtMoney(trip.dieselTotal || 0)}`,
+      `Rs ${fmtMoney(trip.advanceTotal || 0)}`,
+      `Rs ${fmtMoney(trip.expenseTotal || 0)}`,
+      `Rs ${fmtMoney(trip.balance || 0)}`,
+    ]) : [['-', 'No closed trips for this month', '-', '-', '-', '-', '-', '-', '-', '-', '-', '-']]);
+  doc.moveDown(0.12);
+  doc.x = doc.page.margins.left;
+
+  styledSectionHeader(doc, 'Salary Calculation');
+  const specialTripCharges = Number(summary.specialTripCharges || 0);
+  // Sub Total = Basic + KM Beta + Special Trip Charges + Total Expenses (earnings and
+  // reimbursable expenses owed to the driver). Settlement to Driver = Sub Total - Total
+  // Advance (money already paid out) - this matches summary.salaryBalance exactly.
+  const subTotal = Number(summary.basicSalary || 0) + Number(summary.kmBeta || 0) + specialTripCharges + Number(summary.totalExpense || 0);
+  const salaryRows = [
+    [basicSalaryLabel, `Rs ${fmtMoney(summary.basicSalary)}`],
+    [`KM Beta (Total Driver KM ${fmtMoney(summary.corporationKm)} x Rs ${fmtMoney(summary.kmCharges)})`, `Rs ${fmtMoney(summary.kmBeta)}`],
+    ['Total Expenses', `Rs ${fmtMoney(summary.totalExpense)}`],
+    ['Sub Total', `Rs ${fmtMoney(subTotal)}`],
+    ['Total Advance', `Rs ${fmtMoney(summary.totalAdvance)}`],
+    ['Settlement to Driver', `Rs ${fmtMoney(summary.salaryBalance)}`],
+  ];
+  if (specialTripCharges > 0) {
+    salaryRows.splice(2, 0, [
+      `Special Trip Charges (${summary.specialTripCount || 0} trips x Rs 1000)`,
+      `Rs ${fmtMoney(summary.specialTripCharges)}`,
+    ]);
+  }
+  renderSalaryRows(doc, salaryRows);
+  doc.moveDown(0.25);
+  doc.fontSize(7).fillColor('gray').text(
+    `Generated on ${new Date().toLocaleString('en-IN')} by KPS Fleet Management System`,
+    { align: 'center' }
+  );
+  doc.roundedRect(
+    doc.page.margins.left - 8,
+    reportStartY,
+    doc.page.width - doc.page.margins.left - doc.page.margins.right + 16,
+    doc.y - reportStartY + 8,
+    8
+  ).lineWidth(1).strokeColor('#1f4d2b').stroke();
 }
 
 function renderMonthlyTripDetailsPage(doc, trip, driver, vehicle, customer) {
