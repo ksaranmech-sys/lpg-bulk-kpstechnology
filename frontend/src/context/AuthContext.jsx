@@ -56,8 +56,18 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
+  // Re-reads the profile after account changes (e.g. recovery contacts saved).
+  async function refreshUser() {
+    try {
+      const res = await api.getMe();
+      const nextUser = normalizeUser(res.data.user);
+      saveSession({ user: nextUser });
+      setUser(nextUser);
+    } catch (err) { /* keep the current user */ }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signOut, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

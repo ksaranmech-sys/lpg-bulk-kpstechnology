@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
@@ -40,6 +40,9 @@ export default function Login() {
         <button className="btn" style={{ width: '100%', marginTop: 8 }} disabled={busy}>
           {busy ? 'Signing in...' : 'Sign In'}
         </button>
+        <p style={{ textAlign: 'center', marginTop: 14, marginBottom: 0, fontSize: 13 }}>
+          <Link to="/forgot-password">Forgot password?</Link>
+        </p>
       </form>
     </div>
   );

@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
+import ForgotPassword from './pages/ForgotPassword';
 
 // Each page is its own bundle so the login screen loads without the whole app.
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -24,6 +25,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="/vehicles/:vehicleId/*" element={<PrivateRoute><Navigate to="/" replace /></PrivateRoute>} />
           <Route path="/trips/:tripId" element={<PrivateRoute><TripDetail /></PrivateRoute>} />

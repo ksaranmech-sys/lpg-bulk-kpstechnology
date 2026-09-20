@@ -80,6 +80,9 @@ export function createEndpoints(api) {
     logout: () => api.post('/auth/logout'),
     getMe: () => api.get('/auth/me'),
     changePassword: (currentPassword, newPassword) => api.post('/auth/change-password', { currentPassword, newPassword }),
+    setRecoveryContact: (data) => api.post('/auth/recovery-contact', data),
+    forgotPassword: (username, recoveryMobile) => api.post('/auth/forgot-password', { username, recoveryMobile }),
+    resetPasswordWithCode: (username, code, newPassword) => api.post('/auth/reset-password-with-code', { username, code, newPassword }),
 
     // ---- Meta ----
     getMeta: () => api.get('/meta'),

@@ -53,8 +53,10 @@ The backend must go live **first**: the website and the mobile app both talk to 
 1. [ ] Vercel redeploys `main` automatically after the merge. If you pointed Render at the branch instead, do the same in Vercel → Settings → Git → Production Branch.
 2. [ ] **Check:** open the website, log in as `kpsadmin`. You will need to log in once more than usual (old sessions are invalid after the secret change — expected).
 3. [ ] Top bar → **Change Password** → set the strong admin password.
-4. [ ] Log in as a driver in the website, open a trip, add a diesel entry **with a photo**. Click the photo: its address should start with `https://res.cloudinary.com/...`. That confirms permanent photo storage.
-5. [ ] Optional speed-up: Vercel → Settings → General → **Install Command** = `npm install --workspace shared --workspace frontend` (skips downloading the mobile app's packages on every website deploy).
+4. [ ] On the same page, **Password Recovery Contacts** → enter the owner's email and mobile number, confirm with the password, save. This is what the **Forgot password?** link on the login page uses: it emails a 6-digit code to that address and asks for that mobile number. Do this for each customer admin too (they can do it themselves after logging in).
+5. [ ] Test it once: sign out → **Forgot password?** → username + mobile → check the recovery inbox for the code (needs the `SMTP_*` settings on Render to be valid — if the email never arrives, the Render log shows `[auth] Failed to send reset code email`).
+6. [ ] Log in as a driver in the website, open a trip, add a diesel entry **with a photo**. Click the photo: its address should start with `https://res.cloudinary.com/...`. That confirms permanent photo storage.
+7. [ ] Optional speed-up: Vercel → Settings → General → **Install Command** = `npm install --workspace shared --workspace frontend` (skips downloading the mobile app's packages on every website deploy).
 
 ---
 
@@ -115,5 +117,6 @@ This produces a file anyone can install on an Android phone without the Play Sto
 | Browser console: CORS error | Website address not in `ALLOWED_ORIGINS` | Add the exact `https://...` address, no trailing slash |
 | Photos disappear after a deploy | `STORAGE_DRIVER` still `local` | Set `cloudinary` + `CLOUDINARY_URL` |
 | Too many login attempts (429) for everyone | Proxy hops mis-detected | Report it — the server trusts 2 proxy hops by design |
-| Forgot the admin password | — | Locally: put the Atlas `MONGO_URI` and `ADMIN_INITIAL_PASSWORD=<new>` in `backend/.env`, then `cd backend` and run `npm run seed -- --reset-admin-password`; afterwards remove both values again |
+| Forgot the admin password | — | First try **Forgot password?** on the login page (needs recovery contacts set in Part 2). Last resort, locally: put the Atlas `MONGO_URI` and `ADMIN_INITIAL_PASSWORD=<new>` in `backend/.env`, then `cd backend` and run `npm run seed -- --reset-admin-password`; afterwards remove both values again |
+| Reset code email never arrives | SMTP settings wrong, or mobile number doesn't match | Check Render log for `[auth] Failed to send reset code email`; the mobile number is compared on its last 10 digits |
 | Phone can't reach local backend | Firewall / different Wi-Fi | Part 3 step 4 |

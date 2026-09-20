@@ -37,6 +37,20 @@ const rules = {
     body('currentPassword').isString().notEmpty().withMessage('currentPassword is required'),
     password('newPassword'),
   ]),
+  recoveryContact: validate([
+    body('currentPassword').isString().notEmpty().withMessage('currentPassword is required'),
+    body('recoveryEmail').isEmail().withMessage('recoveryEmail must be a valid email address').trim(),
+    body('recoveryMobile').isString().trim().matches(/^\+?[\d\s-]{10,15}$/).withMessage('recoveryMobile must be a valid mobile number'),
+  ]),
+  forgotPassword: validate([
+    body('username').isString().trim().notEmpty().withMessage('username is required').isLength({ max: 100 }),
+    body('recoveryMobile').isString().trim().notEmpty().withMessage('recoveryMobile is required').isLength({ max: 20 }),
+  ]),
+  resetPasswordWithCode: validate([
+    body('username').isString().trim().notEmpty().withMessage('username is required').isLength({ max: 100 }),
+    body('code').isString().trim().matches(/^\d{6}$/).withMessage('code must be the 6-digit number from the email'),
+    password('newPassword'),
+  ]),
   createCustomer: validate([
     body('companyName').isString().trim().notEmpty().withMessage('companyName is required').isLength({ max: 150 }),
     body('mobileNumber').isString().trim().notEmpty().withMessage('mobileNumber is required').isLength({ max: 20 }),

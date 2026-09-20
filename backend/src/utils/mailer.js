@@ -54,4 +54,15 @@ async function sendVehicleReminderEmail({ vehicleNumber, documentLabel, expiryDa
   return sendEmail({ to, cc, subject, html });
 }
 
-module.exports = { sendTripSettlementEmail, sendVehicleReminderEmail };
+async function sendPasswordResetCodeEmail({ to, name, code, minutesValid }) {
+  const subject = 'KPS Fleet password reset code';
+  const html = `
+    <p>Hello ${name || ''},</p>
+    <p>Your password reset code is:</p>
+    <p style="font-size:28px;font-weight:bold;letter-spacing:6px">${code}</p>
+    <p>It is valid for ${minutesValid} minutes. If you did not request a reset, ignore this email - your password has not changed.</p>
+  `;
+  return sendEmail({ to, subject, html });
+}
+
+module.exports = { sendTripSettlementEmail, sendVehicleReminderEmail, sendPasswordResetCodeEmail };

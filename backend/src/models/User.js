@@ -47,6 +47,15 @@ const userSchema = new mongoose.Schema(
     lastLoginAt: { type: Date },
     // Bumped to invalidate every outstanding refresh token (logout everywhere, password reset).
     tokenVersion: { type: Number, default: 0 },
+    // Self-service "forgot password": a one-time code is emailed to recoveryEmail, and the
+    // requester must also supply the matching recoveryMobile number.
+    recoveryEmail: { type: String, trim: true, lowercase: true, default: null },
+    recoveryMobile: { type: String, trim: true, default: null },
+    passwordReset: {
+      codeHash: { type: String, default: null },
+      expiresAt: { type: Date, default: null },
+      attempts: { type: Number, default: 0 },
+    },
   },
   { timestamps: true }
 );
@@ -99,6 +108,8 @@ userSchema.methods.toSafeJSON = function () {
     customer: customerId,
     vehicle: vehicleId,
     isActive: this.isActive,
+    recoveryEmail: this.recoveryEmail || null,
+    recoveryMobile: this.recoveryMobile || null,
   };
 };
 
