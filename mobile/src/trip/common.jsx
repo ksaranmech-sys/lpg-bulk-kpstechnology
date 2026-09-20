@@ -1,19 +1,11 @@
 import React from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { Field, Input, Select } from '../ui';
 import { colors, spacing } from '../theme';
 
-export const trimText = (value) => String(value || '').trim();
+export { confirm } from '../confirm';
 
-// Promise wrapper so sections can `if (!(await confirm(...))) return;` like window.confirm on web.
-export function confirm(message, okText = 'Delete') {
-  return new Promise((resolve) => {
-    Alert.alert('Confirm', message, [
-      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-      { text: okText, style: 'destructive', onPress: () => resolve(true) },
-    ], { cancelable: true, onDismiss: () => resolve(false) });
-  });
-}
+export const trimText = (value) => String(value || '').trim();
 
 // Web uses ComboBoxInput; drivers here can tap a suggestion chip or type a free-text value.
 export function LocationPicker({ label, value, onChange, options = [], placeholder }) {

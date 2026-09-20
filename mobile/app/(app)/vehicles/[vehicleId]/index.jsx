@@ -2,9 +2,10 @@ import React, { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { formatDate } from '@kps/shared';
-import { api, errorMessage } from '../../../src/api';
-import { Badge, Card, ErrorText, Loading, Muted, Screen } from '../../../src/ui';
-import { colors, spacing } from '../../../src/theme';
+import { api, errorMessage } from '../../../../src/api';
+import { Badge, Button, Card, ErrorText, Loading, Muted, Screen } from '../../../../src/ui';
+import { colors, spacing } from '../../../../src/theme';
+import { reminderCounts } from '../../../../src/features/reminders/ReminderSummary';
 
 // Trip list for one vehicle (admin view).
 export default function VehicleTripsScreen() {
@@ -29,15 +30,24 @@ export default function VehicleTripsScreen() {
   }, [vehicleId]));
 
   if (loading) return <Loading />;
+  const counts = reminderCounts(vehicle?.documentReminders);
 
   return (
     <Screen>
       <Card>
         <Text style={styles.vehicleNumber}>{vehicle?.vehicleNumber || 'Vehicle'}</Text>
         <Muted>
-          {vehicle?.customerName ? `${vehicle.customerName} · ` : ''}
+          {vehicle?.customerName ? `${vehicle.customerName} \u00b7 ` : ''}
           Driver: {vehicle?.driverName || 'Not assigned'}
         </Muted>
+        {vehicle && (
+          <Button
+            title={`Reminder / Expiry Dates (${counts.remaining} remaining, ${counts.expired} expired)`}
+            variant="secondary"
+            onPress={() => router.push(`/vehicles/${vehicleId}/reminders`)}
+            style={{ marginTop: spacing.md }}
+          />
+        )}
       </Card>
       <ErrorText>{error}</ErrorText>
       <Card title={`Trips (${trips.length})`}>

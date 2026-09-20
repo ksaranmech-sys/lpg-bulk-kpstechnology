@@ -184,6 +184,37 @@ export function Loading({ text = 'Loading...' }) {
   );
 }
 
+// Mobile stand-in for <input type="checkbox">; optional label sits to the right.
+export function Checkbox({ checked, onChange, label, disabled }) {
+  return (
+    <Pressable
+      onPress={() => !disabled && onChange && onChange(!checked)}
+      disabled={disabled}
+      style={[styles.checkboxRow, disabled && { opacity: 0.5 }]}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: Boolean(checked), disabled: Boolean(disabled) }}
+    >
+      <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+        {checked ? <Text style={styles.checkboxTick}>{'\u2713'}</Text> : null}
+      </View>
+      {label ? <Text style={styles.checkboxLabel}>{label}</Text> : null}
+    </Pressable>
+  );
+}
+
+// Tappable list row with a chevron, used for navigation lists (vehicles, drivers, menu cards).
+export function NavRow({ title, subtitle, onPress, right, titleStyle }) {
+  return (
+    <Pressable onPress={onPress} disabled={!onPress} style={styles.navRow}>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.navTitle, titleStyle]}>{title}</Text>
+        {subtitle ? <Muted>{subtitle}</Muted> : null}
+      </View>
+      {right !== undefined ? right : (onPress ? <Text style={{ color: colors.muted, fontSize: 18 }}>{'\u203a'}</Text> : null)}
+    </Pressable>
+  );
+}
+
 // Take a photo with the camera (or pick one). onChange receives the picker asset or null.
 export function PhotoPicker({ label = 'Photo', asset, onChange }) {
   const [busy, setBusy] = useState(false);
@@ -279,4 +310,27 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 12, fontWeight: '700', textTransform: 'capitalize' },
   loading: { padding: spacing.xl, alignItems: 'center' },
   thumb: { width: 72, height: 72, borderRadius: 8, backgroundColor: '#e2e8f0' },
+  checkboxRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 6 },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: colors.green700,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  checkboxChecked: { backgroundColor: colors.green700 },
+  checkboxTick: { color: '#fff', fontSize: 14, fontWeight: '700', lineHeight: 16 },
+  checkboxLabel: { color: colors.ink, fontSize: 14 },
+  navRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+  },
+  navTitle: { fontSize: 15, fontWeight: '600', color: colors.ink, marginBottom: 2 },
 });

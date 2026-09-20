@@ -33,8 +33,18 @@ export default function AppLayout() {
           ),
         }}
       />
-      <Stack.Screen name="vehicles/[vehicleId]" options={{ title: 'Trips' }} />
+      <Stack.Screen name="vehicles/index" options={{ title: 'Vehicles' }} />
+      <Stack.Screen name="vehicles/[vehicleId]/index" options={{ title: 'Trips' }} />
+      <Stack.Screen name="vehicles/[vehicleId]/reminders" options={{ title: 'Reminder / Expiry Dates' }} />
       <Stack.Screen name="trips/[tripId]" options={{ title: 'Trip' }} />
+      <Stack.Screen name="leaves/index" options={{ title: 'Leave Entries' }} />
+      <Stack.Screen name="salary/index" options={{ title: 'Salary Details' }} />
+      <Stack.Screen name="customers/index" options={{ title: 'Customers' }} />
+      <Stack.Screen name="customers/new" options={{ title: 'Onboard Customer' }} />
+      <Stack.Screen name="customers/[customerId]" options={{ title: 'Customer' }} />
+      <Stack.Screen name="drivers/new" options={{ title: 'Add Driver' }} />
+      <Stack.Screen name="drivers/[customerId]/[driverId]" options={{ title: 'Driver' }} />
+      <Stack.Screen name="route-km" options={{ title: 'KM Table' }} />
     </Stack>
   );
 }
