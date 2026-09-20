@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/leaveController');
-const { requireAuth, requireRole } = require('../middleware/auth');
-const { ROLES } = require('../config/constants');
+const { requireAuth } = require('../middleware/auth');
+const { rules } = require('../middleware/validate');
 
+// Every role may use leave endpoints; the controller scopes what each role can see/edit.
 router.use(requireAuth);
 
-router.get('/', requireRole(ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN, ROLES.VEHICLE_USER), ctrl.listLeaves);
-router.post('/', requireRole(ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN, ROLES.VEHICLE_USER), ctrl.createLeave);
-router.patch('/:leaveId', requireRole(ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN, ROLES.VEHICLE_USER), ctrl.updateLeave);
-router.delete('/:leaveId', requireRole(ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN, ROLES.VEHICLE_USER), ctrl.deleteLeave);
+router.get('/', ctrl.listLeaves);
+router.post('/', rules.createLeave, ctrl.createLeave);
+router.patch('/:leaveId', rules.updateLeave, ctrl.updateLeave);
+router.delete('/:leaveId', rules.leaveId, ctrl.deleteLeave);
 
 module.exports = router;

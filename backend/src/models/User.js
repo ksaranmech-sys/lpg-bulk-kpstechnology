@@ -45,6 +45,8 @@ const userSchema = new mongoose.Schema(
     vehicle: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle', default: null },
     isActive: { type: Boolean, default: true },
     lastLoginAt: { type: Date },
+    // Bumped to invalidate every outstanding refresh token (logout everywhere, password reset).
+    tokenVersion: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

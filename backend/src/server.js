@@ -1,21 +1,23 @@
-const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
-require('dotenv').config();
+const config = require('./config/env');
 const app = require('./app');
 const connectDB = require('./config/db');
 const { removeExpiredClosedTrips } = require('./utils/tripRetention');
+const { ensureSeed } = require('./utils/seed');
 
-const PORT = process.env.PORT || 5001;
+// Runs after every successful DB (re)connect.
+async function onConnected() {
+  if (config.autoSeed) await ensureSeed();
+  const removedTrips = await removeExpiredClosedTrips();
+  if (removedTrips > 0) {
+    console.log(`[retention] Removed ${removedTrips} closed trip(s) older than one year`);
+  }
+}
 
 (async () => {
   try {
-    await connectDB();
-    const removedTrips = await removeExpiredClosedTrips();
-    if (removedTrips > 0) {
-      console.log(`[retention] Removed ${removedTrips} closed trip(s) older than one year`);
-    }
-    app.listen(PORT, () => {
-      console.log(`[server] KPS Fleet API listening on port ${PORT}`);
+    await connectDB({ onConnected });
+    app.listen(config.port, () => {
+      console.log(`[server] KPS Fleet API listening on port ${config.port}`);
     });
   } catch (err) {
     console.error('[server] Failed to start:', err);

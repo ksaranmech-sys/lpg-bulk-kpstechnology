@@ -1,4 +1,4 @@
-require('dotenv').config();
+const config = require('./config/env');
 require('express-async-errors');
 const express = require('express');
 const cors = require('cors');
@@ -7,6 +7,7 @@ const morgan = require('morgan');
 const path = require('path');
 
 const { requireAuth } = require('./middleware/auth');
+const { apiLimiter } = require('./middleware/rateLimit');
 const authRoutes = require('./routes/authRoutes');
 const customerRoutes = require('./routes/customerRoutes');
 const vehicleRoutes = require('./routes/vehicleRoutes');
@@ -15,22 +16,35 @@ const metaRoutes = require('./routes/metaRoutes');
 const leaveRoutes = require('./routes/leaveRoutes');
 
 const app = express();
-const uploadsPath = path.resolve(__dirname, '../', process.env.UPLOAD_DIR || 'uploads');
+const uploadsPath = path.resolve(__dirname, '../', config.storage.uploadDir);
 const frontendBuildPath = path.resolve(__dirname, '../../build');
 
-app.use(helmet({ crossOriginResourcePolicy: false })); // allow serving uploaded photos cross-origin
-app.use(cors()); // tighten to specific origins in production
-app.use(morgan('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Render/Vercel sit in front of this server; trust the first proxy hop so req.ip (used by the
+// rate limiter) is the real client address, not the proxy's.
+app.set('trust proxy', 1);
 
-// Serve locally-stored trip photos (dev only - use S3/CDN in production)
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } })); // photos are embedded by other origins
+app.use(cors({
+  origin(origin, callback) {
+    // No Origin header = native app, curl, or same-origin proxy request - always allowed.
+    if (!origin || !config.allowedOrigins.length || config.allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(Object.assign(new Error('Origin not allowed'), { status: 403 }));
+  },
+}));
+app.use(morgan(config.isProduction ? 'combined' : 'dev'));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Serve locally-stored trip photos (dev only - STORAGE_DRIVER=cloudinary in production)
 app.use('/uploads', express.static(uploadsPath));
 
 app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
 // All routes are versioned under /api/v1 so the mobile app can pin to a
 // version and the web app can move to v2 later without breaking the app.
+app.use('/api/', apiLimiter);
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/customers', customerRoutes);
 app.use('/api/v1/vehicles', vehicleRoutes);
@@ -53,7 +67,6 @@ app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 
 // Centralized error handler
 app.use((err, req, res, next) => {
-  console.error(err);
   // Mongo duplicate key error (e.g. username already taken) - surface a friendly message
   // instead of the raw driver error text.
   if (err.code === 11000) {
@@ -64,8 +77,17 @@ app.use((err, req, res, next) => {
       error: value ? `${label} "${value}" is already in use` : `${label} is already in use`,
     });
   }
+  if (err.name === 'MulterError') {
+    return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'Photo must be smaller than 10MB' : err.message });
+  }
+  if (err.name === 'CastError') {
+    return res.status(400).json({ error: `Invalid ${err.path || 'id'}` });
+  }
   const status = err.status || 500;
-  res.status(status).json({ error: err.message || 'Internal server error' });
+  if (status >= 500) console.error(err);
+  // Never leak internal error text (stack traces, DB messages) to clients on unexpected failures.
+  const message = status >= 500 && config.isProduction ? 'Internal server error' : err.message || 'Internal server error';
+  res.status(status).json({ error: message });
 });
 
 module.exports = app;

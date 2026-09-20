@@ -70,9 +70,12 @@ test('metaRoutes exposes a persisted route km table loader and saver', () => {
   assert.equal(typeof metaRoutes.persistRouteKmTable, 'function');
 });
 
-test('authController exposes admin password reset helpers', () => {
+test('authController exposes login, refresh, logout and password reset', () => {
+  assert.equal(typeof authController.login, 'function');
+  assert.equal(typeof authController.refresh, 'function');
+  assert.equal(typeof authController.logout, 'function');
   assert.equal(typeof authController.resetUserPassword, 'function');
-  assert.equal(typeof authController.resetAllAdminPasswords, 'function');
+  assert.equal(authController.resetAllAdminPasswords, undefined);
 });
 
 test('customerController exposes updateCustomer endpoint', () => {

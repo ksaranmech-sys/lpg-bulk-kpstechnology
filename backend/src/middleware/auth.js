@@ -1,9 +1,6 @@
-const jwt = require('jsonwebtoken');
 const { ROLES } = require('../config/constants');
 const Customer = require('../models/Customer');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'KPS_Fleet_Local_2026_Super_Secret_Change_Me_!@#';
-const PDF_TOKEN_SCOPE = 'monthly-summary';
+const { PDF_TOKEN_SCOPE, verifyAccessToken, signPdfToken } = require('../utils/tokens');
 
 async function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
@@ -13,7 +10,7 @@ async function requireAuth(req, res, next) {
     return res.status(401).json({ error: 'Missing bearer token' });
   }
   try {
-    const payload = jwt.verify(bearerToken || queryToken, JWT_SECRET);
+    const payload = verifyAccessToken(bearerToken || queryToken);
     // Scoped tokens are short-lived grants for opening a PDF directly in a browser tab (where
     // no Authorization header can be sent). They're only valid for that one GET resource.
     const isScoped = Boolean(payload.scope);
@@ -33,14 +30,6 @@ async function requireAuth(req, res, next) {
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
-}
-
-function signPdfToken(user, { customerId, userId, month }) {
-  return jwt.sign(
-    { id: user.id, role: user.role, customer: user.customer, scope: PDF_TOKEN_SCOPE, customerId, userId, month },
-    JWT_SECRET,
-    { expiresIn: '2m' }
-  );
 }
 
 function requireRole(...allowedRoles) {

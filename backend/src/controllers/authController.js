@@ -1,29 +1,16 @@
-const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Customer = require('../models/Customer');
 const { ROLES } = require('../config/constants');
+const { signAccessToken, signRefreshToken, verifyRefreshToken } = require('../utils/tokens');
 
-function signToken(user) {
-  const secret = process.env.JWT_SECRET || 'KPS_Fleet_Local_2026_Super_Secret_Change_Me_!@#';
-  return jwt.sign(
-    {
-      id: user._id,
-      role: user.role,
-      customer: user.customer,
-      vehicle: user.vehicle,
-    },
-    secret,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-  );
+function issueTokens(user) {
+  return { token: signAccessToken(user), refreshToken: signRefreshToken(user) };
 }
 
 // POST /api/v1/auth/login  { username, password }
-// Used identically by the website and (later) the mobile app.
+// Used identically by the website and the mobile app.
 async function login(req, res) {
   const { username, password } = req.body;
-  if (!username || !password) {
-    return res.status(400).json({ error: 'username and password are required' });
-  }
 
   const user = await User.findOne({ username: username.toLowerCase(), isActive: true });
   if (!user) return res.status(401).json({ error: 'Invalid username or password' });
@@ -39,8 +26,38 @@ async function login(req, res) {
   user.lastLoginAt = new Date();
   await user.save();
 
-  const token = signToken(user);
-  res.json({ token, user: user.toSafeJSON() });
+  res.json({ ...issueTokens(user), user: user.toSafeJSON() });
+}
+
+// POST /api/v1/auth/refresh  { refreshToken }
+// Exchanges a valid refresh token for a new access + refresh token pair (rotation).
+async function refresh(req, res) {
+  const { refreshToken } = req.body;
+
+  let payload;
+  try {
+    payload = verifyRefreshToken(refreshToken);
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid or expired refresh token' });
+  }
+
+  const user = await User.findOne({ _id: payload.id, isActive: true });
+  if (!user || (user.tokenVersion || 0) !== payload.tv) {
+    return res.status(401).json({ error: 'Invalid or expired refresh token' });
+  }
+  if (user.customer) {
+    const customer = await Customer.findOne({ _id: user.customer, isActive: true }).select('_id');
+    if (!customer) return res.status(403).json({ error: 'Customer account is blocked' });
+  }
+
+  res.json({ ...issueTokens(user), user: user.toSafeJSON() });
+}
+
+// POST /api/v1/auth/logout
+// Invalidates every refresh token for this user (all devices). Access tokens expire on their own.
+async function logout(req, res) {
+  await User.updateOne({ _id: req.user.id }, { $inc: { tokenVersion: 1 } });
+  res.json({ message: 'Logged out' });
 }
 
 // GET /api/v1/auth/me
@@ -50,54 +67,26 @@ async function me(req, res) {
   res.json({ user: user.toSafeJSON() });
 }
 
-// POST /api/v1/auth/reset-password
-// body: { userId, newPassword }
+// POST /api/v1/auth/reset-password  { userId, newPassword }
+// super_admin: any user. customer_admin: only vehicle_users under their own customer.
 async function resetUserPassword(req, res) {
   const { userId, newPassword } = req.body;
-  if (!userId || !newPassword) {
-    return res.status(400).json({ error: 'userId and newPassword are required' });
-  }
 
   const user = await User.findById(userId);
-  if (!user) {
-    return res.status(404).json({ error: 'User not found' });
-  }
+  if (!user) return res.status(404).json({ error: 'User not found' });
 
-  if (user.role === ROLES.SUPER_ADMIN && req.user?.role !== ROLES.SUPER_ADMIN) {
-    return res.status(403).json({ error: 'Only super admin can reset super admin credentials' });
+  if (req.user.role === ROLES.CUSTOMER_ADMIN) {
+    const sameCustomer = String(user.customer) === String(req.user.customer);
+    if (!sameCustomer || user.role !== ROLES.VEHICLE_USER) {
+      return res.status(403).json({ error: 'You can only reset passwords for drivers under your own account' });
+    }
   }
 
   await user.setPassword(newPassword);
+  user.tokenVersion = (user.tokenVersion || 0) + 1; // sign the user out everywhere
   await user.save();
 
   res.json({ message: 'Password reset successfully', user: user.toSafeJSON() });
 }
 
-// POST /api/v1/auth/reset-all-admin-passwords
-// body: { newPassword }
-async function resetAllAdminPasswords(req, res) {
-  const { newPassword } = req.body;
-  if (!newPassword) {
-    return res.status(400).json({ error: 'newPassword is required' });
-  }
-
-  const rolesToReset = [ROLES.CUSTOMER_ADMIN, ROLES.SUPER_ADMIN];
-  const users = await User.find({ role: { $in: rolesToReset } });
-
-  if (!users.length) {
-    return res.status(404).json({ error: 'No admin users found to reset' });
-  }
-
-  await Promise.all(users.map(async (user) => {
-    await user.setPassword(newPassword);
-    await user.save();
-  }));
-
-  res.json({
-    message: 'Passwords reset successfully for all admin users',
-    updatedCount: users.length,
-    usernames: users.map((user) => user.username),
-  });
-}
-
-module.exports = { login, me, resetUserPassword, resetAllAdminPasswords };
+module.exports = { login, refresh, logout, me, resetUserPassword };

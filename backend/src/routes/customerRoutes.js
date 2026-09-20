@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/customerController');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const { rules } = require('../middleware/validate');
 const { ROLES } = require('../config/constants');
 
 router.use(requireAuth);
@@ -21,21 +22,22 @@ function ownCustomerOnly(req, res, next) {
 }
 
 // Only KPS staff onboard new customers
-router.post('/', requireRole(ROLES.SUPER_ADMIN), ctrl.createCustomer);
+router.post('/', requireRole(ROLES.SUPER_ADMIN), rules.createCustomer, ctrl.createCustomer);
 router.get('/', requireRole(ROLES.SUPER_ADMIN), ctrl.listCustomers);
-router.get('/:customerId', requireRole(ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN), ownCustomerOnly, ctrl.getCustomer);
+router.get('/:customerId', requireRole(ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN), rules.customerId, ownCustomerOnly, ctrl.getCustomer);
 router.get('/:customerId/users/:userId/salary', requireRole(ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN), ownCustomerOnly, ctrl.getDriverMonthlySalary);
 router.get('/:customerId/users/:userId/monthly-summary', requireRole(ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN), ownCustomerOnly, ctrl.downloadDriverMonthlySummary);
 router.post('/:customerId/users/:userId/monthly-summary/token', requireRole(ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN), ownCustomerOnly, ctrl.createDriverMonthlySummaryToken);
-router.patch('/:customerId', requireRole(ROLES.SUPER_ADMIN), ctrl.updateCustomer);
-router.patch('/:customerId/status', requireRole(ROLES.SUPER_ADMIN), ctrl.setCustomerStatus);
-router.delete('/:customerId', requireRole(ROLES.SUPER_ADMIN), ctrl.deleteCustomer);
+router.patch('/:customerId', requireRole(ROLES.SUPER_ADMIN), rules.updateCustomer, ctrl.updateCustomer);
+router.patch('/:customerId/status', requireRole(ROLES.SUPER_ADMIN), rules.customerId, ctrl.setCustomerStatus);
+router.delete('/:customerId', requireRole(ROLES.SUPER_ADMIN), rules.customerId, ctrl.deleteCustomer);
 
 // Customer admin (or super_admin) manages their own vehicles/users
-router.post('/:customerId/vehicles', requireRole(ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN), ownCustomerOnly, ctrl.addVehicle);
+router.post('/:customerId/vehicles', requireRole(ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN), rules.addVehicle, ownCustomerOnly, ctrl.addVehicle);
 router.post(
   '/:customerId/users',
   requireRole(ROLES.CUSTOMER_ADMIN),
+  rules.createVehicleUser,
   ownCustomerOnly,
   ctrl.createVehicleUser
 );
@@ -54,6 +56,7 @@ router.delete(
 router.patch(
   '/:customerId/users/:userId',
   requireRole(ROLES.CUSTOMER_ADMIN),
+  rules.updateVehicleUser,
   ownCustomerOnly,
   ctrl.updateVehicleUser
 );
