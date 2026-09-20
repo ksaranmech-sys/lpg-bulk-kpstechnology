@@ -1,12 +1,13 @@
 import React from 'react';
-import { Alert } from 'react-native';
-import { Stack } from 'expo-router';
+import { Alert, View } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '../../src/AuthContext';
 import { Button } from '../../src/ui';
 import { colors } from '../../src/theme';
 
 export default function AppLayout() {
   const { signOut } = useAuth();
+  const router = useRouter();
 
   function confirmSignOut() {
     Alert.alert('Sign out', 'Are you sure you want to sign out?', [
@@ -29,10 +30,14 @@ export default function AppLayout() {
         options={{
           title: 'LPG Fleet',
           headerRight: () => (
-            <Button title="Sign out" variant="link" onPress={confirmSignOut} style={{ paddingHorizontal: 0 }} textStyle={{ color: '#fff' }} />
+            <View style={{ flexDirection: 'row', gap: 4 }}>
+              <Button title="Account" variant="link" onPress={() => router.push('/account')} style={{ paddingHorizontal: 6 }} textStyle={{ color: '#fff' }} />
+              <Button title="Sign out" variant="link" onPress={confirmSignOut} style={{ paddingHorizontal: 0 }} textStyle={{ color: '#fff' }} />
+            </View>
           ),
         }}
       />
+      <Stack.Screen name="account" options={{ title: 'Account Security' }} />
       <Stack.Screen name="vehicles/index" options={{ title: 'Vehicles' }} />
       <Stack.Screen name="vehicles/[vehicleId]/index" options={{ title: 'Trips' }} />
       <Stack.Screen name="vehicles/[vehicleId]/reminders" options={{ title: 'Reminder / Expiry Dates' }} />

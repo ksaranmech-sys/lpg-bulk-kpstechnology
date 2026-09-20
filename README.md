@@ -3,9 +3,8 @@
 A MERN (MongoDB + Express + React + Node) application for KPS Technology's
 customers to manage their own truck fleets: trip logging, diesel/mileage
 tracking, expense capture with photo + GPS proof, and automatic settlement
-reports emailed as PDF. Built with a mobile app in mind — the backend is a
-plain versioned REST API (`/api/v1/...`) with JWT auth, so a React Native (or
-any other) mobile client can consume it unchanged.
+reports emailed as PDF. It ships as a **website** and an **Android/iOS app
+("LPG Fleet Driver")** that share one backend and one API client.
 
 ---
 
@@ -29,7 +28,7 @@ any other) mobile client can consume it unchanged.
 ## 2. The tricky part: diesel, KM, and mileage across trip boundaries
 
 This is the part worth reading carefully before changing anything in
-`../LPG-FLEET-BACKEND/src/utils/tripCalculations.js`.
+`backend/src/utils/tripCalculations.js`.
 
 A trip does **not** close when the driver finishes unloading — it closes the
 moment diesel is filled again at the loading location **for the next trip**.
@@ -48,9 +47,10 @@ Because of this, **a trip can only be settled once the next trip exists and
 has recorded its own first diesel fill**. The API handles this automatically:
 every time a diesel entry is saved and it happens to be the first entry on
 its trip, the backend looks up that vehicle's previous open trip and tries to
-settle it (`tryCloseVehiclePreviousTrip` in `tripController.js`). If the
-previous trip's own first-fill odometer reading is missing, settlement is
-deferred until it's filled in — the trip simply stays "open."
+settle it (`tryCloseVehiclePreviousTrip` in
+`controllers/trip/tripHelpers.js`). If the previous trip's own first-fill
+odometer reading is missing, settlement is deferred until it's filled in —
+the trip simply stays "open."
 
 **Expense settlement** (separate from diesel):
 
@@ -66,137 +66,143 @@ one-line change in `computeTripSettlement()`.
 
 ## 3. Project layout
 
+One repository, four npm workspaces. `npm install` at the root installs all
+of them and links `shared` into the other three.
+
 ```
 kpstechnology-web/
-  package.json             # single deployment boundary
-  backend/
+  package.json            # workspaces + root scripts (build, test, lint, dev)
+  DEPLOYMENT.md           # step-by-step go-live checklist (Render, Vercel, Play Store)
+  shared/                 # @kps/shared - plain JS used by BOTH web and mobile
+    api.js                #   createApiClient(): every endpoint + token refresh
+    dates.js  trips.js    #   date/month helpers, trip grouping, reminder expiry
+    constants.js          #   roles, trip statuses, empty form shapes
+  backend/                # Express 4 + Mongoose 8 API  (node --test for tests)
     src/
-      config/         # db connection, shared enums (loading/unloading locations, roles)
-      models/         # Customer, User, Vehicle, Trip (Mongoose schemas)
-      middleware/     # JWT auth + role/vehicle scoping, file upload abstraction
-      controllers/    # request handlers
-      routes/         # /api/v1/* route wiring
-      utils/          # trip settlement math, PDF report builder, mailer, seed script
-  frontend/
+      config/env.js       #   reads + validates env vars (fails fast if secrets missing)
+      config/db.js        #   Mongo connection with retry
+      models/             #   Customer, User, Vehicle, Trip, Leave
+      middleware/         #   auth (JWT + roles), validate (express-validator), rateLimit, upload (Cloudinary/local)
+      controllers/        #   auth, customer, customerUsers, salary, vehicle, leave
+      controllers/trip/   #   lifecycle, entries (advances/diesel/rto/other), report, helpers
+      routes/             #   /api/v1/* wiring
+      utils/              #   tripCalculations, salary, pdfGenerator, mailer, tokens, seed
+    test/                 #   unit tests (npm test)
+  frontend/               # React 18 website (Create React App)
     src/
-      api/api.js      # single axios client - mirror this file for the mobile app
-      context/        # auth state
-      pages/          # Login, Dashboard, VehicleDetail, TripDetail, AdminOnboarding
-      components/     # shared layout
+      api/                #   thin wrapper around @kps/shared client + localStorage session
+      context/            #   AuthContext
+      pages/              #   one file per route (thin - composition only)
+      features/           #   dashboard/, customer/, driver/ - one component per screen section
+      components/trip/    #   trip entry sections shared by the trip page
+  mobile/                 # "LPG Fleet Driver" - Expo SDK 57 / React Native / Expo Router
+    app/                  #   file-based routes (login, forgot-password, (app)/...)
+    src/                  #   config, session (SecureStore), api, AuthContext, ui kit, features/, trip/
+    assets/  store/       #   icons/splash generated from store/logo-source.png (scripts/make-icons.ps1)
+    eas.json              #   EAS build profiles (preview APK, production AAB)
 ```
 
 ## 4. Running it locally
 
-From the `kpstechnology-web` root:
+Prerequisites: Node 20+, MongoDB (local `mongod` or an Atlas connection string).
+
 ```bash
 npm install
-copy backend\.env.example backend\.env
-npm run seed               # creates the first super_admin login (kpsadmin / ChangeMe@123)
-npm run dev                 # http://localhost:5001
+copy backend\.env.example backend\.env      # then fill in the values below
+npm run dev                                  # API + website on http://localhost:5001
 ```
 
-The backend serves the React application and the `/api/v1` API from the same
-origin. For a production-style build and run:
-```bash
-npm run build
-npm start                    # http://localhost:5001
-```
+`backend/.env` must contain at least:
 
-The frontend API defaults to `/api/v1`; set
-`frontend/.env` only when intentionally using a separate development API.
+- `MONGO_URI` — your database.
+- `JWT_SECRET` and `JWT_REFRESH_SECRET` — two **different** random strings of
+  32+ characters. Generate each with
+  `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`.
+  The server refuses to start without them.
+- `ADMIN_INITIAL_PASSWORD` — only for the very first start on an empty
+  database; it creates the `kpsadmin` super admin. Remove it afterwards. It is
+  never used to overwrite an existing password.
 
-### Vercel environment variables
+Other useful commands (from the root):
 
-Add these variables in the Vercel project settings for the `Production`
-environment. The local `backend/.env` file is not deployed:
+| Command | What it does |
+|---|---|
+| `npm test` | backend unit tests + frontend tests |
+| `npm run lint` | ESLint over backend and frontend |
+| `npm run build` | production website build into `build/` (served by the backend) |
+| `npm start` | production-style run on port 5001 |
+| `cd backend && npm run seed -- --reset-admin-password` | emergency admin password reset (uses `ADMIN_INITIAL_PASSWORD`) |
 
-```text
-MONGO_URI=<production MongoDB connection string>
-JWT_SECRET=<long random secret>
-JWT_EXPIRES_IN=7d
-API_BASE_URL=https://lpg-fleet.kpstechnology.in
-MONGO_SERVER_SELECTION_TIMEOUT_MS=8000
-MONGO_CONNECT_TIMEOUT_MS=8000
-```
-
-MongoDB Atlas must allow connections from Vercel. For a deployment without a
-fixed egress IP, add `0.0.0.0/0` to Atlas Network Access and rely on a strong
-database user password, or route the API through a host with a fixed outbound
-IP.
-
-Add the `SMTP_*`, `COMPANY_*`, and storage variables as needed for reports and
-photo uploads. Redeploy after saving the variables.
+**Mobile app in development:** `cd mobile && npx expo start`, then scan the
+QR code with the Expo Go app on a phone on the same Wi-Fi. In development the
+app automatically talks to the backend running on your PC (port 5001); set
+`EXPO_PUBLIC_API_BASE_URL` in `mobile/.env` to override.
 
 ### First-time setup flow
-1. Log in as `kpsadmin` (change the password immediately — there's no
-   "change password" endpoint stubbed yet; add one before going live, or
-   update it directly via the seed script/DB).
-2. Go to **Admin → Onboard New Customer** (`/admin/onboarding`) to create a
-   customer/subgroup and its first `customer_admin` login.
-3. Log in as that customer admin, add vehicles (currently via API —
-   `POST /api/v1/customers/:customerId/vehicles`; wire up a small UI form the
-   same way `AdminOnboarding.jsx` is built if you want this in the browser).
-4. Create `vehicle_user` logins the same way for drivers/staff who should
-   only see one vehicle.
-5. Start a trip, add diesel/RTO/other-expense entries (camera capture +
-   automatic GPS tagging on mobile browsers), close out unloading details.
-6. Start the *next* trip and record its first diesel fill — this
-   automatically settles the previous trip and makes "Print / Email Report"
-   available on it.
+1. Log in as `kpsadmin`. Top bar → **Change Password**; on the same page set
+   **Password Recovery Contacts** (email + mobile) so "Forgot password?" works.
+2. **Create Customer** (`/admin/onboarding`) to create a customer and its
+   first `customer_admin` login.
+3. As the customer admin: add vehicles and drivers from the dashboard /
+   customer page (or from the mobile app).
+4. As a driver: **Start Trip**, add advance, loading details, diesel fills
+   (photo + GPS), RTO, unloading, other expenses, then **Trip close**.
+5. Starting the *next* trip and recording its first diesel fill settles the
+   previous one automatically.
 
-## 5. API summary (all under `/api/v1`, JWT bearer auth except `/auth/login`)
+## 5. Security model (what's in place)
+
+- Passwords hashed with bcrypt; JWT access tokens expire in 15 min, refresh
+  tokens in 30 days with rotation; logout / password change revokes all
+  refresh tokens (`tokenVersion`).
+- Self-service password change; forgot-password via one-time code emailed to a
+  registered recovery address, requiring the registered recovery mobile
+  number as a second factor (10-minute expiry, 5 attempts).
+- Login and reset endpoints rate-limited (10 attempts / 15 min per IP);
+  general API ceiling 1000 req / 15 min.
+- Request bodies validated with `express-validator`; Mongo ids checked.
+- CORS restricted to `ALLOWED_ORIGINS`; native apps (no Origin header) pass.
+- Secrets never fall back to defaults; production refuses to start without
+  `MONGO_URI`, `JWT_SECRET`, `JWT_REFRESH_SECRET`.
+- Uploads: image-only, 10 MB cap, stored on Cloudinary in production.
+- Role checks on every route plus data scoping in controllers
+  (customer_admin → own customer; vehicle_user → own vehicle).
+
+## 6. API summary (all under `/api/v1`, bearer auth unless noted)
 
 | Method | Path | Purpose |
 |---|---|---|
-| POST | `/auth/login` | username+password → JWT |
-| GET | `/auth/me` | current user profile |
-| GET | `/meta` | loading/unloading location dropdown values |
-| POST | `/customers` | (super_admin) onboard a customer + its admin login |
-| POST | `/customers/:id/vehicles` | add a vehicle under a customer |
-| POST | `/customers/:id/users` | create a vehicle-scoped login |
-| GET | `/vehicles` | list vehicles visible to the current user |
-| GET/POST | `/vehicles/:id/trips` | list / start trips for a vehicle |
-| GET | `/trips/:id` | trip detail incl. settlement once closed |
-| POST | `/trips/:id/advances` | add a driver advance |
-| POST | `/trips/:id/diesel` | multipart: volume, rate, odometer(optional), photo(optional) |
-| POST | `/trips/:id/rto` | multipart: amount, date, photo+GPS |
-| POST | `/trips/:id/other-expenses` | multipart: amount, date, description, photo |
-| PATCH | `/trips/:id/unloading` | set unloading location + cleaner expense |
-| GET | `/trips/:id/report` | streams the settlement PDF inline (for "Print") |
-| POST | `/trips/:id/send-report` | emails the PDF to the company (+ customer cc) |
+| POST | `/auth/login` | public — username+password → `{ token, refreshToken, user }` |
+| POST | `/auth/refresh` | public — refresh token → new pair |
+| POST | `/auth/logout` | revoke all refresh tokens |
+| GET | `/auth/me` | current profile |
+| POST | `/auth/change-password` | `{ currentPassword, newPassword }` |
+| POST | `/auth/recovery-contact` | `{ currentPassword, recoveryEmail, recoveryMobile }` |
+| POST | `/auth/forgot-password` | public — `{ username, recoveryMobile }` → code emailed |
+| POST | `/auth/reset-password-with-code` | public — `{ username, code, newPassword }` |
+| POST | `/auth/reset-password` | admin resets a user under their scope |
+| GET/PUT | `/meta`, `/meta/route-km` | location lists and route KM table |
+| GET/POST | `/customers` | (super_admin) list / onboard customer + admin login |
+| GET/PATCH/DELETE | `/customers/:id` | customer detail / update / delete |
+| POST | `/customers/:id/vehicles` | add a vehicle |
+| POST/PATCH/DELETE | `/customers/:id/users[/:userId]` | driver logins |
+| GET | `/customers/:id/users/:userId/salary?month=YYYY-MM` | monthly salary breakdown |
+| GET | `/customers/:id/users/:userId/monthly-summary` | salary PDF |
+| GET | `/vehicles` | vehicles visible to the current user |
+| PATCH | `/vehicles/:id/document-reminders` | RC/insurance/permit expiry dates |
+| GET/POST | `/vehicles/:id/trips` | list / start trips |
+| GET/DELETE | `/trips/:id` | trip detail (with settlement) / delete |
+| POST/PATCH/DELETE | `/trips/:id/advances[/:i]` | driver advances |
+| POST/PATCH/DELETE | `/trips/:id/diesel[/:i]` | multipart: volume, total, odometer, photo, `lat`/`lng` (required) |
+| POST/PATCH | `/trips/:id/rto[/:i]` | multipart: amount, date, photo |
+| POST/PATCH/DELETE | `/trips/:id/other-expenses[/:i]` | multipart: description, amount, date, photo |
+| PATCH | `/trips/:id/loading` · `/unloading` · `/turn` · `/unloading-turn` | trip stages |
+| POST | `/trips/:id/close` | close (settle) a trip |
+| GET / POST | `/trips/:id/report` · `/send-report` | settlement PDF / email it |
+| GET/POST/PATCH/DELETE | `/leaves[/:id]` | driver leave entries |
 
-All photo uploads accept an optional `lat`/`lng` pair, which the frontend
-fills in automatically from the browser's Geolocation API — the same call
-works from a mobile app.
+## 7. Deployment
 
-## 6. Deployment
-
-Deploy the `kpstechnology-web` directory as one Node application. Use
-`npm install` for the install command, `npm run build` for the build command,
-and `npm start` for the start command. Configure the backend environment
-variables on the hosting platform, including `MONGO_URI`, `JWT_SECRET`, and
-the SMTP settings. Locally stored uploads are written under `backend/uploads`;
-use S3 or another persistent volume in production.
-
-The Vercel frontend project uses `frontend` as its Root Directory, so its
-API proxy and SPA fallback are configured in `frontend/vercel.json`. Keep
-those rewrites aligned with the backend deployment URL.
-
-## 7. What's stubbed / what to do before production
-
-- **Password reset / change-password** endpoint — not built yet.
-- **S3 storage** — `saveUploadedFile()` in `middleware/upload.js` has a
-  ready-to-fill S3 branch; local disk storage is fine for development only.
-- **Vehicle/customer-admin management UI** — the API exists
-  (`addVehicleToCustomer`, `createVehicleUser` in `api.js`); only the
-  customer-onboarding screen has a UI built. Add two more small forms mirrored
-  on `AdminOnboarding.jsx` when needed.
-- **Refresh tokens** — `.env` has placeholders; current implementation issues
-  a single long-lived JWT for simplicity. Add refresh-token rotation before
-  shipping the mobile app.
-- **Validation** — `express-validator` is included as a dependency but not
-  yet wired into every route; the controllers currently do minimal manual
-  checks.
-- **Tests** — none included yet; the settlement math in
-  `tripCalculations.js` is the highest-value thing to unit test first since
-  it's the part with the trickiest cross-trip logic.
+See **[DEPLOYMENT.md](DEPLOYMENT.md)** — a checklist covering Render
+(backend), Vercel (website), Cloudinary (photos), Expo EAS (Android/iOS
+builds) and the Google Play listing, including every environment variable.
