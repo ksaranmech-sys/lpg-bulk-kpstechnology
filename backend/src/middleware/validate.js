@@ -117,6 +117,9 @@ const rules = {
   leaveId: validate([objectId('leaveId')]),
   vehicleId: validate([objectId('vehicleId')]),
   tripId: validate([objectId('tripId')]),
+  mobileAppUrl: validate([
+    body('mobileAppUrl').optional({ values: 'falsy' }).isURL({ protocols: ['http', 'https'], require_protocol: true }).withMessage('mobileAppUrl must be a full http(s) link').isLength({ max: 500 }),
+  ]),
 };
 
 module.exports = { validate, rules };

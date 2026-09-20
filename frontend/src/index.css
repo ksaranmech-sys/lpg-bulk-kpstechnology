@@ -74,6 +74,7 @@ body {
 .customer-admin-leave-section { order: 1; }
 .customer-admin-salary-section { order: 2; }
 .superadmin-filter-section { order: -2; }
+.superadmin-app-section { order: -4; }
 .superadmin-customer-section { order: -3; }
 .superadmin-vehicle-list { order: -1; }
 

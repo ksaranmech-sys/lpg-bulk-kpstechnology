@@ -88,6 +88,7 @@ export function createEndpoints(api) {
     getMeta: () => api.get('/meta'),
     updateRouteKmTable: (routeKmTable, rowId, row) =>
       api.put('/meta/route-km', rowId && row ? { rowId, row } : { routeKmTable }),
+    updateMobileAppUrl: (mobileAppUrl) => api.put('/meta/mobile-app-url', { mobileAppUrl }),
 
     // ---- Vehicles ----
     listVehicles: (customerId) => api.get('/vehicles', { params: customerId ? { customerId } : {} }),

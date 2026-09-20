@@ -1,12 +1,11 @@
 // Driver monthly salary math: trip balances, KM charges, basic salary proration, temp-driver split.
-const fs = require('fs');
-const path = require('path');
 const User = require('../models/User');
 const Trip = require('../models/Trip');
 const Leave = require('../models/Leave');
 const { ROLES } = require('../config/constants');
 const { formatMonth } = require('./pdfGenerator');
 const { findRouteKm, getCorporationKmDetails } = require('./corporationKm');
+const settings = require('./settings');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -15,13 +14,8 @@ function round0(value) {
 }
 
 function loadRouteKmTable() {
-  const filePath = path.join(__dirname, '../config/routeKmTable.json');
-  try {
-    const rows = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    return Array.isArray(rows) ? rows : [];
-  } catch (err) {
-    return [];
-  }
+  const rows = settings.getRouteKmTable();
+  return Array.isArray(rows) ? rows : [];
 }
 
 function calculateTripExpense(trip) {

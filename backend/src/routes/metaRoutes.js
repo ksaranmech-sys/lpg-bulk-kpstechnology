@@ -1,11 +1,10 @@
-const fs = require('fs');
-const path = require('path');
 const express = require('express');
 const router = express.Router();
-const { LOADING_LOCATIONS, UNLOADING_LOCATIONS, ROUTE_KM_TABLE, ROLES } = require('../config/constants');
+const { LOADING_LOCATIONS, UNLOADING_LOCATIONS, ROLES } = require('../config/constants');
 const { requireRole } = require('../middleware/auth');
+const settings = require('../utils/settings');
+const { rules } = require('../middleware/validate');
 
-const ROUTE_KM_TABLE_FILE = path.join(__dirname, '../config/routeKmTable.json');
 function normalizeRouteKmTable(rows) {
   if (!Array.isArray(rows)) throw new Error('routeKmTable must be an array');
   return rows.map((row, index) => ({
@@ -37,34 +36,16 @@ function updateRouteKmRowById(rows, rowId, nextRow) {
   });
 }
 
+// Synchronous read of the cached table (loaded from Mongo at startup) - used by trip and salary code.
 function loadRouteKmTable() {
-  try {
-    if (!fs.existsSync(ROUTE_KM_TABLE_FILE)) {
-      return normalizeRouteKmTable([...ROUTE_KM_TABLE]);
-    }
-
-    const saved = fs.readFileSync(ROUTE_KM_TABLE_FILE, 'utf8');
-    const parsed = JSON.parse(saved);
-    if (Array.isArray(parsed) && parsed.length >= 0) {
-      return normalizeRouteKmTable(parsed);
-    }
-  } catch (err) {
-    // Fall back to the default seed values when the file is missing or invalid.
-  }
-
-  return normalizeRouteKmTable([...ROUTE_KM_TABLE]);
+  return normalizeRouteKmTable(settings.getRouteKmTable());
 }
 
-function persistRouteKmTable(rows) {
-  const normalized = normalizeRouteKmTable(rows || []);
-  fs.writeFileSync(ROUTE_KM_TABLE_FILE, JSON.stringify(normalized, null, 2), 'utf8');
-  routeKmTable = normalized;
-  return normalized;
+async function persistRouteKmTable(rows) {
+  return settings.saveRouteKmTable(normalizeRouteKmTable(rows || []));
 }
 
-let routeKmTable = loadRouteKmTable();
-
-function buildLocationOptions(rows = routeKmTable) {
+function buildLocationOptions(rows = loadRouteKmTable()) {
   const tableRows = Array.isArray(rows) ? rows : [];
   const sortLocations = (locations) => Array.from(new Set(locations.filter(Boolean)))
     .sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' }));
@@ -93,28 +74,35 @@ router.buildLocationOptions = buildLocationOptions;
 // Public-ish (still requires login) so both the website and mobile app pull
 // dropdown options from one place instead of hardcoding them per-client.
 router.get('/', (req, res) => {
-  routeKmTable = loadRouteKmTable();
-  const { loadingLocations, unloadingLocations } = buildLocationOptions();
+  const routeKmTable = loadRouteKmTable();
+  const { loadingLocations, unloadingLocations } = buildLocationOptions(routeKmTable);
   res.json({
     loadingLocations,
     unloadingLocations,
     routeKmTable,
+    mobileAppUrl: settings.getMobileAppUrl(),
   });
 });
 
-router.put('/route-km', requireRole(ROLES.SUPER_ADMIN), (req, res) => {
+router.put('/route-km', requireRole(ROLES.SUPER_ADMIN), async (req, res) => {
   try {
     const { rowId, row } = req.body || {};
     if (rowId && row) {
-      routeKmTable = persistRouteKmTable(updateRouteKmRowById(routeKmTable, rowId, row));
+      const routeKmTable = await persistRouteKmTable(updateRouteKmRowById(loadRouteKmTable(), rowId, row));
       return res.json({ routeKmTable });
     }
 
-    routeKmTable = persistRouteKmTable(normalizeRouteKmTable(req.body?.routeKmTable || []));
+    const routeKmTable = await persistRouteKmTable(normalizeRouteKmTable(req.body?.routeKmTable || []));
     res.json({ routeKmTable });
   } catch (err) {
     res.status(400).json({ error: err.message || 'Failed to update route km table' });
   }
+});
+
+// Where the "Get the mobile app" QR code on the super admin dashboard points (APK or store link).
+router.put('/mobile-app-url', requireRole(ROLES.SUPER_ADMIN), rules.mobileAppUrl, async (req, res) => {
+  const mobileAppUrl = await settings.saveMobileAppUrl(req.body.mobileAppUrl || '');
+  res.json({ mobileAppUrl });
 });
 
 module.exports = router;

@@ -15,6 +15,7 @@ import ClosedTripHistory from '../features/dashboard/ClosedTripHistory';
 import SalarySection from '../features/dashboard/SalarySection';
 import AdminLeaveSection from '../features/dashboard/AdminLeaveSection';
 import DriverList from '../features/dashboard/DriverList';
+import MobileAppCard from '../features/dashboard/MobileAppCard';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -33,6 +34,7 @@ export default function Dashboard() {
       <ReminderPopup user={user} vehicles={vehicles} />
       {user?.role === 'super_admin' && (
         <>
+          <MobileAppCard />
           <RouteKmTable user={user} />
           <CustomerList user={user} customers={customers} setCustomers={setCustomers} />
         </>

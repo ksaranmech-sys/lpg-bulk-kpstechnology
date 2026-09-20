@@ -25,7 +25,7 @@ const api = client.http;
 
 export const {
   login, logout, getMe, changePassword, setRecoveryContact, forgotPassword, resetPasswordWithCode,
-  getMeta, updateRouteKmTable,
+  getMeta, updateRouteKmTable, updateMobileAppUrl,
   listVehicles, getVehicle, updateVehicle, deleteVehicle, updateVehicleReminderDates, sendVehicleReminder,
   listTripsForVehicle, createTrip, getTrip, deleteTrip,
   addAdvance, updateAdvance, deleteAdvance,

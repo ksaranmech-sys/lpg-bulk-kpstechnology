@@ -3,9 +3,11 @@ const app = require('./app');
 const connectDB = require('./config/db');
 const { removeExpiredClosedTrips } = require('./utils/tripRetention');
 const { ensureSeed } = require('./utils/seed');
+const { initSettings } = require('./utils/settings');
 
 // Runs after every successful DB (re)connect.
 async function onConnected() {
+  await initSettings();
   if (config.autoSeed) await ensureSeed();
   const removedTrips = await removeExpiredClosedTrips();
   if (removedTrips > 0) {
