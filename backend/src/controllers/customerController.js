@@ -75,14 +75,14 @@ function calculateTripBalance(trip) {
 }
 
 // Turns a raw trip (mongoose doc or plain object) into the summary row shape used by the salary
-// table. forceComputedBalance skips the trip's stored settlement.balance (computed from the FULL
-// trip at close time) and recomputes it from whatever entries this row actually carries - needed
-// once a trip has been split between a driver and a temporary driver so neither side double-counts.
-function buildTripRow(trip, routeKmTable, forceComputedBalance = false) {
+// table. Balance is always Trip Advance - Trip Expenses from the entries this row carries - the
+// settlement.balance stored at close time is ignored since it can lag behind later edits and
+// wouldn't be correct for a row split between a driver and a temporary driver.
+function buildTripRow(trip, routeKmTable) {
   const corporationKmDetails = getCorporationKmDetails(trip, routeKmTable);
   return {
     ...trip,
-    balance: (!forceComputedBalance && trip.settlement?.balance != null) ? Number(trip.settlement.balance) : calculateTripBalance(trip),
+    balance: calculateTripBalance(trip),
     corpKm: findRouteKm(routeKmTable, trip.loadingLocation, trip.unloadingLocation),
     corporationKm: corporationKmDetails.value || 0,
     corporationKmSource: corporationKmDetails.source,
@@ -317,7 +317,7 @@ function calculateTemporaryDriverSegment(month, temporaryDriver, monthTrips, rou
     const kmBelongsToTemp = isDateInTempWindow(closedDate, joiningDate, returningDate);
 
     const { tempTrip } = splitTripEntriesByDate(trip, joiningDate, returningDate);
-    const tempRow = buildTripRow(tempTrip, routeKmTable, true);
+    const tempRow = buildTripRow(tempTrip, routeKmTable);
     if (!kmBelongsToTemp) {
       tempRow.corporationKm = 0;
       tempRow.corpKm = null;
@@ -413,7 +413,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
     const closedDate = getTripClosedDate(trip);
     const kmBelongsToTemp = isDateInTempWindow(closedDate, joiningDate, returningDate);
     const { driverTrip } = splitTripEntriesByDate(trip, joiningDate, returningDate);
-    const row = buildTripRow(driverTrip, routeKmTable, true);
+    const row = buildTripRow(driverTrip, routeKmTable);
     if (kmBelongsToTemp) {
       row.corporationKm = 0;
       row.corpKm = null;

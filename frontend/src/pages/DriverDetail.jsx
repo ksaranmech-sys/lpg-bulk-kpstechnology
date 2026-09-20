@@ -78,7 +78,7 @@ function SalaryTripsTable({ trips, closingTripId, onCloseTrip, totals }) {
             <th style={{ width: '9%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Diesel</th>
             <th style={{ width: '9%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Advance</th>
             <th style={{ width: '9%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Expense</th>
-            <th style={{ width: '11%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip balance</th>
+            <th style={{ width: '11%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }} title="Trip Advance - Trip Expenses">Trip balance</th>
             <th style={{ width: '6%', textAlign: 'center', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Closed</th>
           </tr>
         </thead>

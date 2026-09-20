@@ -271,7 +271,8 @@ function renderMonthlyTripDetailsPage(doc, trip, driver, vehicle, customer) {
   const rtoExpense = rtoEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
   const otherExpense = otherExpenses.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
   const totalExpenses = loadingExpense + turnExpense + parkingExpense + unloadingExpense + rtoExpense + otherExpense;
-  const balance = totalAdvance - dieselCashTotal - totalExpenses;
+  // Same formula as the salary sheet's Balance column so both agree per trip.
+  const balance = totalAdvance - totalExpenses;
   const settlement = trip.settlement || {};
 
   doc.fontSize(14).font('Helvetica-Bold').fillColor('#102f52').text('Single Trip', x, doc.y, { width, align: 'left' });
@@ -302,7 +303,7 @@ function renderMonthlyTripDetailsPage(doc, trip, driver, vehicle, customer) {
     ...otherExpenses.map((entry) => [entry.description || 'Other', fmtDate(entry.date), `Rs ${fmtMoney(entry.amount)}`]),
   ], { totalLabel: 'Total', totalValue: `Rs ${fmtMoney(totalExpenses)}` }, { styled: true });
   styledSectionHeader(doc, 'Balance');
-  renderSalaryRows(doc, [['Trip balance', `Rs ${fmtMoney(balance)}`]]);
+  renderSalaryRows(doc, [['Trip balance (Trip Advance - Trip Expenses)', `Rs ${fmtMoney(balance)}`]]);
   doc.roundedRect(x - 8, startY, width + 16, doc.y - startY + 8, 8).lineWidth(1).strokeColor('#1f4d2b').stroke();
 }
 
