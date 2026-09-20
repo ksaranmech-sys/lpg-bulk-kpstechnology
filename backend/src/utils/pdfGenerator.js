@@ -256,6 +256,7 @@ function renderMonthlyTripDetailsPage(doc, trip, driver, vehicle, customer) {
   const x = doc.page.margins.left;
   const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const startY = doc.page.margins.top - 10;
+  const driverName = driver?.name || driver?.username || '-';
   const advances = trip.driverAdvances || [];
   const dieselEntries = trip.dieselEntries || [];
   const rtoEntries = trip.rtoEntries || [];
@@ -289,11 +290,11 @@ function renderMonthlyTripDetailsPage(doc, trip, driver, vehicle, customer) {
     settlement.totalDieselLitres
   );
 
-  styledSectionHeader(doc, 'Driver Advance Details');
+  styledSectionHeader(doc, `Driver Advance Details - ${driverName}`);
   renderTable(doc, ['Date', 'Advance'], advances.length ? advances.map((entry) => [fmtDate(entry.date), `Rs ${fmtMoney(entry.amount)}`]) : [['-', 'No advances added']], { totalLabel: 'Total', totalValue: `Rs ${fmtMoney(totalAdvance)}` }, { styled: true });
   styledSectionHeader(doc, 'Diesel Filled Details');
   renderTable(doc, ['Date', 'Purchase Type', 'Amount'], dieselEntries.length ? dieselEntries.map((entry) => [fmtDate(entry.filledAt), entry.paymentMethod === 'cash' ? 'Cash' : 'Diesel Card', `Rs ${fmtMoney(entry.amount)}`]) : [['-', 'No diesel entries', '-']], { totalLabel: 'Diesel Card', totalValue: `Rs ${fmtMoney(dieselCardTotal)}`, extraRows: [['Cash', '', `Rs ${fmtMoney(dieselCashTotal)}`], ['Total', '', `Rs ${fmtMoney(totalDiesel)}`]] }, { styled: true });
-  styledSectionHeader(doc, 'Expenses');
+  styledSectionHeader(doc, `Expenses - ${driverName}`);
   renderTable(doc, ['Item', 'Date', 'Amount'], [
     ['Cleaner Loading', fmtDate(trip.loadingDate), `Rs ${fmtMoney(loadingExpense)}`],
     ['Turn', fmtDate(trip.turnDate), `Rs ${fmtMoney(turnExpense)}`],
