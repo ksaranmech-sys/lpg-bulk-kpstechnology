@@ -341,7 +341,10 @@ async function addDieselEntry(req, res) {
     return res.status(400).json({ error: 'paymentMethod must be diesel_card or cash' });
   }
 
-  const hasGps = Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+  const hasGps = hasValidGpsCoordinates(lat, lng);
+  if (!hasGps) {
+    return res.status(400).json({ error: 'GPS coordinates are required for diesel filling. Enable location access and try again.' });
+  }
   let photo;
   if (req.file) {
     const url = await saveUploadedFile(req.file);
@@ -386,6 +389,14 @@ async function addDieselEntry(req, res) {
   await refreshRelatedSettlements(trip);
 
   res.status(201).json({ trip });
+}
+
+function hasValidGpsCoordinates(lat, lng) {
+  const latitude = Number(lat);
+  const longitude = Number(lng);
+  return Number.isFinite(latitude) && Number.isFinite(longitude)
+    && latitude >= -90 && latitude <= 90
+    && longitude >= -180 && longitude <= 180;
 }
 
 // PATCH /api/v1/trips/:tripId/diesel/:dieselIndex
@@ -961,6 +972,7 @@ async function deleteTrip(req, res) {
 module.exports = {
   getClosingDieselDate,
   getMissingTripRouteFields,
+  hasValidGpsCoordinates,
   createTrip,
   listTripsForVehicle,
   getTrip,

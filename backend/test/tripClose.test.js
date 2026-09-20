@@ -50,6 +50,13 @@ test('tripController exposes a deleteDieselEntry endpoint', () => {
   assert.equal(typeof tripController.deleteDieselEntry, 'function');
 });
 
+test('diesel filling requires valid GPS coordinates', () => {
+  assert.equal(tripController.hasValidGpsCoordinates(12.9716, 77.5946), true);
+  assert.equal(tripController.hasValidGpsCoordinates(0, 0), true);
+  assert.equal(tripController.hasValidGpsCoordinates(undefined, 77.5946), false);
+  assert.equal(tripController.hasValidGpsCoordinates(91, 77.5946), false);
+});
+
 test('tripController exposes a deleteOtherExpense endpoint', () => {
   assert.equal(typeof tripController.deleteOtherExpense, 'function');
 });
