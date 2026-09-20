@@ -11,9 +11,10 @@
  *   Instead:
  *
  *     dieselForTrip = sum(trip.dieselEntries[1..end].volume)   // skip index 0
- *                    + nextTrip.dieselEntries[0].volume         // first fill of NEXT trip
+ *                    + nextTrip's first filling group
  *
- *   i.e. "remaining fill and next trip's first fill need to sum".
+ *   A first filling group normally contains one entry. When its entries carry GPS, all
+ *   next-trip fills on that date within 100 m of the first fill are grouped together.
  *
  * - KM for the trip = nextTrip.dieselEntries[0].odometerKm - trip.dieselEntries[0].odometerKm
  *   (distance between this trip's opening fill and the next trip's opening fill).
@@ -30,6 +31,44 @@
 
 function sum(arr, pick) {
   return arr.reduce((acc, item) => acc + (pick ? pick(item) : item), 0);
+}
+
+function getDieselGps(entry) {
+  const gps = entry?.gps || entry?.photo?.gps;
+  const lat = Number(gps?.lat);
+  const lng = Number(gps?.lng);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+}
+
+function isSameFillDate(firstEntry, entry) {
+  const firstDate = new Date(firstEntry?.filledAt);
+  const entryDate = new Date(entry?.filledAt);
+  return !Number.isNaN(firstDate.getTime()) && !Number.isNaN(entryDate.getTime())
+    && firstDate.toISOString().slice(0, 10) === entryDate.toISOString().slice(0, 10);
+}
+
+function isSameGpsLocation(firstEntry, entry) {
+  const firstGps = getDieselGps(firstEntry);
+  const entryGps = getDieselGps(entry);
+  if (!firstGps || !entryGps) return false;
+
+  const earthRadiusMetres = 6371000;
+  const toRadians = (value) => value * Math.PI / 180;
+  const latitudeDelta = toRadians(entryGps.lat - firstGps.lat);
+  const longitudeDelta = toRadians(entryGps.lng - firstGps.lng);
+  const haversine = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(toRadians(firstGps.lat)) * Math.cos(toRadians(entryGps.lat)) * Math.sin(longitudeDelta / 2) ** 2;
+  const distanceMetres = 2 * earthRadiusMetres * Math.asin(Math.sqrt(haversine));
+  return distanceMetres <= 100;
+}
+
+function getNextTripFirstFills(nextTrip) {
+  const firstFill = nextTrip?.dieselEntries?.[0];
+  if (!firstFill) return [];
+
+  // GPS is mandatory for multi-entry grouping. Without it, the first fill is the boundary.
+  if (!getDieselGps(firstFill)) return [firstFill];
+  return nextTrip.dieselEntries.filter((entry) => isSameFillDate(firstFill, entry) && isSameGpsLocation(firstFill, entry));
 }
 
 function calculateClosingOdometerKm(currentTrip, previousTrip) {
@@ -66,7 +105,8 @@ function computeTripSettlement(trip, nextTrip) {
 
   const firstFill = dieselEntries[0] || null;
   const remainingFills = dieselEntries.slice(1); // everything except the first fill
-  const nextTripFirstFill = nextTripHasDiesel ? nextTrip.dieselEntries[0] : null;
+  const nextTripFirstFills = nextTripHasDiesel ? getNextTripFirstFills(nextTrip) : [];
+  const nextTripFirstFill = nextTripFirstFills[0] || null;
 
   const hasTankFillMarkers = Boolean(firstFill) && Boolean(nextTripFirstFill) && firstFill.loadingPointTankFill === true && nextTripFirstFill.loadingPointTankFill === true;
   const currentFirstOdometerKm = firstFill ? Number(firstFill.odometerKm) : null;
@@ -86,13 +126,13 @@ function computeTripSettlement(trip, nextTrip) {
   // null and get filled in later once the diesel entries exist (refreshRelatedSettlements
   // recomputes this trip's settlement whenever diesel entries change).
   const dieselForTripLitres = (firstFill && nextTripFirstFill)
-    ? sum(remainingFills, (e) => e.volumeLitres) + nextTripFirstFill.volumeLitres
+    ? sum(remainingFills, (e) => e.volumeLitres) + sum(nextTripFirstFills, (e) => e.volumeLitres)
     : null;
 
   // Cost of diesel is informational (not subtracted from advance per spec),
   // but useful for the printable report.
   const dieselForTripCost = (firstFill && nextTripFirstFill)
-    ? sum(remainingFills, (e) => e.amount) + nextTripFirstFill.amount
+    ? sum(remainingFills, (e) => e.amount) + sum(nextTripFirstFills, (e) => e.amount)
     : null;
 
   const mileageKmPerLitre = totalKm != null && dieselForTripLitres > 0 ? totalKm / dieselForTripLitres : null;

@@ -341,10 +341,11 @@ async function addDieselEntry(req, res) {
     return res.status(400).json({ error: 'paymentMethod must be diesel_card or cash' });
   }
 
+  const hasGps = Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
   let photo;
   if (req.file) {
     const url = await saveUploadedFile(req.file);
-    photo = { url, gps: lat && lng ? { lat: Number(lat), lng: Number(lng) } : undefined };
+    photo = { url, gps: hasGps ? { lat: Number(lat), lng: Number(lng) } : undefined };
   }
 
   const volume = Number(volumeLitres);
@@ -367,6 +368,7 @@ async function addDieselEntry(req, res) {
     loadingPointTankFill: loadingPointTankFill === true || loadingPointTankFill === 'true',
     odometerKm: odometerKm != null && odometerKm !== '' ? Number(odometerKm) : null,
     filledAt: dieselDate,
+    gps: hasGps ? { lat: Number(lat), lng: Number(lng) } : undefined,
     photo,
   });
   await trip.save();

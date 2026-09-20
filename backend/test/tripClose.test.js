@@ -273,6 +273,52 @@ test('settlement mileage uses Tank Fill opening odometers and diesel from the se
   assert.equal(result.settlement.mileageKmPerLitre, 8.33);
 });
 
+test('settlement groups same-date next-trip fills at the same GPS location', () => {
+  const result = computeTripSettlement({
+    dieselEntries: [
+      { odometerKm: 1000, loadingPointTankFill: true, volumeLitres: 10, amount: 100 },
+      { volumeLitres: 40, amount: 400 },
+    ],
+    driverAdvances: [],
+    loadingExpense: 0,
+    unloadingExpense: 0,
+    rtoEntries: [],
+    otherExpenses: [],
+  }, {
+    dieselEntries: [
+      { odometerKm: 1500, loadingPointTankFill: true, filledAt: new Date('2026-08-15'), volumeLitres: 20, amount: 200, gps: { lat: 12.9716, lng: 77.5946 } },
+      { filledAt: new Date('2026-08-15'), volumeLitres: 15, amount: 150, gps: { lat: 12.9717, lng: 77.5946 } },
+      { filledAt: new Date('2026-08-15'), volumeLitres: 25, amount: 250, gps: { lat: 12.9816, lng: 77.5946 } },
+    ],
+  });
+
+  assert.equal(result.settlement.totalDieselLitres, 75);
+  assert.equal(result.settlement.totalDieselCost, 750);
+  assert.equal(result.settlement.mileageKmPerLitre, 6.67);
+});
+
+test('settlement uses only the first next-trip fill when GPS is unavailable', () => {
+  const result = computeTripSettlement({
+    dieselEntries: [
+      { odometerKm: 1000, loadingPointTankFill: true, volumeLitres: 10, amount: 100 },
+      { volumeLitres: 40, amount: 400 },
+    ],
+    driverAdvances: [],
+    loadingExpense: 0,
+    unloadingExpense: 0,
+    rtoEntries: [],
+    otherExpenses: [],
+  }, {
+    dieselEntries: [
+      { odometerKm: 1500, loadingPointTankFill: true, filledAt: new Date('2026-08-15'), volumeLitres: 20, amount: 200 },
+      { filledAt: new Date('2026-08-15'), volumeLitres: 15, amount: 150 },
+    ],
+  });
+
+  assert.equal(result.settlement.totalDieselLitres, 60);
+  assert.equal(result.settlement.totalDieselCost, 600);
+});
+
 test('settlement mileage is unavailable when the first Tank Fill marker is not selected', () => {
   const result = computeTripSettlement({
     dieselEntries: [{ odometerKm: 1000, loadingPointTankFill: false, volumeLitres: 10, amount: 100 }],

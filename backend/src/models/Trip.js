@@ -33,6 +33,10 @@ const dieselEntrySchema = new mongoose.Schema(
     loadingPointTankFill: { type: Boolean, default: false },
     odometerKm: { type: Number, default: null },
     filledAt: { type: Date, required: true, default: Date.now },
+    gps: {
+      lat: { type: Number },
+      lng: { type: Number },
+    },
     photo: photoSchema,
   },
   { timestamps: true }
