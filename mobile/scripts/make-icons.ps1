@@ -38,6 +38,20 @@ function Save($canvas, [string]$path) {
   Write-Host "Wrote $path"
 }
 
+# Play Console rejects PNGs with an alpha channel, so store assets are flattened to 24-bit RGB.
+function Save-Opaque($canvas, [string]$path) {
+  $src = $canvas.Bitmap
+  $flat = New-Object System.Drawing.Bitmap $src.Width, $src.Height, ([System.Drawing.Imaging.PixelFormat]::Format24bppRgb)
+  $g = [System.Drawing.Graphics]::FromImage($flat)
+  $g.Clear([System.Drawing.Color]::White)
+  $g.DrawImageUnscaled($src, 0, 0)
+  $g.Dispose()
+  $flat.Save($path, [System.Drawing.Imaging.ImageFormat]::Png)
+  $flat.Dispose()
+  $canvas.Graphics.Dispose(); $canvas.Bitmap.Dispose()
+  Write-Host "Wrote $path (24-bit)"
+}
+
 $white = [System.Drawing.Color]::White
 $transparent = [System.Drawing.Color]::Transparent
 
@@ -56,7 +70,7 @@ $c = New-Canvas 1024 1024 $white; Draw-Logo $c 0.60 512 512; Save $c (Join-Path 
 $c = New-Canvas 48 48 $white; Draw-Logo $c 1.0 24 24; Save $c (Join-Path $assets 'favicon.png')
 
 # Play Store listing assets.
-$c = New-Canvas 512 512 $white; Draw-Logo $c 1.0 256 256; Save $c (Join-Path $store 'play-icon-512.png')
+$c = New-Canvas 512 512 $white; Draw-Logo $c 1.0 256 256; Save-Opaque $c (Join-Path $store 'play-icon-512.png')
 
 $c = New-Canvas 1024 500 $white
 Draw-Logo $c 0.88 250 250
@@ -67,7 +81,26 @@ $muted = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(
 $c.Graphics.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
 $c.Graphics.DrawString('LPG Fleet Driver', $font, $brush, 470, 170)
 $c.Graphics.DrawString("Trips, diesel, expenses and salary`non the road", $fontSmall, $muted, 474, 245)
-Save $c (Join-Path $store 'feature-graphic-1024x500.png')
+Save-Opaque $c (Join-Path $store 'feature-graphic-1024x500.png')
+
+# Play Store header image: 16:9 at 4096x2304, same layout as the feature graphic scaled 4x.
+$c = New-Canvas 4096 2304 $white
+Draw-Logo $c 0.80 1100 1152
+$fontXL = New-Object System.Drawing.Font 'Segoe UI', 170, ([System.Drawing.FontStyle]::Bold)
+$fontXLSmall = New-Object System.Drawing.Font 'Segoe UI', 80
+$c.Graphics.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::AntiAliasGridFit
+$c.Graphics.DrawString('LPG Fleet Driver', $fontXL, $brush, 2050, 780)
+$c.Graphics.DrawString("Trips, diesel, expenses and salary`non the road", $fontXLSmall, $muted, 2070, 1110)
+# Saved as JPEG: Play caps the header image at 2 MB and the 24-bit PNG is ~2.8 MB.
+$flat = New-Object System.Drawing.Bitmap 4096, 2304, ([System.Drawing.Imaging.PixelFormat]::Format24bppRgb)
+$g = [System.Drawing.Graphics]::FromImage($flat); $g.Clear($white); $g.DrawImageUnscaled($c.Bitmap, 0, 0); $g.Dispose()
+$jpegCodec = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.MimeType -eq 'image/jpeg' }
+$encParams = New-Object System.Drawing.Imaging.EncoderParameters 1
+$encParams.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter ([System.Drawing.Imaging.Encoder]::Quality, [long]92)
+$headerPath = Join-Path $store 'header-image-4096x2304.jpg'
+$flat.Save($headerPath, $jpegCodec, $encParams)
+$flat.Dispose(); $c.Graphics.Dispose(); $c.Bitmap.Dispose()
+Write-Host "Wrote $headerPath (JPEG)"
 
 # Android monochrome (themed) icon: silhouette of every non-white pixel, 432x432 as Android expects.
 $mono = New-Canvas 432 432 $transparent
@@ -80,5 +113,23 @@ for ($y = 0; $y -lt 432; $y++) {
 }
 $src.Graphics.Dispose(); $src.Bitmap.Dispose()
 Save $mono (Join-Path $assets 'android-icon-monochrome.png')
+
+# Play phone screenshots must be exactly 9:16. Phone captures are usually taller (9:20 etc.), so each
+# file in store/screenshots/raw is scaled to fit and letterboxed onto a 1080x1920 white canvas.
+$rawDir = Join-Path $store 'screenshots\raw'
+if (Test-Path $rawDir) {
+  $outDir = Join-Path $store 'screenshots'
+  $i = 1
+  Get-ChildItem $rawDir -Include *.png, *.jpg, *.jpeg -Recurse | Sort-Object Name | ForEach-Object {
+    $shot = [System.Drawing.Image]::FromFile($_.FullName)
+    $c = New-Canvas 1080 1920 $white
+    $ratio = [Math]::Min(1080 / $shot.Width, 1920 / $shot.Height)
+    $w = [int]($shot.Width * $ratio); $h = [int]($shot.Height * $ratio)
+    $c.Graphics.DrawImage($shot, [int]((1080 - $w) / 2), [int]((1920 - $h) / 2), $w, $h)
+    $shot.Dispose()
+    Save-Opaque $c (Join-Path $outDir ('screenshot-{0:D2}.png' -f $i))
+    $i++
+  }
+}
 
 $logo.Dispose()

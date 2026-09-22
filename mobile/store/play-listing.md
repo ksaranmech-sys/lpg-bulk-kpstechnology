@@ -4,6 +4,12 @@ Copy-paste material for Play Console → Grow → Store presence → Main store 
 Assets: `play-icon-512.png`, `feature-graphic-1024x500.png` (this folder). Screenshots: take 2–8 on the phone
 (Settings → Advanced → Screenshots, or Power + Volume-down) of the login, driver home, trip entry and salary screens.
 
+## Developer page (Setup → Developer page) — done
+Header image: `header-image-4096x2304.jpg`
+Promotional text: Fleet management software for LPG bulk transport: trips, diesel, expenses and driver salary for operators and drivers.
+Developer website: https://lpg-bulk.kpstechnology.in
+Featured app: set after the app is created.
+
 ## App name (max 30)
 LPG Fleet Driver
 
