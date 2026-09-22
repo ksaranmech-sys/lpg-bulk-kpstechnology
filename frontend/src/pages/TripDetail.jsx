@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import * as api from '../api/api';
 import Layout from '../components/Layout';
@@ -33,10 +33,11 @@ export default function TripDetail() {
   const sectionRefs = useRef({});
   const [scrollTarget, setScrollTarget] = useState(null);
 
-  function load() {
-    return api.getTrip(tripId).then((res) => setTrip(res.data.trip));
-  }
-  useEffect(() => { load(); }, [tripId]);
+  const load = useCallback(
+    () => api.getTrip(tripId).then((res) => setTrip(res.data.trip)),
+    [tripId]
+  );
+  useEffect(() => { load(); }, [load]);
   useEffect(() => {
     if (!scrollTarget) return;
     sectionRefs.current[scrollTarget]?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
