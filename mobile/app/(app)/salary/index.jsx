@@ -57,7 +57,7 @@ export default function SalaryScreen() {
     <Screen>
       <Card title={`Salary Details (${formatMonthLabel(salaryMonth)})`}>
         <Muted style={{ marginBottom: spacing.md }}>
-          Salary for a month is calculated from the 5th of the following month (latest available: {formatMonthLabel(latestCalculableMonth())}).
+          Salary for a month is calculated at the end of the following month (latest available: {formatMonthLabel(latestCalculableMonth())}).
         </Muted>
         <Select label="Salary Month" value={salaryMonth} options={calculableMonthOptions()} onChange={(month) => { if (month) setSalaryMonth(month); }} />
       </Card>

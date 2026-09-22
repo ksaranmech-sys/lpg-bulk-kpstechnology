@@ -204,18 +204,19 @@ test('trip expense includes cleaner loading, turn and parking like the trip prin
   assert.equal(expense, 650);
 });
 
-test('salary month is calculable from the 5th of the following month', () => {
+test('salary month is calculable from the end of the following month', () => {
   const sep20 = new Date(2026, 8, 20);
-  assert.equal(customerController.getSalaryMonthAvailability('2026-08', sep20).available, true);
-  assert.equal(customerController.getSalaryMonthAvailability('2026-09', sep20).available, false);
-  assert.equal(customerController.getSalaryMonthAvailability('2026-08', new Date(2026, 8, 4)).available, false);
-  assert.equal(customerController.getSalaryMonthAvailability('2026-08', new Date(2026, 8, 5)).available, true);
-  assert.equal(customerController.getSalaryMonthAvailability('2026-12', new Date(2027, 0, 5)).available, true);
-  assert.equal(customerController.getSalaryMonthAvailability('2026-12', new Date(2027, 0, 4)).available, false);
-  assert.equal(customerController.getLatestCalculableSalaryMonth(sep20), '2026-08');
-  assert.equal(customerController.getLatestCalculableSalaryMonth(new Date(2026, 8, 4)), '2026-07');
+  assert.equal(customerController.getSalaryMonthAvailability('2026-07', sep20).available, true);
+  assert.equal(customerController.getSalaryMonthAvailability('2026-08', sep20).available, false);
+  assert.equal(customerController.getSalaryMonthAvailability('2026-08', new Date(2026, 8, 29)).available, false);
+  assert.equal(customerController.getSalaryMonthAvailability('2026-08', new Date(2026, 8, 30)).available, true);
+  assert.equal(customerController.getSalaryMonthAvailability('2026-12', new Date(2027, 0, 31)).available, true);
+  assert.equal(customerController.getSalaryMonthAvailability('2026-12', new Date(2027, 0, 30)).available, false);
+  assert.equal(customerController.getSalaryMonthAvailability('2027-01', new Date(2027, 1, 28)).available, true);
+  assert.equal(customerController.getLatestCalculableSalaryMonth(sep20), '2026-07');
+  assert.equal(customerController.getLatestCalculableSalaryMonth(new Date(2026, 8, 30)), '2026-08');
   assert.equal(customerController.getLatestCalculableSalaryMonth(new Date(2027, 0, 3)), '2026-11');
-  assert.equal(customerController.getLatestCalculableSalaryMonth(new Date(2027, 0, 5)), '2026-12');
+  assert.equal(customerController.getLatestCalculableSalaryMonth(new Date(2027, 0, 31)), '2026-12');
 });
 
 test('single trip pages name the regular driver, the temporary driver, or both when a trip straddles the handover', () => {

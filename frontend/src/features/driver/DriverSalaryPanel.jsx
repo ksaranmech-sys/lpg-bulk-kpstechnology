@@ -41,13 +41,13 @@ export default function DriverSalaryPanel({ customerId, driverId, data, driver, 
     }
   }
 
-  async function printMonthlySummary(month = salaryMonth) {
+  async function printMonthlySummary(month = salaryMonth, which = 'regular') {
     const printWindow = window.open('', '_blank');
     setSummaryPrinting(true);
     try {
       // Open the server URL directly (with a short-lived token) so the PDF viewer's Save
       // suggests the Content-Disposition filename - blob URLs always save as a random UUID.
-      const url = await api.getDriverMonthlySummaryUrl(customerId, driverId, month);
+      const url = await api.getDriverMonthlySummaryUrl(customerId, driverId, month, which);
       if (printWindow) printWindow.location.href = url;
       else window.location.href = url;
     } catch (err) {
@@ -81,7 +81,7 @@ export default function DriverSalaryPanel({ customerId, driverId, data, driver, 
             <button
               type="button"
               className="btn"
-              onClick={() => printMonthlySummary(salaryMonth)}
+              onClick={() => printMonthlySummary(salaryMonth, 'regular')}
               disabled={!salary || summaryPrinting}
             >
               {summaryPrinting ? 'Preparing...' : 'Print Salary PDF'}
@@ -89,7 +89,7 @@ export default function DriverSalaryPanel({ customerId, driverId, data, driver, 
           </div>
         </div>
         <p style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
-          Salary for a month is calculated from the 5th of the following month (latest available: {formatMonthLabel(latestCalculableMonth())}).
+          Salary for a month is calculated at the end of the following month (latest available: {formatMonthLabel(latestCalculableMonth())}).
         </p>
         {salaryError ? <p className="error-text" style={{ margin: 0 }}>{salaryError}</p>
           : !salary ? <p style={{ margin: 0 }}>Loading salary calculation...</p> : (
@@ -110,9 +110,19 @@ export default function DriverSalaryPanel({ customerId, driverId, data, driver, 
             <SalarySummaryTable salary={salary} />
             {salary.temporaryDriver && (
               <div style={{ marginTop: 24 }}>
-                <h4 className="section-title">
-                  Temporary Driver: {salary.temporaryDriver.name} ({new Date(salary.temporaryDriver.joiningDate).toLocaleDateString('en-IN')} - {salary.temporaryDriver.returningDate ? new Date(salary.temporaryDriver.returningDate).toLocaleDateString('en-IN') : 'Ongoing'})
-                </h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                  <h4 className="section-title" style={{ margin: 0 }}>
+                    Temporary Driver: {salary.temporaryDriver.name} ({new Date(salary.temporaryDriver.joiningDate).toLocaleDateString('en-IN')} - {salary.temporaryDriver.returningDate ? new Date(salary.temporaryDriver.returningDate).toLocaleDateString('en-IN') : 'Ongoing'})
+                  </h4>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => printMonthlySummary(salaryMonth, 'temporary')}
+                    disabled={summaryPrinting}
+                  >
+                    {summaryPrinting ? 'Preparing...' : 'Print Temporary Driver PDF'}
+                  </button>
+                </div>
                 <SalaryTripsTable
                   trips={salary.temporaryDriver.trips}
                   closingTripId={closingTripId}

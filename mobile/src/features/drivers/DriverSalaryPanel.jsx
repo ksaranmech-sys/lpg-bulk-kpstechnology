@@ -58,12 +58,14 @@ export default function DriverSalaryPanel({ customerId, driverId, data, driver, 
   }
 
   // Downloads the server PDF (short-lived token in the URL) to the cache and opens the share sheet.
-  async function shareSalaryPdf() {
+  // `which` is 'regular' (driver's own PDF) or 'temporary' (temporary driver's PDF).
+  async function shareSalaryPdf(which = 'regular') {
     setSharing(true);
     setError('');
     try {
-      const url = await api.getDriverMonthlySummaryUrl(customerId, driverId, salaryMonth);
-      const safeName = String(driver.name || driver.username || 'driver').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+      const url = await api.getDriverMonthlySummaryUrl(customerId, driverId, salaryMonth, which);
+      const personName = which === 'temporary' ? `${salary?.temporaryDriver?.name || 'temporary'}-temporary` : (driver.name || driver.username || 'driver');
+      const safeName = String(personName).replace(/[^a-z0-9]+/gi, '-').toLowerCase();
       const target = new File(Paths.cache, `salary-${safeName}-${salaryMonth}.pdf`);
       const file = await File.downloadFileAsync(url, target, { idempotent: true });
       await Sharing.shareAsync(file.uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
@@ -81,12 +83,12 @@ export default function DriverSalaryPanel({ customerId, driverId, data, driver, 
       <Row label="Vehicle" value={vehicle?.vehicleNumber || '-'} />
       <Row label="Month" value={formatMonthLabel(salaryMonth)} />
       <Muted style={{ marginVertical: spacing.md }}>
-        Salary for a month is calculated from the 5th of the following month (latest available: {formatMonthLabel(latestCalculableMonth())}).
+        Salary for a month is calculated at the end of the following month (latest available: {formatMonthLabel(latestCalculableMonth())}).
       </Muted>
       <Select label="Salary Month" value={salaryMonth} options={calculableMonthOptions()} onChange={(month) => { if (month) setSalaryMonth(month); }} />
       <Button
         title="Share salary PDF"
-        onPress={shareSalaryPdf}
+        onPress={() => shareSalaryPdf('regular')}
         loading={sharing}
         disabled={!salary}
         style={{ marginBottom: spacing.md }}
@@ -100,6 +102,13 @@ export default function DriverSalaryPanel({ customerId, driverId, data, driver, 
               <SectionTitle>
                 Temporary Driver: {salary.temporaryDriver.name} ({formatDate(salary.temporaryDriver.joiningDate)} - {salary.temporaryDriver.returningDate ? formatDate(salary.temporaryDriver.returningDate) : 'Ongoing'})
               </SectionTitle>
+              <Button
+                title="Share temporary driver PDF"
+                variant="secondary"
+                onPress={() => shareSalaryPdf('temporary')}
+                loading={sharing}
+                style={{ marginBottom: spacing.md }}
+              />
               <SalaryTrips
                 trips={salary.temporaryDriver.trips}
                 closingTripId={closingTripId}

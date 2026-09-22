@@ -23,9 +23,10 @@ export function previousMonth(today = new Date()) {
   return monthKey(new Date(today.getFullYear(), today.getMonth() - 1, 1));
 }
 
-// Salary for a month can be calculated from the 5th of the following month.
+// Salary for a month can be calculated from the end of the following month.
 export function latestCalculableMonth(today = new Date()) {
-  const monthsBack = today.getDate() >= 5 ? 1 : 2;
+  const lastDayOfThisMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const monthsBack = today.getDate() >= lastDayOfThisMonth ? 1 : 2;
   return monthKey(new Date(today.getFullYear(), today.getMonth() - monthsBack, 1));
 }
 

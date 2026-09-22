@@ -136,12 +136,13 @@ export function createEndpoints(api) {
     getCustomer: (customerId) => api.get(`/customers/${customerId}`),
     getDriverMonthlySalary: (customerId, driverId, month) =>
       api.get(`/customers/${customerId}/users/${driverId}/salary`, { params: { month } }),
-    downloadDriverMonthlySummary: (customerId, driverId, month) =>
-      api.get(`/customers/${customerId}/users/${driverId}/monthly-summary`, { params: { month }, responseType: 'blob' }),
+    downloadDriverMonthlySummary: (customerId, driverId, month, which = 'regular') =>
+      api.get(`/customers/${customerId}/users/${driverId}/monthly-summary`, { params: { month, driver: which }, responseType: 'blob' }),
     // Direct URL for the salary PDF, carrying a 2-minute scoped token so it can open in a new tab.
-    getDriverMonthlySummaryUrl: async (customerId, driverId, month) => {
-      const res = await api.post(`/customers/${customerId}/users/${driverId}/monthly-summary/token`, null, { params: { month } });
-      const query = new URLSearchParams({ month, token: res.data.token });
+    // `which` is 'regular' (the driver's own PDF) or 'temporary' (the temporary driver's PDF).
+    getDriverMonthlySummaryUrl: async (customerId, driverId, month, which = 'regular') => {
+      const res = await api.post(`/customers/${customerId}/users/${driverId}/monthly-summary/token`, null, { params: { month, driver: which } });
+      const query = new URLSearchParams({ month, driver: which, token: res.data.token });
       return `${api.defaults.baseURL}/customers/${customerId}/users/${driverId}/monthly-summary?${query}`;
     },
     updateCustomer: (customerId, data) => api.patch(`/customers/${customerId}`, data),

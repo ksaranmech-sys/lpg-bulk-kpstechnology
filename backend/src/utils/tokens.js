@@ -33,9 +33,9 @@ function verifyRefreshToken(token) {
 }
 
 // Scoped token for opening a PDF directly in a browser tab (no Authorization header possible).
-function signPdfToken(user, { customerId, userId, month }) {
+function signPdfToken(user, { customerId, userId, month, which }) {
   return jwt.sign(
-    { id: user.id, role: user.role, customer: user.customer, scope: PDF_TOKEN_SCOPE, customerId, userId, month },
+    { id: user.id, role: user.role, customer: user.customer, scope: PDF_TOKEN_SCOPE, customerId, userId, month, which },
     config.jwt.secret,
     { expiresIn: '2m' }
   );

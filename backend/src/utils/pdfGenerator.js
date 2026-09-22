@@ -212,7 +212,10 @@ function renderTripPhotos(doc, photos) {
   doc.y = rowY + cellHeight + 6;
 }
 
-function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trips, detailTrips = trips }) {
+// One PDF per person: `which` is 'regular' (the driver's own sheet + their split of each trip)
+// or 'temporary' (the substitute's sheet + their split). Each PDF only carries that person's
+// rows, so the two settlements can be handed out independently.
+function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, which = 'regular' }) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 24, size: 'A4', layout: 'landscape' });
     const chunks = [];
@@ -220,22 +223,13 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    renderSalarySheet(doc, {
-      title: 'Monthly Salary Calculation',
-      driverLabel: `Driver: ${driver?.name || driver?.username || '-'}`,
-      vehicle,
-      customer,
-      month: summary.month,
-      summary,
-      trips,
-      basicSalaryLabel: `Basic Salary Payable (Payable days: ${summary.payableDays || 0}, Leaves taken: ${summary.unpaidLeaveDays || 0})`,
-    });
-
-    // Temporary (substitute) driver gets their own sheet so both settlements can be handed
-    // out independently - the split rows never overlap with the regular driver's sheet.
     const temporaryDriver = summary.temporaryDriver;
-    if (temporaryDriver) {
-      doc.addPage({ size: 'A4', layout: 'landscape', margin: 24 });
+    const isTemporary = which === 'temporary' && temporaryDriver;
+    const sheetSummary = isTemporary ? temporaryDriver : summary;
+    const trips = sheetSummary.trips || [];
+    const person = isTemporary ? { name: temporaryDriver.name } : driver;
+
+    if (isTemporary) {
       const period = `${fmtDate(temporaryDriver.joiningDate)} - ${temporaryDriver.returningDate ? fmtDate(temporaryDriver.returningDate) : 'Ongoing'}`;
       renderSalarySheet(doc, {
         title: 'Temporary Driver Salary Calculation',
@@ -244,19 +238,24 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trip
         customer,
         month: summary.month,
         summary: temporaryDriver,
-        trips: temporaryDriver.trips || [],
+        trips,
         subtitle: `Covering for ${driver?.name || driver?.username || '-'} (${period})`,
         basicSalaryLabel: `Basic Salary Payable (Days covered: ${temporaryDriver.days || 0})`,
       });
+    } else {
+      renderSalarySheet(doc, {
+        title: 'Monthly Salary Calculation',
+        driverLabel: `Driver: ${driver?.name || driver?.username || '-'}`,
+        vehicle,
+        customer,
+        month: summary.month,
+        summary,
+        trips,
+        basicSalaryLabel: `Basic Salary Payable (Payable days: ${summary.payableDays || 0}, Leaves taken: ${summary.unpaidLeaveDays || 0})`,
+      });
     }
 
-    detailTrips.forEach((trip) => renderMonthlyTripDetailsPage(
-      doc,
-      trip,
-      trip.driverNames?.length ? { name: trip.driverNames.join(', ') } : driver,
-      vehicle,
-      customer
-    ));
+    trips.forEach((trip) => renderMonthlyTripDetailsPage(doc, trip, person, vehicle, customer));
     doc.end();
   });
 }

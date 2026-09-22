@@ -31,7 +31,7 @@ export default function SalarySection({ user, customerData, driverUsers, leaves,
         <h3 className="section-title" style={{ marginTop: 0 }}>Salary Details ({formatMonthLabel(salaryMonth)})</h3>
       </div>
       <p style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
-        Salary for a month is calculated from the 5th of the following month (latest available: {formatMonthLabel(latestCalculableMonth())}).
+        Salary for a month is calculated at the end of the following month (latest available: {formatMonthLabel(latestCalculableMonth())}).
       </p>
       {driverUsers.length === 0 ? (
         <p>No drivers found.</p>

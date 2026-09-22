@@ -186,19 +186,19 @@ function getSalaryMonthBounds(month) {
   };
 }
 
-// A month's salary is calculable from the 5th of the FOLLOWING month - trips that straddle the
-// month boundary close in the first days of the next month, so the grace period gives every
+// A month's salary is calculable from the END of the FOLLOWING month - trips that straddle the
+// month boundary close during the next month, so waiting until it ends gives every
 // advance/expense a chance to be entered before settlement.
-const SALARY_AVAILABLE_DAY = 5;
-
 function getSalaryMonthAvailability(month, today = new Date()) {
   const [year, monthNumber] = month.split('-').map(Number);
-  const availableFrom = new Date(year, monthNumber, SALARY_AVAILABLE_DAY);
+  // Day 0 of the month after next = last day of the following month.
+  const availableFrom = new Date(year, monthNumber + 1, 0);
   return { available: today >= availableFrom, availableFrom };
 }
 
 function getLatestCalculableSalaryMonth(today = new Date()) {
-  const monthsBack = today.getDate() >= SALARY_AVAILABLE_DAY ? 1 : 2;
+  const lastDayOfThisMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const monthsBack = today.getDate() >= lastDayOfThisMonth ? 1 : 2;
   const latest = new Date(today.getFullYear(), today.getMonth() - monthsBack, 1);
   return `${latest.getFullYear()}-${String(latest.getMonth() + 1).padStart(2, '0')}`;
 }
@@ -208,7 +208,7 @@ function validateSalaryMonth(month) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return 'month must use YYYY-MM format';
   const { available, availableFrom } = getSalaryMonthAvailability(month);
   if (!available) {
-    return `Salary for ${formatMonth(month)} can be calculated only from ${availableFrom.toLocaleDateString('en-IN')} (${SALARY_AVAILABLE_DAY}th of the following month)`;
+    return `Salary for ${formatMonth(month)} can be calculated only from ${availableFrom.toLocaleDateString('en-IN')} (end of the following month)`;
   }
   return null;
 }
@@ -430,7 +430,8 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   const returningDate = tempDriverInfo?.returningDate ? new Date(tempDriverInfo.returningDate) : null;
 
   // Money is split per entry by date whenever a temporary driver is on record for this vehicle;
-  // KM (and the <200 KM charge) is split by the days each driver was on the trip.
+  // KM (and the <200 KM charge) is split by the days each driver was on the trip. Trips that
+  // leave the regular driver with no KM and no money are dropped from their sheet.
   const driverShareOf = (trip) => (tempDriverInfo ? 1 - getTempKmShare(trip, joiningDate, returningDate) : 1);
   const tripsWithBalances = monthTrips.map((tripDoc) => {
     const trip = tripDoc.toObject();
@@ -442,7 +443,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
     row.corporationKm = round2(row.corporationKm * driverShare);
     if (driverShare <= 0) row.corpKm = null;
     return row;
-  });
+  }).filter((row) => !tempDriverInfo || row.corporationKm > 0 || hasTripMoney(row));
   const allTrips = monthTrips.map((tripDoc) => tripDoc.toObject());
   const corporationKm = sumRouteTableKm(allTrips, routeKmTable, Number(driver.minKmCharges || 0) > 0, driverShareOf);
   const manualKmTotal = 0;
@@ -464,20 +465,10 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   const kmCharges = Number(driver.kmCharges || 0);
   const kmBeta = round0(kmCharges * totalDriverKm);
   const temporaryDriver = calculateTemporaryDriverSegment(month, driver.temporaryDriver, monthTrips, routeKmTable, driver);
-  // Unsplit trips for the PDF's single-trip pages: every expense on the trip, tagged with
-  // whichever driver(s) worked it.
-  const detailTrips = monthTrips.map((tripDoc) => {
-    const trip = tripDoc.toObject();
-    return {
-      ...buildTripRow(trip, routeKmTable),
-      driverNames: getTripDriverNames(trip, driver, tempDriverInfo, joiningDate, returningDate),
-    };
-  });
   return {
     month,
     driver,
     trips: tripsWithBalances,
-    detailTrips,
     closedTrips: tripsWithBalances.length,
     totalBalance: round0(totalBalance),
     totalAdvance,
