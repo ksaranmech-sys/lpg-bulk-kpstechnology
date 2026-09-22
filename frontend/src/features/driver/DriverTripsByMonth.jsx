@@ -1,16 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { formatTripRoute, isCurrentOrPreviousMonth, formatMonthLabel, monthKey as toMonthKey } from '@kps/shared';
+import { formatTripRoute, isCurrentOrPreviousMonth, formatMonthLabel, tripHistoryMonthKey } from '@kps/shared';
 import * as api from '../../api/api';
 
-// Closed trips grouped by close month, newest first, each month sorted newest close date first.
+// Closed trips grouped by history month (close date or later entry date), newest first.
 function groupClosedTripsByCloseMonth(trips) {
   const groups = new Map();
   trips
     .filter((trip) => trip.status === 'closed')
     .forEach((trip) => {
       const closeDate = trip.turnDate || trip.closedAt;
-      const key = toMonthKey(closeDate);
+      const key = tripHistoryMonthKey(trip);
       if (!key) return;
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push({ trip, closeDate });
@@ -32,7 +32,7 @@ export default function DriverTripsByMonth({ vehicle, setError, setShowArchivedL
   const openTrips = trips.filter((trip) => trip.status !== 'closed');
   const closedTrips = trips.filter((trip) => trip.status === 'closed');
   const archivedTrips = closedTrips.filter((trip) => {
-    const key = toMonthKey(trip.turnDate || trip.closedAt);
+    const key = tripHistoryMonthKey(trip);
     return !key || !isCurrentOrPreviousMonth(key);
   });
   const visibleClosedTrips = showArchivedTrips

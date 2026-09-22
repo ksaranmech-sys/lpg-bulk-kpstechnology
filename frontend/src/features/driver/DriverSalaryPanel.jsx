@@ -89,7 +89,7 @@ export default function DriverSalaryPanel({ customerId, driverId, data, driver, 
           </div>
         </div>
         <p style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
-          Salary for a month is calculated at the end of the following month (latest available: {formatMonthLabel(latestCalculableMonth())}).
+          Salary for a month is calculated from the 5th of the following month (latest available: {formatMonthLabel(latestCalculableMonth())}).
         </p>
         {salaryError ? <p className="error-text" style={{ margin: 0 }}>{salaryError}</p>
           : !salary ? <p style={{ margin: 0 }}>Loading salary calculation...</p> : (

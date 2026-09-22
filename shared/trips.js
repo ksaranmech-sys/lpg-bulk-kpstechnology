@@ -5,9 +5,20 @@ export function formatTripRoute(trip) {
   return `${trip.loadingLocation || 'Loading pending'} (${dateOrPending(trip.loadingDate)}) -> ${trip.unloadingLocation || 'Unloading pending'} (${dateOrPending(trip.unloadingDate)})`;
 }
 
-// The date a trip is filed under in history lists: close (turn) date first, then loading date.
+// The date a trip is filed under in history lists. Mirrors backend getTripSalaryDate: the close
+// date, bumped forward if loading / unloading / turn dates fall in a later month.
 export function tripHistoryDate(trip) {
-  return new Date(trip.turnDate || trip.closedAt || trip.loadingDate || trip.createdAt);
+  const candidates = [
+    trip.turnDate || trip.closedAt,
+    trip.loadingDate,
+    trip.unloadingDate,
+    trip.unTurnDate,
+  ]
+    .filter(Boolean)
+    .map((value) => new Date(value))
+    .filter((date) => !Number.isNaN(date.getTime()));
+  if (!candidates.length) return new Date(trip.createdAt);
+  return candidates.reduce((latest, date) => (date > latest ? date : latest));
 }
 
 export function tripHistoryMonthKey(trip) {
