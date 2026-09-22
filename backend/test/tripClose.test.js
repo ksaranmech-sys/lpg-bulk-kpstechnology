@@ -452,7 +452,7 @@ test('driver KM and short-trip charges split leg by leg when a temporary driver 
   assert.deepEqual(customerController.calculateSpecialTripCharges(trips, routeKmTable, tempShareOf), { specialTripCount: 2, specialTripCharges: 1500 });
 });
 
-test('a trip belongs to the salary month of its loading date even when it closes next month', () => {
+test('a trip belongs to the salary month it closes in, even when loaded the month before', () => {
   const { start, end } = customerController.getSalaryMonthBounds('2026-08');
   const trip = {
     loadingDate: new Date(2026, 7, 30),
@@ -460,9 +460,28 @@ test('a trip belongs to the salary month of its loading date even when it closes
     turnDate: new Date(2026, 8, 3),
     dieselEntries: [{ filledAt: new Date(2026, 8, 3) }],
   };
-  assert.equal(customerController.isTripInSalaryMonth(trip, start, end), true);
+  assert.equal(customerController.isTripInSalaryMonth(trip, start, end), false);
   const { start: sepStart, end: sepEnd } = customerController.getSalaryMonthBounds('2026-09');
-  assert.equal(customerController.isTripInSalaryMonth(trip, sepStart, sepEnd), false);
+  assert.equal(customerController.isTripInSalaryMonth(trip, sepStart, sepEnd), true);
+});
+
+test('a trip closed this month moves to next month when a loading/unloading/turn date is entered there', () => {
+  const { start: augStart, end: augEnd } = customerController.getSalaryMonthBounds('2026-08');
+  const { start: sepStart, end: sepEnd } = customerController.getSalaryMonthBounds('2026-09');
+
+  const closedInAugust = { loadingDate: new Date(2026, 7, 20), unloadingDate: new Date(2026, 7, 22), unTurnDate: new Date(2026, 7, 23), turnDate: new Date(2026, 7, 25), dieselEntries: [] };
+  assert.equal(customerController.isTripInSalaryMonth(closedInAugust, augStart, augEnd), true);
+  assert.equal(customerController.isTripInSalaryMonth(closedInAugust, sepStart, sepEnd), false);
+
+  const unloadingNextMonth = { ...closedInAugust, unloadingDate: new Date(2026, 8, 2) };
+  assert.equal(customerController.isTripInSalaryMonth(unloadingNextMonth, augStart, augEnd), false);
+  assert.equal(customerController.isTripInSalaryMonth(unloadingNextMonth, sepStart, sepEnd), true);
+
+  const unTurnNextMonth = { ...closedInAugust, unTurnDate: new Date(2026, 8, 1) };
+  assert.equal(customerController.isTripInSalaryMonth(unTurnNextMonth, sepStart, sepEnd), true);
+
+  const loadingNextMonth = { ...closedInAugust, loadingDate: new Date(2026, 8, 1) };
+  assert.equal(customerController.isTripInSalaryMonth(loadingNextMonth, sepStart, sepEnd), true);
 });
 
 test('Corporation KM excludes routes below 200 KM when less than 200KM charges are enabled', () => {

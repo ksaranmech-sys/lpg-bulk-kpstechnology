@@ -233,13 +233,22 @@ function getTripClosedDate(trip) {
   return loadingDate && !Number.isNaN(loadingDate.getTime()) ? loadingDate : null;
 }
 
-// A trip belongs to the salary month it was LOADED in, even when its unloading / unload turn /
-// load turn dates run into the next month. Trips without a loading date fall back to their
-// close-related dates.
+// A trip belongs to the salary month it was CLOSED in, unless its loading / unloading /
+// unloading turn / load turn date was entered in a later month - then it moves to that month.
+// In practice this is the latest of those dates.
 function getTripSalaryDate(trip) {
-  const loadingDate = trip.loadingDate ? new Date(trip.loadingDate) : null;
-  if (loadingDate && !Number.isNaN(loadingDate.getTime())) return loadingDate;
-  return getTripClosedDate(trip);
+  const candidates = [
+    getTripClosedDate(trip),
+    trip.loadingDate,
+    trip.unloadingDate,
+    trip.unTurnDate,
+    trip.turnDate,
+  ]
+    .filter(Boolean)
+    .map((value) => new Date(value))
+    .filter((date) => !Number.isNaN(date.getTime()));
+  if (!candidates.length) return null;
+  return candidates.reduce((latest, date) => (date > latest ? date : latest));
 }
 
 function isTripInSalaryMonth(trip, monthStart, monthEnd) {
@@ -422,7 +431,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
       ...getClosedTripsMonthFilter(monthStart, monthEnd),
     })
       .select(
-        'loadingLocation loadingDate unloadingLocation unloadingDate fillingOrderLocation turnDate closedAt status ' +
+        'loadingLocation loadingDate unloadingLocation unloadingDate fillingOrderLocation turnDate unTurnDate closedAt status ' +
         'dieselEntries.filledAt dieselEntries.amount dieselEntries.volumeLitres dieselEntries.paymentMethod dieselEntries.odometerKm ' +
         'settlement.balance settlement.totalKm settlement.mileageKmPerLitre settlement.totalDieselLitres ' +
         'driverAdvances loadingExpense parkingExpense turnExpense unloadingExpense rtoEntries otherExpenses manualKm manualKmDivert manualKmReturn ' +
