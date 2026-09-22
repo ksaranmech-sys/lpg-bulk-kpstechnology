@@ -417,20 +417,32 @@ test('special trip charges count closed routes below 200 KM at Rs 1000 each', ()
   assert.deepEqual(charges, { specialTripCount: 1, specialTripCharges: 1000 });
 });
 
-test('driver KM and short-trip charges split by date when a temporary driver covers part of a trip', () => {
+test('driver KM and short-trip charges split leg by leg when a temporary driver covers part of a trip', () => {
   const joining = new Date('2026-08-15');
   const returning = new Date('2026-08-20');
-  // Loaded on the 12th, closed on the 17th -> 6 days, 3 of them (15th-17th) with the temp driver.
-  const straddling = { loadingLocation: 'Short', unloadingLocation: 'Route', fillingOrderLocation: 'Short', loadingDate: new Date('2026-08-12'), turnDate: new Date('2026-08-17'), dieselEntries: [] };
-  const regularOnly = { loadingLocation: 'Short', unloadingLocation: 'Route', fillingOrderLocation: 'Short', loadingDate: new Date('2026-08-02'), turnDate: new Date('2026-08-05'), dieselEntries: [] };
-  const tempOnly = { loadingLocation: 'Short', unloadingLocation: 'Route', fillingOrderLocation: 'Short', loadingDate: new Date('2026-08-16'), turnDate: new Date('2026-08-19'), dieselEntries: [] };
-  const routeKmTable = [{ loadingLocation: 'Short', unloadingLocation: 'Route', km: 100 }];
+  const routeKmTable = [
+    { loadingLocation: 'Short', unloadingLocation: 'Route', km: 100 },
+    { loadingLocation: 'Route', unloadingLocation: 'Divert', km: 60 },
+  ];
+  // Unloaded on the 13th by the regular driver, load turn on the 17th by the temp driver ->
+  // load leg (50 km) to the driver, return leg (50 km) to the temp.
+  const straddling = { loadingLocation: 'Short', unloadingLocation: 'Route', fillingOrderLocation: 'Short', loadingDate: new Date('2026-08-12'), unloadingDate: new Date('2026-08-13'), turnDate: new Date('2026-08-17'), dieselEntries: [] };
+  const regularOnly = { loadingLocation: 'Short', unloadingLocation: 'Route', fillingOrderLocation: 'Short', loadingDate: new Date('2026-08-02'), unloadingDate: new Date('2026-08-03'), turnDate: new Date('2026-08-05'), dieselEntries: [] };
+  const tempOnly = { loadingLocation: 'Short', unloadingLocation: 'Route', fillingOrderLocation: 'Short', loadingDate: new Date('2026-08-16'), unloadingDate: new Date('2026-08-17'), turnDate: new Date('2026-08-19'), dieselEntries: [] };
 
-  assert.equal(customerController.getTempKmShare(straddling, joining, returning), 0.5);
-  assert.equal(customerController.getTempKmShare(regularOnly, joining, returning), 0);
-  assert.equal(customerController.getTempKmShare(tempOnly, joining, returning), 1);
+  assert.equal(customerController.getTempKmShare(straddling, joining, returning, routeKmTable), 0.5);
+  assert.equal(customerController.getTempKmShare(regularOnly, joining, returning, routeKmTable), 0);
+  assert.equal(customerController.getTempKmShare(tempOnly, joining, returning, routeKmTable), 1);
 
-  const tempShareOf = (trip) => customerController.getTempKmShare(trip, joining, returning);
+  // Diverted trip: load leg (50) on the 14th -> driver; divert leg (30) on the 16th and return
+  // leg (Route->Divert reused, 30) on the 18th -> temp. Temp share = 60 / 110.
+  const diverted = {
+    loadingLocation: 'Short', unloadingLocation: 'Route', fillingOrderLocation: 'Route', isDiverted: true, divertUnloadingLocation: 'Divert',
+    loadingDate: new Date('2026-08-13'), unloadingDate: new Date('2026-08-14'), divertDate: new Date('2026-08-16'), turnDate: new Date('2026-08-18'), dieselEntries: [],
+  };
+  assert.equal(customerController.getTempKmShare(diverted, joining, returning, routeKmTable), 60 / 110);
+
+  const tempShareOf = (trip) => customerController.getTempKmShare(trip, joining, returning, routeKmTable);
   const driverShareOf = (trip) => 1 - tempShareOf(trip);
   const trips = [straddling, regularOnly, tempOnly];
 
@@ -438,6 +450,19 @@ test('driver KM and short-trip charges split by date when a temporary driver cov
   assert.equal(customerController.sumRouteTableKm(trips, routeKmTable, false, tempShareOf), 150);
   assert.deepEqual(customerController.calculateSpecialTripCharges(trips, routeKmTable, driverShareOf), { specialTripCount: 2, specialTripCharges: 1500 });
   assert.deepEqual(customerController.calculateSpecialTripCharges(trips, routeKmTable, tempShareOf), { specialTripCount: 2, specialTripCharges: 1500 });
+});
+
+test('a trip belongs to the salary month of its loading date even when it closes next month', () => {
+  const { start, end } = customerController.getSalaryMonthBounds('2026-08');
+  const trip = {
+    loadingDate: new Date(2026, 7, 30),
+    unloadingDate: new Date(2026, 8, 1),
+    turnDate: new Date(2026, 8, 3),
+    dieselEntries: [{ filledAt: new Date(2026, 8, 3) }],
+  };
+  assert.equal(customerController.isTripInSalaryMonth(trip, start, end), true);
+  const { start: sepStart, end: sepEnd } = customerController.getSalaryMonthBounds('2026-09');
+  assert.equal(customerController.isTripInSalaryMonth(trip, sepStart, sepEnd), false);
 });
 
 test('Corporation KM excludes routes below 200 KM when less than 200KM charges are enabled', () => {

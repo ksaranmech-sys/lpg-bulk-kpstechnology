@@ -44,12 +44,19 @@ function getCorporationKmDetails(trip, routeKmTable) {
     }
     if (resolvedLeg0 != null && resolvedLeg1 != null && resolvedLeg2 != null) {
       const allFromTable = leg0 != null && leg1 != null && leg2 != null;
+      // Each leg is dated by when it was completed so KM can be attributed to whoever drove it.
+      const legs = [
+        { leg: 'load', km: resolvedLeg0 * 0.5, date: trip.unloadingDate || null },
+        { leg: 'divert', km: resolvedLeg1 * 0.5, date: trip.divertDate || null },
+        { leg: 'return', km: resolvedLeg2 * 0.5, date: trip.turnDate || null },
+      ];
       return {
         value: (resolvedLeg0 * 0.5) + (resolvedLeg1 * 0.5) + (resolvedLeg2 * 0.5),
         source: allFromTable ? 'km_table_divert_weighted' : 'manual',
+        legs,
       };
     }
-    return { value: null, source: 'manual_required' };
+    return { value: null, source: 'manual_required', legs: [] };
   }
 
   const leg0 = findRouteKm(routeKmTable, loadingLocation, unloadingLocation);
@@ -64,12 +71,17 @@ function getCorporationKmDetails(trip, routeKmTable) {
       : (hasManualKmReturn ? manualKmReturn : null);
   if (resolvedLeg0 != null && resolvedLeg1 != null) {
     const allFromTable = leg0 != null && leg1 != null;
+    const legs = [
+      { leg: 'load', km: resolvedLeg0 * 0.5, date: trip.unloadingDate || null },
+      { leg: 'return', km: resolvedLeg1 * 0.5, date: trip.turnDate || null },
+    ];
     return {
       value: (resolvedLeg0 * 0.5) + (resolvedLeg1 * 0.5),
       source: allFromTable ? 'km_table_weighted' : 'manual',
+      legs,
     };
   }
-  return { value: null, source: 'manual_required' };
+  return { value: null, source: 'manual_required', legs: [] };
 }
 
 module.exports = { findRouteKm, getCorporationKmDetails };
