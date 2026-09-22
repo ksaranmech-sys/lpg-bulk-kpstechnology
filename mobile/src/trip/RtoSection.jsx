@@ -7,7 +7,7 @@ import { spacing } from '../theme';
 import { ButtonRow, EditBox, EntryRow, SectionTitle } from './common';
 import { getEntryMaxDate, getEntryMinDate } from './tripDates';
 
-export default function RtoSection({ trip, reload, locked }) {
+export default function RtoSection({ trip, reload, locked, onAdded = reload }) {
   const tripId = trip._id;
   const entries = trip.rtoEntries || [];
   const [amount, setAmount] = useState('');
@@ -28,7 +28,7 @@ export default function RtoSection({ trip, reload, locked }) {
       const gps = await getCurrentPosition();
       await api.addRtoEntry(tripId, { amount, date: date || undefined, lat: gps?.lat, lng: gps?.lng }, assetToUploadFile(photo));
       setAmount(''); setDate(''); setPhoto(null);
-      await reload();
+      await onAdded();
     } catch (err) {
       setError(errorMessage(err, 'Failed to add RTO expense'));
     } finally {

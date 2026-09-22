@@ -1,11 +1,27 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { formatDate } from '@kps/shared';
 import { Card, Muted, Row } from '../ui';
 import { colors, spacing } from '../theme';
 
 const sum = (entries, key = 'amount') => entries.reduce((total, entry) => total + Number(entry[key] || 0), 0);
 const dateOrDash = (value) => (value ? formatDate(value) : '-');
+
+// Every photo attached to the trip, in report order, with a short caption.
+function collectTripPhotos(trip) {
+  const photos = [];
+  if (trip.parkingPhoto?.url) photos.push({ url: trip.parkingPhoto.url, caption: `Parking (${dateOrDash(trip.loadingDate)})` });
+  (trip.dieselEntries || []).forEach((entry) => {
+    if (entry.photo?.url) photos.push({ url: entry.photo.url, caption: `Diesel ${dateOrDash(entry.filledAt)} - Rs ${Number(entry.amount || 0)}` });
+  });
+  (trip.rtoEntries || []).forEach((entry) => {
+    if (entry.photo?.url) photos.push({ url: entry.photo.url, caption: `RTO ${dateOrDash(entry.date)} - Rs ${Number(entry.amount || 0)}` });
+  });
+  (trip.otherExpenses || []).forEach((entry) => {
+    if (entry.photo?.url) photos.push({ url: entry.photo.url, caption: `${entry.description || 'Other'} ${dateOrDash(entry.date)} - Rs ${Number(entry.amount || 0)}` });
+  });
+  return photos;
+}
 
 function formatMileage(km, totalDieselLitres) {
   const distance = Number(km);
@@ -39,6 +55,7 @@ export default function TripSummarySection({ trip }) {
   const turnExpenseTotal = Number(trip.turnExpense || 0);
   const totalExpenses = dieselCashTotal + loadingExpenseTotal + parkingExpenseTotal + turnExpenseTotal + sum(rtoEntries) + sum(otherExpenses);
   const balance = totalAdvance - totalExpenses;
+  const photos = collectTripPhotos(trip);
   const returnTarget = (trip.isDiverted && trip.divertUnloadingLocation) ? trip.divertUnloadingLocation : (trip.unloadingLocation || '-');
 
   const route = `${trip.loadingLocation || '-'} (${dateOrDash(trip.loadingDate)}) \u2192 ${trip.unloadingLocation || '-'} (${dateOrDash(trip.unloadingDate)})`
@@ -53,7 +70,6 @@ export default function TripSummarySection({ trip }) {
       </Block>
 
       <Block title="Trip KM">
-        <Row label="Cash Diesel" value={`Rs ${dieselCashTotal}`} />
         <Row label="Trip KM" value={trip.odometerKm != null ? `${trip.odometerKm} km` : 'NA'} />
         <Row label="Diesel for Trip" value={totalDieselLitres > 0 ? `${totalDieselLitres} L` : 'NA'} />
         <Row label="Mileage" value={formatMileage(trip.odometerKm, totalDieselLitres)} />
@@ -116,6 +132,20 @@ export default function TripSummarySection({ trip }) {
         </View>
         <Text style={styles.balanceValue}>Rs {balance}</Text>
       </View>
+
+      {photos.length > 0 && (
+        <View style={[styles.block, { marginTop: spacing.lg, marginBottom: 0 }]}>
+          <Text style={styles.blockTitle}>Trip Photos</Text>
+          <View style={styles.photoGrid}>
+            {photos.map((photo, index) => (
+              <View key={`${photo.url}-${index}`} style={styles.photoCell}>
+                <Image source={{ uri: photo.url }} style={styles.photo} resizeMode="cover" />
+                <Muted style={styles.photoCaption}>{photo.caption}</Muted>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
     </Card>
   );
 }
@@ -128,4 +158,8 @@ const styles = StyleSheet.create({
   balance: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: spacing.sm },
   balanceLabel: { fontSize: 16, fontWeight: '800', color: colors.green900 },
   balanceValue: { fontSize: 18, fontWeight: '800', color: colors.green900 },
+  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  photoCell: { width: '48%', borderWidth: 1, borderColor: colors.border, borderRadius: 8, overflow: 'hidden' },
+  photo: { width: '100%', height: 140, backgroundColor: colors.paper },
+  photoCaption: { fontSize: 11, textAlign: 'center', paddingVertical: 4, paddingHorizontal: 6 },
 });

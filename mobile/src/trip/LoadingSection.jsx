@@ -87,7 +87,7 @@ function LoadingSummary({ trip, onEdit }) {
   );
 }
 
-export default function LoadingSection({ trip, meta, reload, locked }) {
+export default function LoadingSection({ trip, meta, reload, locked, onAdded = reload }) {
   const [editing, setEditing] = useState(false);
   const hasLoadingDetails = Boolean(trip.loadingLocation && trip.loadingDate);
   const showForm = !locked && (!hasLoadingDetails || editing);
@@ -101,7 +101,7 @@ export default function LoadingSection({ trip, meta, reload, locked }) {
         <LoadingForm
           trip={trip}
           meta={meta}
-          onSaved={async () => { setEditing(false); await reload(); }}
+          onSaved={async () => { setEditing(false); await (hasLoadingDetails ? reload() : onAdded()); }}
           onCancel={hasLoadingDetails ? () => setEditing(false) : null}
         />
       )}

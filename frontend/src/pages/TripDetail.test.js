@@ -110,7 +110,7 @@ test('renders trip sections in order and toggles divert fields', async () => {
   const divertFields = unloadingForm.querySelector('.divert-fields');
   expect(divertFields).not.toBeNull();
   expect(divertFields.textContent).toContain('Divert Location');
-  expect(divertFields.textContent).toContain('Divert Date');
+  expect(divertFields.textContent).toContain('Divert Unloading Date');
   expect(divertFields.querySelector('input[type="date"]')).not.toBeNull();
 
   await act(async () => root.unmount());

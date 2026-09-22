@@ -416,6 +416,29 @@ test('special trip charges count closed routes below 200 KM at Rs 1000 each', ()
   assert.deepEqual(charges, { specialTripCount: 1, specialTripCharges: 1000 });
 });
 
+test('driver KM and short-trip charges split by date when a temporary driver covers part of a trip', () => {
+  const joining = new Date('2026-08-15');
+  const returning = new Date('2026-08-20');
+  // Loaded on the 12th, closed on the 17th -> 6 days, 3 of them (15th-17th) with the temp driver.
+  const straddling = { loadingLocation: 'Short', unloadingLocation: 'Route', fillingOrderLocation: 'Short', loadingDate: new Date('2026-08-12'), turnDate: new Date('2026-08-17'), dieselEntries: [] };
+  const regularOnly = { loadingLocation: 'Short', unloadingLocation: 'Route', fillingOrderLocation: 'Short', loadingDate: new Date('2026-08-02'), turnDate: new Date('2026-08-05'), dieselEntries: [] };
+  const tempOnly = { loadingLocation: 'Short', unloadingLocation: 'Route', fillingOrderLocation: 'Short', loadingDate: new Date('2026-08-16'), turnDate: new Date('2026-08-19'), dieselEntries: [] };
+  const routeKmTable = [{ loadingLocation: 'Short', unloadingLocation: 'Route', km: 100 }];
+
+  assert.equal(customerController.getTempKmShare(straddling, joining, returning), 0.5);
+  assert.equal(customerController.getTempKmShare(regularOnly, joining, returning), 0);
+  assert.equal(customerController.getTempKmShare(tempOnly, joining, returning), 1);
+
+  const tempShareOf = (trip) => customerController.getTempKmShare(trip, joining, returning);
+  const driverShareOf = (trip) => 1 - tempShareOf(trip);
+  const trips = [straddling, regularOnly, tempOnly];
+
+  assert.equal(customerController.sumRouteTableKm(trips, routeKmTable, false, driverShareOf), 150);
+  assert.equal(customerController.sumRouteTableKm(trips, routeKmTable, false, tempShareOf), 150);
+  assert.deepEqual(customerController.calculateSpecialTripCharges(trips, routeKmTable, driverShareOf), { specialTripCount: 2, specialTripCharges: 1500 });
+  assert.deepEqual(customerController.calculateSpecialTripCharges(trips, routeKmTable, tempShareOf), { specialTripCount: 2, specialTripCharges: 1500 });
+});
+
 test('Corporation KM excludes routes below 200 KM when less than 200KM charges are enabled', () => {
   const trips = [
     { loadingLocation: 'Short', unloadingLocation: 'Route', fillingOrderLocation: 'Short' },

@@ -66,7 +66,8 @@ function getNextTripFirstFills(nextTrip) {
   const firstFill = nextTrip?.dieselEntries?.[0];
   if (!firstFill) return [];
 
-  // GPS is mandatory for multi-entry grouping. Without it, the first fill is the boundary.
+  // GPS is optional. Without it, the first fill alone is the boundary; with it, same-day fills
+  // at the same pump are grouped into the boundary.
   if (!getDieselGps(firstFill)) return [firstFill];
   return nextTrip.dieselEntries.filter((entry) => isSameFillDate(firstFill, entry) && isSameGpsLocation(firstFill, entry));
 }

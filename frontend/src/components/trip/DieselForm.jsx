@@ -25,11 +25,8 @@ export default function DieselForm({
     e.preventDefault();
     setError('');
     try {
+      // GPS is optional - used only to group same-day fills at one pump when available.
       const gps = await api.getCurrentPosition();
-      if (!Number.isFinite(gps?.lat) || !Number.isFinite(gps?.lng)) {
-        setError('GPS coordinates are required for diesel filling. Enable location access and try again.');
-        return;
-      }
       await api.addDieselEntry(
         tripId,
         { volumeLitres, totalValue, paymentMethod, loadingPointTankFill: dieselFilledConfirmed, odometerKm: odometerKm || undefined, filledAt: filledAt || undefined, lat: gps?.lat, lng: gps?.lng },

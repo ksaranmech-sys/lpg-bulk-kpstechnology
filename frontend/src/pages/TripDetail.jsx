@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import * as api from '../api/api';
 import Layout from '../components/Layout';
@@ -28,11 +28,22 @@ export default function TripDetail() {
   const [editingLoadingDetails, setEditingLoadingDetails] = useState(false);
   const [editingUnloadingDetails, setEditingUnloadingDetails] = useState(false);
   const [editingTurnDetails, setEditingTurnDetails] = useState(false);
+  // After an entry is added, the page scrolls to the next section so the driver keeps moving
+  // down the form (Advance -> Loading -> Diesel -> ...).
+  const sectionRefs = useRef({});
+  const [scrollTarget, setScrollTarget] = useState(null);
 
   function load() {
-    api.getTrip(tripId).then((res) => setTrip(res.data.trip));
+    return api.getTrip(tripId).then((res) => setTrip(res.data.trip));
   }
-  useEffect(load, [tripId]);
+  useEffect(() => { load(); }, [tripId]);
+  useEffect(() => {
+    if (!scrollTarget) return;
+    sectionRefs.current[scrollTarget]?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    setScrollTarget(null);
+  }, [scrollTarget]);
+  const savedAndGoTo = (nextSection) => () => load().then(() => setScrollTarget(nextSection));
+  const sectionRef = (key) => (el) => { sectionRefs.current[key] = el; };
   // Location lists / KM table change rarely - fetch once per page visit, not after every save.
   useEffect(() => {
     api.getMeta().then((res) => setMeta(res.data));
@@ -74,8 +85,10 @@ export default function TripDetail() {
 
       <fieldset disabled={lockedForDriver} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <>
-        <AdvanceSection trip={trip} tripId={tripId} onSaved={load} />
-        <div className="card">
+        <div ref={sectionRef('advance')}>
+          <AdvanceSection trip={trip} tripId={tripId} onSaved={load} onAdded={savedAndGoTo('loading')} />
+        </div>
+        <div className="card" ref={sectionRef('loading')}>
           <h3 className="section-title" style={{ marginTop: 0 }}>Loading Details & Expenses</h3>
           {hasLoadingDetails && (
             <LoadingDetailsSummary trip={trip} onEdit={() => setEditingLoadingDetails(true)} />
@@ -85,52 +98,66 @@ export default function TripDetail() {
               tripId={tripId}
               trip={trip}
               meta={meta}
-              onSaved={() => { setEditingLoadingDetails(false); load(); }}
+              onSaved={() => {
+                const isNew = !hasLoadingDetails;
+                setEditingLoadingDetails(false);
+                return isNew ? savedAndGoTo('diesel')() : load();
+              }}
             />
           )}
         </div>
-        <div className="card">
+        <div className="card" ref={sectionRef('diesel')}>
           <DieselSummary trip={trip} tripId={tripId} onSaved={load} />
           <div style={{ marginTop: 14 }}>
-            <DieselForm tripId={tripId} trip={trip} onSaved={load} title="" />
+            <DieselForm tripId={tripId} trip={trip} onSaved={savedAndGoTo('rto')} title="" />
           </div>
         </div>
-        <div className="card">
+        <div className="card" ref={sectionRef('rto')}>
           <RtoSummary trip={trip} onSaved={load} />
           <div style={{ marginTop: 14 }}>
-            <RtoForm tripId={tripId} trip={trip} onSaved={load} />
+            <RtoForm tripId={tripId} trip={trip} onSaved={savedAndGoTo('unloadingTurn')} />
           </div>
         </div>
-        {hasUnloadingTurnDetails ? (
-          <UnloadingTurnSummary trip={trip} onDeleted={load} />
-        ) : (
-          <UnloadingTurnForm tripId={tripId} trip={trip} onSaved={load} />
-        )}
-        {hasUnloadingDetails && <UnloadingDetailsSummary trip={trip} onEdit={() => setEditingUnloadingDetails(true)} />}
-        {(!hasUnloadingDetails || editingUnloadingDetails) && (
-          <UnloadingForm
-            tripId={tripId}
-            meta={meta}
-            trip={trip}
-            routeUnloadingOptions={routeUnloadingOptions}
-            onSaved={() => { setEditingUnloadingDetails(false); load(); }}
-          />
-        )}
-        <div className="card">
+        <div ref={sectionRef('unloadingTurn')}>
+          {hasUnloadingTurnDetails ? (
+            <UnloadingTurnSummary trip={trip} onDeleted={load} />
+          ) : (
+            <UnloadingTurnForm tripId={tripId} trip={trip} onSaved={savedAndGoTo('unloading')} />
+          )}
+        </div>
+        <div ref={sectionRef('unloading')}>
+          {hasUnloadingDetails && <UnloadingDetailsSummary trip={trip} onEdit={() => setEditingUnloadingDetails(true)} />}
+          {(!hasUnloadingDetails || editingUnloadingDetails) && (
+            <UnloadingForm
+              tripId={tripId}
+              meta={meta}
+              trip={trip}
+              routeUnloadingOptions={routeUnloadingOptions}
+              onSaved={() => {
+                const isNew = !hasUnloadingDetails;
+                setEditingUnloadingDetails(false);
+                return isNew ? savedAndGoTo('other')() : load();
+              }}
+            />
+          )}
+        </div>
+        <div className="card" ref={sectionRef('other')}>
           <OtherExpenseSummary trip={trip} tripId={tripId} onSaved={load} />
           <div style={{ marginTop: 14 }}>
-            <OtherExpenseForm tripId={tripId} trip={trip} onSaved={load} />
+            <OtherExpenseForm tripId={tripId} trip={trip} onSaved={savedAndGoTo('turn')} />
           </div>
         </div>
-        {hasTurnDetails && !manualKmMissingForClose && <TurnDetailsSummary trip={trip} onEdit={() => setEditingTurnDetails(true)} />}
-        {(!hasTurnDetails || editingTurnDetails || manualKmMissingForClose) && (
-          <TurnDetailsForm
-            tripId={tripId}
-            trip={trip}
-            meta={meta}
-            onSaved={() => { setEditingTurnDetails(false); load(); }}
-          />
-        )}
+        <div ref={sectionRef('turn')}>
+          {hasTurnDetails && !manualKmMissingForClose && <TurnDetailsSummary trip={trip} onEdit={() => setEditingTurnDetails(true)} />}
+          {(!hasTurnDetails || editingTurnDetails || manualKmMissingForClose) && (
+            <TurnDetailsForm
+              tripId={tripId}
+              trip={trip}
+              meta={meta}
+              onSaved={() => { setEditingTurnDetails(false); load(); }}
+            />
+          )}
+        </div>
         </>
 
       </fieldset>

@@ -7,6 +7,24 @@ function formatMileage(km, totalDieselLitres) {
   return `${(distance / litres).toFixed(2)} km/L`;
 }
 
+const fmtDate = (value) => (value ? new Date(value).toLocaleDateString('en-IN') : '-');
+
+// Every photo attached to the trip, in report order, with a short caption.
+function collectTripPhotos(trip) {
+  const photos = [];
+  if (trip.parkingPhoto?.url) photos.push({ url: trip.parkingPhoto.url, caption: `Parking (${fmtDate(trip.loadingDate)})` });
+  (trip.dieselEntries || []).forEach((entry) => {
+    if (entry.photo?.url) photos.push({ url: entry.photo.url, caption: `Diesel ${fmtDate(entry.filledAt)} - Rs ${Number(entry.amount || 0)}` });
+  });
+  (trip.rtoEntries || []).forEach((entry) => {
+    if (entry.photo?.url) photos.push({ url: entry.photo.url, caption: `RTO ${fmtDate(entry.date)} - Rs ${Number(entry.amount || 0)}` });
+  });
+  (trip.otherExpenses || []).forEach((entry) => {
+    if (entry.photo?.url) photos.push({ url: entry.photo.url, caption: `${entry.description || 'Other'} ${fmtDate(entry.date)} - Rs ${Number(entry.amount || 0)}` });
+  });
+  return photos;
+}
+
 export default function EntriesSummary({ trip, corporationKm, calculatedCorporationKm }) {
   const advances = trip.driverAdvances || [];
   const totalAdvance = advances.reduce((sum, advance) => sum + Number(advance.amount || 0), 0);
@@ -30,6 +48,7 @@ export default function EntriesSummary({ trip, corporationKm, calculatedCorporat
   const otherExpenseTotal = otherExpenses.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
   const totalExpenses = dieselCashTotal + loadingExpenseTotal + parkingExpenseTotal + turnExpenseTotal + rtoExpenseTotal + otherExpenseTotal;
   const balance = totalAdvance - totalExpenses;
+  const photos = collectTripPhotos(trip);
 
   function printTripDetails() {
     const printDate = trip.loadingDate || trip.unloadingDate || new Date();
@@ -150,6 +169,13 @@ export default function EntriesSummary({ trip, corporationKm, calculatedCorporat
             padding-left: 4px !important;
             padding-right: 4px !important;
           }
+          .trip-details-print-area .trip-photo-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+          .trip-details-print-area .trip-photo-grid img {
+            max-height: 60mm !important;
+          }
         }
       `}</style>
       <div className="card trip-details-print-area" style={{ border: '1px solid #1f4d2b' }}>
@@ -196,11 +222,6 @@ export default function EntriesSummary({ trip, corporationKm, calculatedCorporat
                         </tr>
                       </thead>
                       <tbody>
-                        <tr>
-                          <td style={{ padding: '8px 12px 8px 12px' }}>Cash Diesel</td>
-                          <td style={{ padding: '8px 12px 8px 0', color: '#666' }}>-</td>
-                          <td style={{ padding: '8px 12px 8px 0', textAlign: 'right' }}>Rs {dieselCashTotal}</td>
-                        </tr>
                         <tr>
                           <td style={{ padding: '8px 12px', border: '1px solid #1f4d2b', textAlign: 'right' }}>{trip.odometerKm != null ? `${trip.odometerKm} km` : 'NA'}</td>
                           <td style={{ padding: '8px 12px', border: '1px solid #1f4d2b', textAlign: 'right' }}>{totalDieselLitres > 0 ? `${totalDieselLitres} L` : 'NA'}</td>
@@ -393,6 +414,27 @@ export default function EntriesSummary({ trip, corporationKm, calculatedCorporat
               </tbody>
             </table>
           </div>
+
+          {photos.length > 0 && (
+            <div className="card-section" style={{ border: '1px solid #dfeade', borderRadius: 10, overflow: 'hidden' }}>
+              <h3 style={{ margin: 0, padding: '10px 12px', background: '#f7faf7', borderBottom: '1px solid #dfeade' }}>Trip Photos</h3>
+              <div className="trip-photo-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12, padding: 12 }}>
+                {photos.map((photo, index) => (
+                  <figure key={`${photo.url}-${index}`} style={{ margin: 0, border: '1px solid #dfeade', borderRadius: 8, overflow: 'hidden', breakInside: 'avoid' }}>
+                    <a href={photo.url} target="_blank" rel="noopener noreferrer" style={{ display: 'block', background: '#f7faf7' }}>
+                      <img
+                        src={photo.url}
+                        alt={photo.caption}
+                        loading="lazy"
+                        style={{ display: 'block', width: '100%', height: 160, objectFit: 'contain' }}
+                      />
+                    </a>
+                    <figcaption style={{ padding: '6px 8px', fontSize: 12, textAlign: 'center', color: '#4b5f52' }}>{photo.caption}</figcaption>
+                  </figure>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </>

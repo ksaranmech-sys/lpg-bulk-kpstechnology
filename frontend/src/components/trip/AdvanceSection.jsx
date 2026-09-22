@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import * as api from '../../api/api';
 import { getEntryMaxDate, getEntryMinDate } from './tripDates';
 
-export default function AdvanceSection({ trip, tripId, onSaved }) {
+export default function AdvanceSection({ trip, tripId, onSaved, onAdded = onSaved }) {
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
   const [editingIndex, setEditingIndex] = useState(null);
@@ -19,7 +19,7 @@ export default function AdvanceSection({ trip, tripId, onSaved }) {
     try {
       await api.addAdvance(tripId, { amount: Number(amount), date: date || undefined });
       setAmount(''); setDate('');
-      onSaved();
+      onAdded();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to add advance');
     }

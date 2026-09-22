@@ -6,7 +6,7 @@ import { Button, Card, DateField, ErrorText, Field, Muted, NumberInput } from '.
 import { spacing } from '../theme';
 import { SummaryChips, confirm } from './common';
 
-export default function UnloadingTurnSection({ trip, reload, locked }) {
+export default function UnloadingTurnSection({ trip, reload, locked, onAdded = reload }) {
   const tripId = trip._id;
   const hasDetails = trip.unTurnNumber != null && trip.unTurnDate;
   const [turnNumber, setTurnNumber] = useState(trip.unTurnNumber != null ? String(trip.unTurnNumber) : '');
@@ -19,7 +19,7 @@ export default function UnloadingTurnSection({ trip, reload, locked }) {
     setError('');
     try {
       await api.setUnloadingTurnDetails(tripId, { turnNumber: Number(turnNumber), turnDate });
-      await reload();
+      await onAdded();
     } catch (err) {
       setError(errorMessage(err, 'Failed to save Unload Turn details.'));
     } finally {

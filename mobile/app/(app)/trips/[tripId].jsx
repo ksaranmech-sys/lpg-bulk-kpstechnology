@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { formatDateLong } from '@kps/shared';
@@ -20,6 +20,19 @@ export default function TripScreen() {
   const { tripId } = useLocalSearchParams();
   const { user } = useAuth();
   const { trip, meta, loading, error, reload } = useTrip(tripId);
+  // After an entry is added the screen scrolls to the next section so the driver keeps moving
+  // down the form (Advance -> Loading -> Diesel -> ...).
+  const scrollRef = useRef(null);
+  const sectionY = useRef({});
+  const onSectionLayout = (key) => (event) => { sectionY.current[key] = event.nativeEvent.layout.y; };
+  const addedThenGoTo = (nextKey) => async () => {
+    await reload();
+    // Wait one frame so the reloaded trip's layout is measured before scrolling.
+    requestAnimationFrame(() => {
+      const y = sectionY.current[nextKey];
+      if (y != null) scrollRef.current?.scrollTo({ y: Math.max(y - 8, 0), animated: true });
+    });
+  };
 
   if (loading || !trip) {
     return (
@@ -44,7 +57,7 @@ export default function TripScreen() {
   const sectionProps = { trip, meta, reload, locked: lockedForDriver };
 
   return (
-    <Screen>
+    <Screen scrollRef={scrollRef}>
       <Stack.Screen options={{ title: trip.vehicle?.vehicleNumber || 'Trip' }} />
       <View style={styles.header}>
         <Text style={styles.heading}>{heading}</Text>
@@ -58,14 +71,14 @@ export default function TripScreen() {
       )}
       <ErrorText>{error}</ErrorText>
 
-      <AdvanceSection {...sectionProps} />
-      <LoadingSection {...sectionProps} />
-      <DieselSection {...sectionProps} />
-      <RtoSection {...sectionProps} />
-      <UnloadingTurnSection {...sectionProps} />
-      <UnloadingSection {...sectionProps} />
-      <OtherExpenseSection {...sectionProps} />
-      <TurnCloseSection {...sectionProps} />
+      <View onLayout={onSectionLayout('advance')}><AdvanceSection {...sectionProps} onAdded={addedThenGoTo('loading')} /></View>
+      <View onLayout={onSectionLayout('loading')}><LoadingSection {...sectionProps} onAdded={addedThenGoTo('diesel')} /></View>
+      <View onLayout={onSectionLayout('diesel')}><DieselSection {...sectionProps} onAdded={addedThenGoTo('rto')} /></View>
+      <View onLayout={onSectionLayout('rto')}><RtoSection {...sectionProps} onAdded={addedThenGoTo('unloadingTurn')} /></View>
+      <View onLayout={onSectionLayout('unloadingTurn')}><UnloadingTurnSection {...sectionProps} onAdded={addedThenGoTo('unloading')} /></View>
+      <View onLayout={onSectionLayout('unloading')}><UnloadingSection {...sectionProps} onAdded={addedThenGoTo('other')} /></View>
+      <View onLayout={onSectionLayout('other')}><OtherExpenseSection {...sectionProps} onAdded={addedThenGoTo('turn')} /></View>
+      <View onLayout={onSectionLayout('turn')}><TurnCloseSection {...sectionProps} /></View>
       <TripSummarySection trip={trip} />
     </Screen>
   );

@@ -7,7 +7,7 @@ import { spacing } from '../theme';
 import { ButtonRow, EditBox, EntryRow } from './common';
 import { getEntryMaxDate, getEntryMinDate } from './tripDates';
 
-export default function AdvanceSection({ trip, reload, locked }) {
+export default function AdvanceSection({ trip, reload, locked, onAdded = reload }) {
   const tripId = trip._id;
   const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
@@ -26,7 +26,7 @@ export default function AdvanceSection({ trip, reload, locked }) {
     try {
       await api.addAdvance(tripId, { amount: Number(amount), date: date || undefined });
       setAmount(''); setDate('');
-      await reload();
+      await onAdded();
     } catch (err) {
       setError(errorMessage(err, 'Failed to add advance'));
     } finally {

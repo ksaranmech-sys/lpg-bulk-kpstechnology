@@ -1,4 +1,7 @@
 const PDFDocument = require('pdfkit');
+const fs = require('fs/promises');
+const path = require('path');
+const config = require('../config/env');
 const { calculateClosingOdometerKm } = require('./tripCalculations');
 
 /**
@@ -6,7 +9,9 @@ const { calculateClosingOdometerKm } = require('./tripCalculations');
  * `trip` must be populated with .vehicle and .customer, and must already
  * have `trip.settlement` calculated (see tripCalculations.js).
  */
-function buildTripSettlementPdf(trip, previousTrip = trip.previousTrip) {
+async function buildTripSettlementPdf(trip, previousTrip = trip.previousTrip) {
+  // Photos are fetched up front - pdfkit's drawing API is synchronous.
+  const photos = await loadTripPhotos(trip);
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 36, size: 'A4' });
     const reportStartY = doc.page.margins.top - 10;
@@ -110,8 +115,101 @@ function buildTripSettlementPdf(trip, previousTrip = trip.previousTrip) {
       8
     ).lineWidth(1).strokeColor('#1f4d2b').stroke();
 
+    renderTripPhotos(doc, photos);
+
     doc.end();
   });
+}
+
+// Every photo attached to a trip, in report order, with a short caption.
+function collectTripPhotos(trip) {
+  const photos = [];
+  if (trip.parkingPhoto?.url) photos.push({ url: trip.parkingPhoto.url, caption: `Parking (${fmtDate(trip.loadingDate)})` });
+  (trip.dieselEntries || []).forEach((entry) => {
+    if (entry.photo?.url) photos.push({ url: entry.photo.url, caption: `Diesel ${fmtDate(entry.filledAt)} - Rs ${fmtMoney(entry.amount)}` });
+  });
+  (trip.rtoEntries || []).forEach((entry) => {
+    if (entry.photo?.url) photos.push({ url: entry.photo.url, caption: `RTO ${fmtDate(entry.date)} - Rs ${fmtMoney(entry.amount)}` });
+  });
+  (trip.otherExpenses || []).forEach((entry) => {
+    if (entry.photo?.url) photos.push({ url: entry.photo.url, caption: `${entry.description || 'Other'} ${fmtDate(entry.date)} - Rs ${fmtMoney(entry.amount)}` });
+  });
+  return photos;
+}
+
+// pdfkit can only embed JPEG and PNG.
+function isPdfKitImage(buffer) {
+  if (!buffer || buffer.length < 8) return false;
+  const isJpeg = buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  const isPng = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+  return isJpeg || isPng;
+}
+
+async function loadPhotoBuffer(url) {
+  const localPrefix = `${config.apiBaseUrl}/uploads/`;
+  if (url.startsWith(localPrefix)) {
+    const filename = path.basename(url.slice(localPrefix.length));
+    return fs.readFile(path.join(path.resolve(__dirname, '..', '..', config.storage.uploadDir), filename));
+  }
+  if (!/^https?:\/\//i.test(url) || typeof fetch !== 'function') return null;
+  // Cloudinary: ask for a small JPEG so the PDF stays light and pdfkit can decode it.
+  const fetchUrl = url.includes('/image/upload/')
+    ? url.replace('/image/upload/', '/image/upload/f_jpg,w_800,q_auto:eco/')
+    : url;
+  const response = await fetch(fetchUrl, { signal: typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(8000) : undefined });
+  if (!response.ok) return null;
+  return Buffer.from(await response.arrayBuffer());
+}
+
+async function loadTripPhotos(trip) {
+  const photos = collectTripPhotos(trip);
+  const loaded = await Promise.all(photos.map(async (photo) => {
+    try {
+      const buffer = await loadPhotoBuffer(photo.url);
+      return isPdfKitImage(buffer) ? { ...photo, buffer } : null;
+    } catch (err) {
+      return null;
+    }
+  }));
+  return loaded.filter(Boolean);
+}
+
+// Two-column photo grid appended after the report frame; spills onto new pages as needed.
+function renderTripPhotos(doc, photos) {
+  if (!photos.length) return;
+  const x = doc.page.margins.left;
+  const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const bottom = doc.page.height - doc.page.margins.bottom;
+  const columns = 2;
+  const gap = 10;
+  const cellWidth = (width - gap * (columns - 1)) / columns;
+  const imageHeight = 170;
+  const cellHeight = imageHeight + 24;
+
+  if (doc.y + 34 + cellHeight > bottom) doc.addPage();
+  else doc.y += 10;
+  doc.x = x;
+  styledSectionHeader(doc, 'Trip Photos');
+
+  let rowY = doc.y;
+  photos.forEach((photo, index) => {
+    const column = index % columns;
+    if (column === 0 && index > 0) rowY += cellHeight + gap;
+    if (column === 0 && rowY + cellHeight > bottom) {
+      doc.addPage();
+      rowY = doc.page.margins.top;
+    }
+    const cellX = x + column * (cellWidth + gap);
+    doc.rect(cellX, rowY, cellWidth, cellHeight).lineWidth(0.5).strokeColor('#b8c9d1').stroke();
+    try {
+      doc.image(photo.buffer, cellX + 4, rowY + 4, { fit: [cellWidth - 8, imageHeight], align: 'center', valign: 'center' });
+    } catch (err) {
+      doc.fillColor('gray').font('Helvetica').fontSize(7.5).text('Photo unavailable', cellX + 4, rowY + imageHeight / 2, { width: cellWidth - 8, align: 'center', lineBreak: false });
+    }
+    doc.fillColor('#102f52').font('Helvetica').fontSize(7.5).text(photo.caption, cellX + 4, rowY + imageHeight + 9, { width: cellWidth - 8, align: 'center', lineBreak: false });
+  });
+  doc.x = x;
+  doc.y = rowY + cellHeight + 6;
 }
 
 function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, trips, detailTrips = trips }) {
@@ -199,7 +297,7 @@ function renderSalarySheet(doc, { title, driverLabel, vehicle, customer, month, 
   doc.x = doc.page.margins.left;
 
   styledSectionHeader(doc, 'Closed Trips');
-  renderSalaryTripsTable(doc, ['S.No', 'Loading Location', 'Unloading Location', 'Unloading Date', 'Divert Location', 'Divert Date', 'Driver KM', 'Diesel (Litres)', 'Trip Diesel', 'Trip Advance', 'Trip Expense', 'Balance'],
+  renderSalaryTripsTable(doc, ['S.No', 'Loading Location', 'Unloading Location', 'Unloading Date', 'Divert Location', 'Divert Unloading Date', 'Driver KM', 'Diesel (Litres)', 'Trip Diesel', 'Trip Advance', 'Trip Expense', 'Balance'],
     trips.length ? trips.map((trip, index) => [
       String(index + 1),
       trip.loadingLocation || '-',
@@ -232,8 +330,9 @@ function renderSalarySheet(doc, { title, driverLabel, vehicle, customer, month, 
     ['Settlement to Driver', `Rs ${fmtMoney(summary.salaryBalance)}`],
   ];
   if (specialTripCharges > 0) {
+    const splitByDate = specialTripCharges !== Number(summary.specialTripCount || 0) * 1000;
     salaryRows.splice(2, 0, [
-      `Special Trip Charges (${summary.specialTripCount || 0} trips x Rs 1000)`,
+      `Special Trip Charges (${summary.specialTripCount || 0} trips x Rs 1000${splitByDate ? ', split by date with temporary driver' : ''})`,
       `Rs ${fmtMoney(summary.specialTripCharges)}`,
     ]);
   }

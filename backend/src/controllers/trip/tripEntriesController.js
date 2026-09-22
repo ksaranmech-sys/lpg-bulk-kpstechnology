@@ -77,10 +77,8 @@ async function addDieselEntry(req, res) {
     return res.status(400).json({ error: 'paymentMethod must be diesel_card or cash' });
   }
 
+  // GPS is optional - when present it lets same-day next-trip fills at one pump be grouped.
   const hasGps = hasValidGpsCoordinates(lat, lng);
-  if (!hasGps) {
-    return res.status(400).json({ error: 'GPS coordinates are required for diesel filling. Enable location access and try again.' });
-  }
   let photo;
   if (req.file) {
     const url = await saveUploadedFile(req.file);

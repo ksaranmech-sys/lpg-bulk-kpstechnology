@@ -173,7 +173,7 @@ export default function UnloadingForm({ tripId, meta, trip, routeUnloadingOption
             </div>
           )}
           <div className="field">
-            <label>Divert Date</label>
+            <label>Divert Unloading Date</label>
             <input
               type="date"
               value={divertDate}

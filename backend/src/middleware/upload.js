@@ -38,8 +38,8 @@ async function saveToCloudinary(file) {
         folder: config.storage.cloudinaryFolder,
         public_id: uuidv4(),
         resource_type: 'image',
-        // Cap stored size so a 12MP camera photo becomes a manageable receipt image.
-        transformation: [{ width: 1600, height: 1600, crop: 'limit', quality: 'auto', fetch_format: 'auto' }],
+        // Cap stored size so a 12MP camera photo becomes a small receipt image.
+        transformation: [{ width: 1200, height: 1200, crop: 'limit', quality: 'auto:eco', fetch_format: 'auto' }],
       },
       (err, result) => (err ? reject(err) : resolve(result.secure_url))
     );

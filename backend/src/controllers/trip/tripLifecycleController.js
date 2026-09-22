@@ -262,7 +262,7 @@ async function setUnloading(req, res) {
         return res.status(400).json({ error: 'divertDate must be a valid date when diverted' });
       }
       if (trip.unloadingDate && date < trip.unloadingDate) {
-        return res.status(400).json({ error: 'Divert date must be the same as or after the Unloading date.' });
+        return res.status(400).json({ error: 'Divert Unloading date must be the same as or after the Unloading date.' });
       }
       trip.divertUnloadingLocation = location;
       trip.divertDate = date;

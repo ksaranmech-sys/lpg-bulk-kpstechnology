@@ -10,10 +10,11 @@ import { colors, radius, spacing } from './theme';
 // Small set of building blocks used by every screen. Kept in one file on purpose so a
 // non-specialist can find "what does a button look like" in a single place.
 
-export function Screen({ children, scroll = true, style }) {
+export function Screen({ children, scroll = true, style, scrollRef }) {
   if (!scroll) return <View style={[styles.screen, style]}>{children}</View>;
   return (
     <ScrollView
+      ref={scrollRef}
       style={styles.screen}
       contentContainerStyle={[styles.screenContent, style]}
       keyboardShouldPersistTaps="handled"
@@ -226,7 +227,8 @@ export function PhotoPicker({ label = 'Photo', asset, onChange }) {
         ? await ImagePicker.requestCameraPermissionsAsync()
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) return;
-      const options = { mediaTypes: ['images'], quality: 0.7, allowsEditing: false };
+      // Low quality keeps receipt photos to a few hundred KB instead of several MB.
+      const options = { mediaTypes: ['images'], quality: 0.4, allowsEditing: false };
       const result = fromCamera
         ? await ImagePicker.launchCameraAsync(options)
         : await ImagePicker.launchImageLibraryAsync(options);

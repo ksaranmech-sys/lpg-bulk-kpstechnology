@@ -55,7 +55,7 @@ export function SalarySummary({ salary }) {
       />
       <Row label={`KM Beta (Total Driver KM ${Math.round(salary.corporationKm || 0)} x Rs ${salary.kmCharges || 0})`} value={rs(salary.kmBeta)} />
       {Number(salary.specialTripCharges || 0) > 0 && (
-        <Row label={`Special Trip Charges (${salary.specialTripCount || 0} trips x Rs 1000)`} value={rs(salary.specialTripCharges)} />
+        <Row label={`Special Trip Charges (${salary.specialTripCount || 0} trips x Rs 1000${Number(salary.specialTripCharges || 0) !== Number(salary.specialTripCount || 0) * 1000 ? ', split by date with temporary driver' : ''})`} value={rs(salary.specialTripCharges)} />
       )}
       <Row label={`Total Expenses (${salary.closedTrips} trips)`} value={rs(salary.totalExpense)} />
       <Row label="Sub Total" value={rs(subTotal)} bold />

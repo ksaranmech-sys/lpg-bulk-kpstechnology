@@ -127,7 +127,7 @@ function UnloadingForm({ trip, meta, routeUnloadingOptions, onSaved, onCancel })
               <NumberInput value={manualKmDivert} onChangeText={setManualKmDivert} placeholder={manualKmDivertRequired ? 'Required' : 'Optional'} />
             </Field>
           )}
-          <DateField label="Divert Date" value={divertDate} onChange={setDivertDate} min={unloadingDate || undefined} />
+          <DateField label="Divert Unloading Date" value={divertDate} onChange={setDivertDate} min={unloadingDate || undefined} />
         </View>
       )}
       <ButtonRow>
@@ -158,7 +158,7 @@ function UnloadingSummary({ trip, onEdit }) {
   );
 }
 
-export default function UnloadingSection({ trip, meta, reload, locked }) {
+export default function UnloadingSection({ trip, meta, reload, locked, onAdded = reload }) {
   const [editing, setEditing] = useState(false);
   const hasUnloadingDetails = Boolean(trip.unloadingLocation && trip.unloadingDate);
   const showForm = !locked && (!hasUnloadingDetails || editing);
@@ -174,7 +174,7 @@ export default function UnloadingSection({ trip, meta, reload, locked }) {
           trip={trip}
           meta={meta}
           routeUnloadingOptions={routeUnloadingOptions}
-          onSaved={async () => { setEditing(false); await reload(); }}
+          onSaved={async () => { setEditing(false); await (hasUnloadingDetails ? reload() : onAdded()); }}
           onCancel={hasUnloadingDetails ? () => setEditing(false) : null}
         />
       )}

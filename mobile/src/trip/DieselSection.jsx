@@ -29,11 +29,8 @@ function DieselForm({ trip, onSaved }) {
     setBusy(true);
     setError('');
     try {
+      // GPS is optional - used only to group same-day fills at one pump when available.
       const gps = await getCurrentPosition();
-      if (!Number.isFinite(gps?.lat) || !Number.isFinite(gps?.lng)) {
-        setError('GPS coordinates are required for diesel filling. Enable location access and try again.');
-        return;
-      }
       await api.addDieselEntry(
         trip._id,
         {
@@ -77,7 +74,7 @@ function DieselForm({ trip, onSaved }) {
   );
 }
 
-export default function DieselSection({ trip, reload, locked }) {
+export default function DieselSection({ trip, reload, locked, onAdded = reload }) {
   const entries = trip.dieselEntries || [];
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -117,7 +114,7 @@ export default function DieselSection({ trip, reload, locked }) {
           )}
         </EntryRow>
       ))}
-      {!locked && <DieselForm trip={trip} onSaved={reload} />}
+      {!locked && <DieselForm trip={trip} onSaved={onAdded} />}
     </Card>
   );
 }

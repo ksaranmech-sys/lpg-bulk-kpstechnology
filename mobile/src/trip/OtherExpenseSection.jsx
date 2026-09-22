@@ -9,7 +9,7 @@ import { getEntryMaxDate, getEntryMinDate } from './tripDates';
 
 const OTHER_EXPENSE_CATEGORIES = ['Unloading Cleaner', 'AdBlue', 'Puncture', 'Firegun'];
 
-export default function OtherExpenseSection({ trip, reload, locked }) {
+export default function OtherExpenseSection({ trip, reload, locked, onAdded = reload }) {
   const tripId = trip._id;
   const entries = trip.otherExpenses || [];
   const [amount, setAmount] = useState('');
@@ -41,7 +41,7 @@ export default function OtherExpenseSection({ trip, reload, locked }) {
         assetToUploadFile(photo)
       );
       setAmount(''); setDate(''); setCategory(''); setPhoto(null);
-      await reload();
+      await onAdded();
     } catch (err) {
       setError(errorMessage(err, 'Failed to add other expense'));
     } finally {
