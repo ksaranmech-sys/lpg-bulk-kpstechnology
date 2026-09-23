@@ -379,6 +379,9 @@ function calculateTemporaryDriverSegment(month, temporaryDriver, monthTrips, rou
   const kmBeta = round0(kmCharges * corporationKm);
   const { specialTripCount, specialTripCharges } = calculateSpecialTripCharges(allTrips, routeKmTable, tempShareOf);
 
+  // Months entirely outside the substitute's window have nothing to pay - no temporary sheet.
+  if (days === 0 && tempRows.length === 0) return null;
+
   const totalAdvance = round0(sumTripAdvances(tempRows));
   const totalDiesel = round0(sumTripDiesel(tempRows));
   const totalDieselLitres = round0(sumTripDieselLitres(tempRows));

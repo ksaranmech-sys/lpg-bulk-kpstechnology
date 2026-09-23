@@ -2,14 +2,14 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs/promises');
 const path = require('path');
 const config = require('../config/env');
-const { calculateClosingOdometerKm } = require('./tripCalculations');
+const { calculateTripKm } = require('./tripCalculations');
 
 /**
  * Builds a printable trip settlement report as a PDF Buffer.
  * `trip` must be populated with .vehicle and .customer, and must already
  * have `trip.settlement` calculated (see tripCalculations.js).
  */
-async function buildTripSettlementPdf(trip, previousTrip = trip.previousTrip) {
+async function buildTripSettlementPdf(trip, nextTrip = null) {
   // Photos are fetched up front - pdfkit's drawing API is synchronous.
   const photos = await loadTripPhotos(trip);
   return new Promise((resolve, reject) => {
@@ -27,7 +27,7 @@ async function buildTripSettlementPdf(trip, previousTrip = trip.previousTrip) {
     const otherExpenses = trip.otherExpenses || [];
     const odometerKm = trip.status === 'closed' && trip.settlement?.totalKm != null
       ? trip.settlement.totalKm
-      : calculateClosingOdometerKm(trip, previousTrip);
+      : calculateTripKm(trip, nextTrip);
 
     const totalAdvance = advances.reduce((sum, a) => sum + Number(a.amount || 0), 0);
     const dieselCardTotal = dieselEntries
@@ -73,14 +73,15 @@ async function buildTripSettlementPdf(trip, previousTrip = trip.previousTrip) {
     doc.moveDown(0.25);
 
     styledSectionHeader(doc, 'Diesel Filled Details');
-    renderTable(doc, ['Date', 'Purchase Type', 'Odometer KM', 'Tank Fill', 'Amount'],
+    renderTable(doc, ['Date', 'Purchase Type', 'Odometer KM', 'Litres', 'Tank Fill', 'Amount'],
       dieselEntries.length ? dieselEntries.map((d) => [
         fmtDate(d.filledAt),
         d.paymentMethod === 'cash' ? 'Cash' : 'Diesel Card',
         d.odometerKm != null ? `${fmtMoney(d.odometerKm)} km` : '-',
+        d.volumeLitres != null ? `${fmtMoney(d.volumeLitres)} L` : '-',
         d.loadingPointTankFill ? '✓' : '-',
         `Rs ${fmtMoney(d.amount)}`,
-      ]) : [['-', 'No diesel entries', '-', '-', '-']],
+      ]) : [['-', 'No diesel entries', '-', '-', '-', '-']],
       { totalLabel: 'Diesel Card', totalValue: `Rs ${fmtMoney(dieselCardTotal)}`, extraRows: [
         ['Cash', '', `Rs ${fmtMoney(dieselCashTotal)}`],
         ['Total', '', `Rs ${fmtMoney(totalDiesel)}`],

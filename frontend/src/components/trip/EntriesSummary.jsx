@@ -1,6 +1,7 @@
 import React from 'react';
 
 function formatMileage(km, totalDieselLitres) {
+  if (km == null || totalDieselLitres == null) return 'NA';
   const distance = Number(km);
   const litres = Number(totalDieselLitres);
   if (!Number.isFinite(distance) || !Number.isFinite(litres) || litres <= 0) return 'NA';
@@ -36,6 +37,7 @@ export default function EntriesSummary({ trip, corporationKm, calculatedCorporat
     .filter((entry) => entry.paymentMethod === 'cash')
     .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
   const totalDiesel = dieselEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+  const totalDieselVolume = dieselEntries.reduce((sum, entry) => sum + Number(entry.volumeLitres || 0), 0);
   const totalDieselLitres = trip.settlement?.totalDieselLitres != null
     ? Number(trip.settlement.totalDieselLitres)
     : null;
@@ -299,6 +301,7 @@ export default function EntriesSummary({ trip, corporationKm, calculatedCorporat
                   <th style={{ textAlign: 'left', padding: '8px 12px 8px 0' }}>Date</th>
                   <th style={{ textAlign: 'center', padding: '8px 12px 8px 0' }}>Purchase Type</th>
                   <th style={{ textAlign: 'right', padding: '8px 12px 8px 0' }}>Odometer KM</th>
+                  <th style={{ textAlign: 'right', padding: '8px 12px 8px 0' }}>Litres</th>
                   <th style={{ textAlign: 'center', padding: '8px 12px 8px 0' }}>Tank Fill</th>
                   <th style={{ textAlign: 'right', padding: '8px 0 8px 12px' }}>Amount</th>
                 </tr>
@@ -306,7 +309,7 @@ export default function EntriesSummary({ trip, corporationKm, calculatedCorporat
               <tbody>
                 {dieselEntries.length === 0 ? (
                   <tr>
-                    <td colSpan="5" style={{ padding: '8px 0', color: '#666' }}>No diesel entries added yet.</td>
+                    <td colSpan="6" style={{ padding: '8px 0', color: '#666' }}>No diesel entries added yet.</td>
                   </tr>
                 ) : (
                   dieselEntries.map((entry, index) => (
@@ -318,6 +321,7 @@ export default function EntriesSummary({ trip, corporationKm, calculatedCorporat
                         {entry.paymentMethod === 'cash' ? 'Cash' : 'Diesel Card'}
                       </td>
                       <td style={{ padding: '8px 12px 8px 0', textAlign: 'right' }}>{entry.odometerKm ?? '-'}</td>
+                      <td style={{ padding: '8px 12px 8px 0', textAlign: 'right' }}>{entry.volumeLitres != null ? `${Number(entry.volumeLitres)} L` : '-'}</td>
                       <td style={{ padding: '8px 12px 8px 0', textAlign: 'center' }}>{entry.loadingPointTankFill ? '✓' : '-'}</td>
                       <td style={{ padding: '8px 0', textAlign: 'right' }}>Rs {Number(entry.amount || 0)}</td>
                     </tr>
@@ -328,10 +332,12 @@ export default function EntriesSummary({ trip, corporationKm, calculatedCorporat
                   <td style={{ fontWeight: 700, padding: '12px 12px 0 0' }}> </td>
                   <td style={{ fontWeight: 700, padding: '12px 12px 0 0' }}> </td>
                   <td style={{ fontWeight: 700, padding: '12px 12px 0 0' }}> </td>
+                  <td style={{ fontWeight: 700, padding: '12px 12px 0 0' }}> </td>
                   <td style={{ fontWeight: 700, padding: '12px 0 0 0', textAlign: 'right' }}>Rs {dieselCardTotal}</td>
                 </tr>
                 <tr>
                   <td style={{ fontWeight: 700, padding: '8px 12px 0 0' }}>Cash</td>
+                  <td style={{ fontWeight: 700, padding: '8px 12px 0 0' }}> </td>
                   <td style={{ fontWeight: 700, padding: '8px 12px 0 0' }}> </td>
                   <td style={{ fontWeight: 700, padding: '8px 12px 0 0' }}> </td>
                   <td style={{ fontWeight: 700, padding: '8px 12px 0 0' }}> </td>
@@ -341,6 +347,7 @@ export default function EntriesSummary({ trip, corporationKm, calculatedCorporat
                   <td style={{ fontWeight: 700, padding: '8px 12px 0 0' }}>Total</td>
                   <td style={{ fontWeight: 700, padding: '8px 12px 0 0' }}> </td>
                   <td style={{ fontWeight: 700, padding: '8px 12px 0 0' }}> </td>
+                  <td style={{ fontWeight: 700, padding: '8px 12px 0 0', textAlign: 'right' }}>{totalDieselVolume} L</td>
                   <td style={{ fontWeight: 700, padding: '8px 12px 0 0' }}> </td>
                   <td style={{ fontWeight: 700, padding: '8px 0 0 0', textAlign: 'right' }}>Rs {totalDiesel}</td>
                 </tr>

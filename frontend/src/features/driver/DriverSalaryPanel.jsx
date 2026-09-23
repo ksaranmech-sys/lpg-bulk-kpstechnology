@@ -10,6 +10,7 @@ export default function DriverSalaryPanel({ customerId, driverId, data, driver, 
   const [salaryError, setSalaryError] = useState('');
   const [showArchivedSalary, setShowArchivedSalary] = useState(false);
   const [archivedSalaryMonth, setArchivedSalaryMonth] = useState(latestCalculableMonth);
+  const [archivedSalary, setArchivedSalary] = useState(null);
   const [summaryPrinting, setSummaryPrinting] = useState(false);
   const [closingTripId, setClosingTripId] = useState(null);
 
@@ -26,6 +27,18 @@ export default function DriverSalaryPanel({ customerId, driverId, data, driver, 
   }
 
   useEffect(loadSalary, [customerId, driver, driverId, salaryMonth]);
+
+  // Only used to know whether the archived month had a temporary driver.
+  useEffect(() => {
+    if (!showArchivedSalary || !driver || !archivedSalaryMonth) return;
+    let cancelled = false;
+    setArchivedSalary(null);
+    api
+      .getDriverMonthlySalary(customerId, driverId, archivedSalaryMonth)
+      .then((res) => { if (!cancelled) setArchivedSalary(res.data); })
+      .catch(() => { if (!cancelled) setArchivedSalary(null); });
+    return () => { cancelled = true; };
+  }, [showArchivedSalary, customerId, driver, driverId, archivedSalaryMonth]);
 
   async function closeTripFromSalary(tripId) {
     if (!window.confirm('Mark this trip as closed for salary purposes?')) return;
@@ -167,9 +180,14 @@ export default function DriverSalaryPanel({ customerId, driverId, data, driver, 
             onChange={(event) => setArchivedSalaryMonth(event.target.value)}
             style={{ maxWidth: 170 }}
           />
-          <button type="button" className="btn" onClick={() => printMonthlySummary(archivedSalaryMonth)} disabled={!archivedSalaryMonth || summaryPrinting}>
+          <button type="button" className="btn" onClick={() => printMonthlySummary(archivedSalaryMonth, 'regular')} disabled={!archivedSalaryMonth || summaryPrinting}>
             {summaryPrinting ? 'Preparing...' : 'Print archived Salary PDF'}
           </button>
+          {archivedSalary?.temporaryDriver && (
+            <button type="button" className="btn" onClick={() => printMonthlySummary(archivedSalaryMonth, 'temporary')} disabled={summaryPrinting}>
+              {summaryPrinting ? 'Preparing...' : `Print archived Temporary Driver PDF (${archivedSalary.temporaryDriver.name || 'Temporary Driver'})`}
+            </button>
+          )}
         </div>
       )}
     </>

@@ -14,10 +14,12 @@
  *                    + nextTrip's first filling group
  *
  *   A first filling group normally contains one entry. When its entries carry GPS, all
- *   next-trip fills on that date within 100 m of the first fill are grouped together.
+ *   next-trip fills on that date within 100 m of the first fill are grouped together, up to
+ *   and including the Tank Fill entry - once the tank is full, later fills belong to the next trip.
  *
- * - KM for the trip = nextTrip.dieselEntries[0].odometerKm - trip.dieselEntries[0].odometerKm
- *   (distance between this trip's opening fill and the next trip's opening fill).
+ * - KM for the trip = nextTrip first Tank Fill odometerKm - trip first Tank Fill odometerKm
+ *   (distance between this trip's Tank Fill at the loading point and the next trip's; if a
+ *   trip has no Tank Fill entry its first fill's odometer is used).
  *
  * - Mileage = KM / dieselForTrip (km per litre).
  *
@@ -67,19 +69,32 @@ function getNextTripFirstFills(nextTrip) {
   if (!firstFill) return [];
 
   // GPS is optional. Without it, the first fill alone is the boundary; with it, same-day fills
-  // at the same pump are grouped into the boundary.
+  // at the same pump are grouped into the boundary until the tank is marked full.
   if (!getDieselGps(firstFill)) return [firstFill];
-  return nextTrip.dieselEntries.filter((entry) => isSameFillDate(firstFill, entry) && isSameGpsLocation(firstFill, entry));
+  const group = [];
+  for (const entry of nextTrip.dieselEntries) {
+    if (!isSameFillDate(firstFill, entry) || !isSameGpsLocation(firstFill, entry)) continue;
+    group.push(entry);
+    if (entry.loadingPointTankFill === true) break;
+  }
+  return group;
 }
 
-function calculateClosingOdometerKm(currentTrip, previousTrip) {
-  const currentEntries = currentTrip?.dieselEntries || [];
-  const previousEntries = previousTrip?.dieselEntries || [];
-  const currentClosingOdometer = currentEntries[currentEntries.length - 1]?.odometerKm;
-  const previousClosingOdometer = previousEntries[previousEntries.length - 1]?.odometerKm;
+function getFirstTankFill(entries) {
+  return (entries || []).find((entry) => entry.loadingPointTankFill === true) || null;
+}
 
-  if (!Number.isFinite(currentClosingOdometer) || !Number.isFinite(previousClosingOdometer)) return null;
-  return currentClosingOdometer - previousClosingOdometer;
+// Trip KM = next trip's first Tank Fill odometer - this trip's first Tank Fill odometer.
+// Either side falls back to its opening fill when Tank Fill isn't ticked; null until both exist.
+function calculateTripKm(currentTrip, nextTrip) {
+  const currentEntries = currentTrip?.dieselEntries || [];
+  const nextEntries = nextTrip?.dieselEntries || [];
+  const currentFill = getFirstTankFill(currentEntries) || currentEntries[0] || null;
+  const nextFill = getFirstTankFill(nextEntries) || nextEntries[0] || null;
+  const currentOdometerKm = currentFill ? Number(currentFill.odometerKm) : null;
+  const nextOdometerKm = nextFill ? Number(nextFill.odometerKm) : null;
+  if (!Number.isFinite(currentOdometerKm) || !Number.isFinite(nextOdometerKm)) return null;
+  return nextOdometerKm - currentOdometerKm;
 }
 
 /**
@@ -109,11 +124,7 @@ function computeTripSettlement(trip, nextTrip) {
   const nextTripFirstFills = nextTripHasDiesel ? getNextTripFirstFills(nextTrip) : [];
   const nextTripFirstFill = nextTripFirstFills[0] || null;
 
-  const hasTankFillMarkers = Boolean(firstFill) && Boolean(nextTripFirstFill) && firstFill.loadingPointTankFill === true && nextTripFirstFill.loadingPointTankFill === true;
-  const currentFirstOdometerKm = firstFill ? Number(firstFill.odometerKm) : null;
-  const nextFirstOdometerKm = nextTripFirstFill ? Number(nextTripFirstFill.odometerKm) : null;
-  const hasOdometerData = hasTankFillMarkers && Number.isFinite(currentFirstOdometerKm) && Number.isFinite(nextFirstOdometerKm);
-  const totalKm = hasOdometerData ? nextFirstOdometerKm - currentFirstOdometerKm : null;
+  const totalKm = calculateTripKm(trip, nextTrip);
 
   if (totalKm != null && totalKm < 0) {
     return {
@@ -167,4 +178,4 @@ function round2(n) {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
-module.exports = { computeTripSettlement, calculateClosingOdometerKm };
+module.exports = { computeTripSettlement, calculateTripKm };

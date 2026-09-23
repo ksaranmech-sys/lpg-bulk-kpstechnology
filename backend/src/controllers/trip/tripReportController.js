@@ -13,10 +13,10 @@ async function sendReport(req, res) {
     .populate('vehicle', 'vehicleNumber')
     .populate('customer', 'companyName email');
   if (!trip) return res.status(404).json({ error: 'Trip not found' });
-  const previousTrip = await Trip.findOne({
+  const nextTrip = await Trip.findOne({
     vehicle: trip.vehicle._id,
-    createdAt: { $lt: trip.createdAt },
-  }).sort('-createdAt');
+    createdAt: { $gt: trip.createdAt },
+  }).sort('createdAt');
 
   if (trip.status !== TRIP_STATUS.CLOSED || !trip.settlement?.calculatedAt) {
     return res.status(400).json({
@@ -24,7 +24,7 @@ async function sendReport(req, res) {
     });
   }
 
-  const pdfBuffer = await buildTripSettlementPdf(trip, previousTrip);
+  const pdfBuffer = await buildTripSettlementPdf(trip, nextTrip);
   const companyEmail = process.env.COMPANY_EMAIL;
   const customerEmail = trip.customer?.email;
 
@@ -51,12 +51,12 @@ async function downloadReport(req, res) {
     .populate('customer', 'companyName email');
   if (!trip) return res.status(404).json({ error: 'Trip not found' });
   if (trip.status === TRIP_STATUS.CLOSED) await refreshTripSettlement(trip);
-  const previousTrip = await Trip.findOne({
+  const nextTrip = await Trip.findOne({
     vehicle: trip.vehicle._id,
-    createdAt: { $lt: trip.createdAt },
-  }).sort('-createdAt');
+    createdAt: { $gt: trip.createdAt },
+  }).sort('createdAt');
 
-  const pdfBuffer = await buildTripSettlementPdf(trip, previousTrip);
+  const pdfBuffer = await buildTripSettlementPdf(trip, nextTrip);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `inline; filename="trip-${trip._id}.pdf"`);
   res.send(pdfBuffer);

@@ -10,7 +10,7 @@ const { ROUTE_KM_TABLE, LOADING_LOCATIONS, UNLOADING_LOCATIONS } = require('../s
 const User = require('../src/models/User');
 const Trip = require('../src/models/Trip');
 const metaRoutes = require('../src/routes/metaRoutes');
-const { calculateClosingOdometerKm, computeTripSettlement } = require('../src/utils/tripCalculations');
+const { calculateTripKm, computeTripSettlement } = require('../src/utils/tripCalculations');
 const { getCorporationKmDetails } = require('../src/utils/corporationKm');
 
 test('tripController exposes a closeTrip endpoint', () => {
@@ -289,7 +289,7 @@ test('settlement mileage uses Tank Fill opening odometers and diesel from the se
   assert.equal(result.settlement.mileageKmPerLitre, 8.33);
 });
 
-test('settlement groups same-date next-trip fills at the same GPS location', () => {
+test('settlement groups same-date next-trip fills at the same GPS location up to the Tank Fill', () => {
   const result = computeTripSettlement({
     dieselEntries: [
       { odometerKm: 1000, loadingPointTankFill: true, volumeLitres: 10, amount: 100 },
@@ -302,15 +302,81 @@ test('settlement groups same-date next-trip fills at the same GPS location', () 
     otherExpenses: [],
   }, {
     dieselEntries: [
-      { odometerKm: 1500, loadingPointTankFill: true, filledAt: new Date('2026-08-15'), volumeLitres: 20, amount: 200, gps: { lat: 12.9716, lng: 77.5946 } },
       { filledAt: new Date('2026-08-15'), volumeLitres: 15, amount: 150, gps: { lat: 12.9717, lng: 77.5946 } },
-      { filledAt: new Date('2026-08-15'), volumeLitres: 25, amount: 250, gps: { lat: 12.9816, lng: 77.5946 } },
+      { odometerKm: 1500, loadingPointTankFill: true, filledAt: new Date('2026-08-15'), volumeLitres: 20, amount: 200, gps: { lat: 12.9716, lng: 77.5946 } },
+      { filledAt: new Date('2026-08-15'), volumeLitres: 25, amount: 250, gps: { lat: 12.9716, lng: 77.5946 } },
     ],
   });
 
   assert.equal(result.settlement.totalDieselLitres, 75);
   assert.equal(result.settlement.totalDieselCost, 750);
+  assert.equal(result.settlement.totalKm, 500);
   assert.equal(result.settlement.mileageKmPerLitre, 6.67);
+});
+
+test('trip KM is the next trip first Tank Fill odometer minus the current trip first Tank Fill odometer', () => {
+  const result = computeTripSettlement({
+    dieselEntries: [
+      { odometerKm: 990, loadingPointTankFill: false, volumeLitres: 5, amount: 50 },
+      { odometerKm: 1000, loadingPointTankFill: true, volumeLitres: 10, amount: 100 },
+    ],
+    driverAdvances: [],
+    loadingExpense: 0,
+    unloadingExpense: 0,
+    rtoEntries: [],
+    otherExpenses: [],
+  }, {
+    dieselEntries: [
+      { odometerKm: 1490, loadingPointTankFill: false, volumeLitres: 5, amount: 50 },
+      { odometerKm: 1500, loadingPointTankFill: true, volumeLitres: 20, amount: 200 },
+    ],
+  });
+
+  assert.equal(result.settlement.totalKm, 500);
+});
+
+test('trip KM falls back to the next trip first fill odometer when it has no Tank Fill entry', () => {
+  const result = computeTripSettlement({
+    dieselEntries: [
+      { odometerKm: 2600, loadingPointTankFill: true, volumeLitres: 300, amount: 30000 },
+      { volumeLitres: 100, amount: 10000 },
+    ],
+    driverAdvances: [],
+    loadingExpense: 0,
+    unloadingExpense: 0,
+    rtoEntries: [],
+    otherExpenses: [],
+  }, {
+    dieselEntries: [{ odometerKm: 3350, loadingPointTankFill: false, volumeLitres: 90, amount: 9000 }],
+  });
+
+  assert.equal(result.settlement.totalKm, 750);
+  assert.equal(result.settlement.totalDieselLitres, 190);
+  assert.equal(result.settlement.mileageKmPerLitre, 3.95);
+});
+
+test('settlement excludes next-trip fills made after the Tank Fill, even at the same pump on the same day', () => {
+  const result = computeTripSettlement({
+    dieselEntries: [
+      { odometerKm: 1750, loadingPointTankFill: true, volumeLitres: 190, amount: 19000 },
+      { volumeLitres: 10, amount: 1000, gps: { lat: 35.5152, lng: 139.5055 } },
+    ],
+    driverAdvances: [],
+    loadingExpense: 0,
+    unloadingExpense: 0,
+    rtoEntries: [],
+    otherExpenses: [],
+  }, {
+    dieselEntries: [
+      { odometerKm: 2600, loadingPointTankFill: true, filledAt: new Date('2026-08-13'), volumeLitres: 300, amount: 30000, gps: { lat: 35.5152, lng: 139.5056 } },
+      { filledAt: new Date('2026-08-13'), volumeLitres: 100, amount: 10000, gps: { lat: 35.5152, lng: 139.5056 } },
+    ],
+  });
+
+  assert.equal(result.settlement.totalKm, 850);
+  assert.equal(result.settlement.totalDieselLitres, 310);
+  assert.equal(result.settlement.totalDieselCost, 31000);
+  assert.equal(result.settlement.mileageKmPerLitre, 2.74);
 });
 
 test('settlement uses only the first next-trip fill when GPS is unavailable', () => {
@@ -335,21 +401,21 @@ test('settlement uses only the first next-trip fill when GPS is unavailable', ()
   assert.equal(result.settlement.totalDieselCost, 600);
 });
 
-test('settlement mileage is unavailable when the first Tank Fill marker is not selected', () => {
+test('trip KM falls back to the current trip first fill odometer when it has no Tank Fill entry', () => {
   const result = computeTripSettlement({
-    dieselEntries: [{ odometerKm: 1000, loadingPointTankFill: false, volumeLitres: 10, amount: 100 }],
+    dieselEntries: [{ odometerKm: 3350, loadingPointTankFill: false, volumeLitres: 90, amount: 9000 }],
     driverAdvances: [],
     loadingExpense: 0,
     unloadingExpense: 0,
     rtoEntries: [],
     otherExpenses: [],
   }, {
-    dieselEntries: [{ odometerKm: 1500, loadingPointTankFill: true, volumeLitres: 20, amount: 200 }],
+    dieselEntries: [{ odometerKm: 4050, loadingPointTankFill: true, volumeLitres: 230, amount: 23000 }],
   });
 
-  assert.equal(result.settlement.totalKm, null);
-  assert.equal(result.settlement.mileageKmPerLitre, null);
-  assert.equal(result.settlement.totalDieselLitres, 20);
+  assert.equal(result.settlement.totalKm, 700);
+  assert.equal(result.settlement.totalDieselLitres, 230);
+  assert.equal(result.settlement.mileageKmPerLitre, 3.04);
 });
 
 test('salary month uses the final diesel fill when closedAt is missing', () => {
@@ -717,12 +783,13 @@ test('Manual KM Return reuses Manual KM Divert when filling order location equal
   assert.equal(details.source, 'manual');
 });
 
-test('odometer KM uses current and previous trip closing diesel odometers', () => {
-  const currentTrip = { dieselEntries: [{ odometerKm: 1000 }, { odometerKm: 1450 }] };
-  const previousTrip = { dieselEntries: [{ odometerKm: 700 }, { odometerKm: 900 }] };
+test('trip KM for an unsettled trip uses the next trip first Tank Fill odometer, and is unavailable until it exists', () => {
+  const currentTrip = { dieselEntries: [{ odometerKm: 4050, loadingPointTankFill: true }] };
+  const nextTrip = { dieselEntries: [{ odometerKm: 4700 }, { odometerKm: 4750, loadingPointTankFill: true }] };
 
-  assert.equal(calculateClosingOdometerKm(currentTrip, previousTrip), 550);
-  assert.equal(calculateClosingOdometerKm(currentTrip, { dieselEntries: [] }), null);
+  assert.equal(calculateTripKm(currentTrip, nextTrip), 700);
+  assert.equal(calculateTripKm(currentTrip, { dieselEntries: [] }), null);
+  assert.equal(calculateTripKm(currentTrip, null), null);
 });
 
 test('meta route table exists for loading, unloading and KM values', () => {

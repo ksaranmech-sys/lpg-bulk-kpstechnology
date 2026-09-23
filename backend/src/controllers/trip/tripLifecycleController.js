@@ -3,7 +3,7 @@ const Trip = require('../../models/Trip');
 const Vehicle = require('../../models/Vehicle');
 const User = require('../../models/User');
 const { saveUploadedFile } = require('../../middleware/upload');
-const { computeTripSettlement, calculateClosingOdometerKm } = require('../../utils/tripCalculations');
+const { computeTripSettlement, calculateTripKm } = require('../../utils/tripCalculations');
 const { TRIP_STATUS, ROLES } = require('../../config/constants');
 const { removeExpiredClosedTrips } = require('../../utils/tripRetention');
 const metaRoutes = require('../../routes/metaRoutes');
@@ -175,12 +175,16 @@ async function getTrip(req, res) {
     vehicle: trip.vehicle._id,
     createdAt: { $lt: trip.createdAt },
   }).sort('-createdAt');
+  const nextTrip = await Trip.findOne({
+    vehicle: trip.vehicle._id,
+    createdAt: { $gt: trip.createdAt },
+  }).sort('createdAt');
   const driver = await User.findOne({ role: ROLES.VEHICLE_USER, vehicle: trip.vehicle._id }).select('name temporaryDriver joiningDate');
   if (trip.status === TRIP_STATUS.CLOSED) await refreshTripSettlement(trip);
   const result = trip.toObject();
   result.odometerKm = trip.status === TRIP_STATUS.CLOSED && trip.settlement?.totalKm != null
     ? trip.settlement.totalKm
-    : calculateClosingOdometerKm(trip, previousTrip);
+    : calculateTripKm(trip, nextTrip);
   result.corporationKmSource = getCorporationKmDetails(
     result,
     metaRoutes.loadRouteKmTable()
