@@ -59,6 +59,7 @@ export default function TripSummarySection({ trip }) {
   const returnTarget = (trip.isDiverted && trip.divertUnloadingLocation) ? trip.divertUnloadingLocation : (trip.unloadingLocation || '-');
 
   const route = `${trip.loadingLocation || '-'} (${dateOrDash(trip.loadingDate)}) \u2192 ${trip.unloadingLocation || '-'} (${dateOrDash(trip.unloadingDate)})`
+    + (trip.unloadingWeightTons != null && trip.unloadingWeightTons !== '' ? ` - ${trip.unloadingWeightTons} t` : '')
     + (trip.isDiverted ? ` \u2192 ${trip.divertUnloadingLocation || '-'} (${dateOrDash(trip.divertDate)}) - Divert` : '');
 
   return (

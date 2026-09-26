@@ -12,7 +12,7 @@ export default function DriversList({ customerId, data, canAdd }) {
 
   return (
     <Card
-      title="Driver List"
+      title="Vehicle & Driver List"
       right={canAdd ? <Button title="Add Driver" onPress={() => router.push(`/drivers/new?customerId=${customerId}`)} style={{ minHeight: 36, paddingVertical: 6 }} /> : null}
     >
       {drivers.length === 0 ? <Muted>No drivers found.</Muted> : null}

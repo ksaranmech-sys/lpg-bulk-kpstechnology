@@ -5,7 +5,7 @@ import * as api from '../../api/api';
 import AddDriverForm from './AddDriverForm';
 import DriverEditForm from './DriverEditForm';
 
-export default function DriverList({ user, vehicles, setVehicles, customerData, setCustomerData, driverUsers }) {
+export default function DriverList({ user, vehicles, setVehicles, customerData, setCustomerData, driverUsers, vehicleExpenses = [] }) {
   const [driverForm, setDriverForm] = useState(EMPTY_DRIVER_FORM);
   const [driverError, setDriverError] = useState('');
   const [driverSaving, setDriverSaving] = useState(false);
@@ -189,10 +189,17 @@ export default function DriverList({ user, vehicles, setVehicles, customerData, 
   }
 
   const customerVehicles = customerData?.vehicles || vehicles;
+  const currentYear = new Date().getFullYear();
+  const yearExpenseByVehicle = vehicleExpenses.reduce((acc, expense) => {
+    if (new Date(expense.date).getFullYear() !== currentYear) return acc;
+    const vehicleId = String(expense.vehicle?._id || expense.vehicle || '');
+    acc[vehicleId] = (acc[vehicleId] || 0) + (Number(expense.amount) || 0);
+    return acc;
+  }, {});
 
   return (
     <div className="card customer-admin-driver-list" style={{ marginTop: 24 }}>
-      <h3 className="section-title" style={{ marginTop: 0 }}>Driver List</h3>
+      <h3 className="section-title" style={{ marginTop: 0 }}>Vehicle & Driver List</h3>
       <div style={{ display: 'grid', gap: 10, marginBottom: 20 }}>
         {customerVehicles.length === 0 ? (
           <p>No vehicles found.</p>
@@ -219,6 +226,9 @@ export default function DriverList({ user, vehicles, setVehicles, customerData, 
               />
               <div>
                 <strong>{vehicle.vehicleNumber}</strong>
+                <div style={{ fontSize: 12, color: '#666' }}>
+                  Expenses {currentYear}: Rs {Math.round(yearExpenseByVehicle[String(vehicle._id)] || 0).toLocaleString('en-IN')}
+                </div>
               </div>
               <div style={{ textAlign: 'center', color: '#4b6470' }}>
                 {driver?.mobileNumber || 'No phone'}

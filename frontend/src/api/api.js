@@ -72,6 +72,7 @@ export const {
   addVehicleToCustomer, createVehicleUser, updateVehicleUser, deleteVehicleUser,
   bulkUpdateVehicleUsers, bulkDeleteVehicleUsers,
   listLeaves, createLeave, updateLeave, deleteLeave,
+  listVehicleExpenses, createVehicleExpense, updateVehicleExpense, deleteVehicleExpense,
 } = client;
 
 // Helper: grab the browser's current GPS position (used before RTO/diesel/expense uploads)

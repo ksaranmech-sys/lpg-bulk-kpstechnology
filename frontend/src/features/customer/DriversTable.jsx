@@ -169,7 +169,7 @@ export default function DriversTable({ customerId, data, setData }) {
 
   return (
     <div className="card" style={{ marginTop: 24 }}>
-      <h3 className="section-title" style={{ marginTop: 0 }}>Driver List</h3>
+      <h3 className="section-title" style={{ marginTop: 0 }}>Vehicle & Driver List</h3>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap', margin: '0 0 14px' }}>
         <button type="button" className="btn" onClick={() => setShowAddDriverModal(true)}>
           Add Driver

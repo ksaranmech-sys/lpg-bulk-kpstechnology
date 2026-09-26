@@ -8,6 +8,7 @@ import DriverTripsByMonth from '../features/driver/DriverTripsByMonth';
 import DriverLeavesList from '../features/driver/DriverLeavesList';
 import DriverSalaryPanel from '../features/driver/DriverSalaryPanel';
 import DriverReminderEditor from '../features/driver/DriverReminderEditor';
+import DriverVehicleExpenses from '../features/driver/DriverVehicleExpenses';
 
 export default function DriverDetail() {
   const { user } = useAuth();
@@ -65,6 +66,9 @@ export default function DriverDetail() {
             vehicle={vehicle}
             setError={setError}
           />
+          {vehicle && (
+            <DriverVehicleExpenses customerId={customerId} vehicle={vehicle} setError={setError} />
+          )}
           {vehicle && (
             <DriverReminderEditor vehicle={vehicle} setData={setData} setError={setError} />
           )}

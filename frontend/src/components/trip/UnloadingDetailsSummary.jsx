@@ -8,6 +8,11 @@ export default function UnloadingDetailsSummary({ trip, onEdit }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
           <span style={chip}><strong>{trip.unloadingLocation || '-'}</strong></span>
+          {trip.unloadingWeightTons != null && trip.unloadingWeightTons !== '' && (
+            <span style={chip}>
+              <span style={{ color: '#64748b' }}>Weight</span> <strong>{trip.unloadingWeightTons} t</strong>
+            </span>
+          )}
           <span style={{ ...chip, color: '#64748b' }}>{trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}</span>
           {trip.manualKm != null && trip.manualKm !== '' && (
             <span style={chip}>

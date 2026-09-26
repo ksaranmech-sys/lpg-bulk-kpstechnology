@@ -210,6 +210,7 @@ export default function EntriesSummary({ trip, corporationKm, calculatedCorporat
                   <td colSpan="3" style={{ width: '90%', padding: '8px 6px' }}>
                     {trip.loadingLocation || '-'} ({trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'})
                     {' \u2192 '}{trip.unloadingLocation || '-'} ({trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'})
+                    {trip.unloadingWeightTons != null && trip.unloadingWeightTons !== '' && ` - ${trip.unloadingWeightTons} t`}
                     {trip.isDiverted && ` \u2192 ${trip.divertUnloadingLocation || '-'} (${trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'}) - Divert`}
                   </td>
                 </tr>

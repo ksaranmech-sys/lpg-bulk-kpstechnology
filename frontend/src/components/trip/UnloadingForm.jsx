@@ -4,6 +4,7 @@ import ComboBoxInput from '../ComboBoxInput';
 
 export default function UnloadingForm({ tripId, meta, trip, routeUnloadingOptions, onSaved }) {
   const [unloadingLocation, setLoc] = useState(trip.unloadingLocation || '');
+  const [unloadingWeightTons, setWeightTons] = useState(trip.unloadingWeightTons != null ? String(trip.unloadingWeightTons) : '');
   const [unloadingDate, setDate] = useState(trip.unloadingDate ? new Date(trip.unloadingDate).toISOString().slice(0, 10) : '');
   const [manualKm, setManualKm] = useState(trip.manualKm != null ? String(trip.manualKm) : '');
   const [manualKmDivert, setManualKmDivert] = useState(trip.manualKmDivert != null ? String(trip.manualKmDivert) : '');
@@ -57,6 +58,7 @@ export default function UnloadingForm({ tripId, meta, trip, routeUnloadingOption
     try {
       await api.setUnloading(tripId, {
         unloadingLocation,
+        unloadingWeightTons: unloadingWeightTons === '' ? null : Number(unloadingWeightTons),
         unloadingDate,
         manualKm: manualKm === '' ? undefined : Number(manualKm),
         manualKmDivert: manualKmDivert === '' ? undefined : Number(manualKmDivert),
@@ -74,7 +76,7 @@ export default function UnloadingForm({ tripId, meta, trip, routeUnloadingOption
     <form className="card" onSubmit={submit}>
       <h3 className="section-title">Unloading Details</h3>
       {error && <div className="error-text">{error}</div>}
-      <div style={{ display: 'grid', gridTemplateColumns: manualKmLoadVisible ? 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto auto' : 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto auto', gap: 14, alignItems: 'end' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: manualKmLoadVisible ? 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto auto' : 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto auto', gap: 14, alignItems: 'end' }}>
         <div className="field" style={{ margin: 0 }}>
           <label>Corporation</label>
           <select
@@ -98,6 +100,17 @@ export default function UnloadingForm({ tripId, meta, trip, routeUnloadingOption
             onChange={setLoc}
             options={filteredUnloadingOptions}
             placeholder="Select or enter unloading location"
+          />
+        </div>
+        <div className="field" style={{ margin: 0 }}>
+          <label>Weight (tons)</label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={unloadingWeightTons}
+            onChange={(e) => setWeightTons(e.target.value)}
+            placeholder="Optional"
           />
         </div>
         {manualKmLoadVisible && (

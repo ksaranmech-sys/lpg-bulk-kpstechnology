@@ -160,5 +160,11 @@ export function createEndpoints(api) {
     createLeave: (data) => api.post('/leaves', data),
     updateLeave: (leaveId, data) => api.patch(`/leaves/${leaveId}`, data),
     deleteLeave: (leaveId) => api.delete(`/leaves/${leaveId}`),
+
+    // ---- Vehicle expenses ----
+    listVehicleExpenses: (params = {}) => api.get('/vehicle-expenses', { params }),
+    createVehicleExpense: (data) => api.post('/vehicle-expenses', data),
+    updateVehicleExpense: (expenseId, data) => api.patch(`/vehicle-expenses/${expenseId}`, data),
+    deleteVehicleExpense: (expenseId) => api.delete(`/vehicle-expenses/${expenseId}`),
   };
 }

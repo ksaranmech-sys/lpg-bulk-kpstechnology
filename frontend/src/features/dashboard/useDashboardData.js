@@ -11,6 +11,9 @@ export function useDashboardData(user) {
   const [leaves, setLeaves] = useState([]);
   const [leavesLoading, setLeavesLoading] = useState(false);
   const [leaveError, setLeaveError] = useState('');
+  const [vehicleExpenses, setVehicleExpenses] = useState([]);
+  const [vehicleExpensesLoading, setVehicleExpensesLoading] = useState(false);
+  const [vehicleExpenseError, setVehicleExpenseError] = useState('');
 
   useEffect(() => {
     setLoading(true);
@@ -60,6 +63,19 @@ export function useDashboardData(user) {
       .finally(() => setLeavesLoading(false));
   }, [user]);
 
+  useEffect(() => {
+    if (user?.role !== 'customer_admin' || !user.customer) {
+      setVehicleExpenses([]);
+      return;
+    }
+    setVehicleExpensesLoading(true);
+    api
+      .listVehicleExpenses()
+      .then((res) => setVehicleExpenses(res.data.expenses || []))
+      .catch((err) => setVehicleExpenseError(err.response?.data?.error || 'Failed to load vehicle expenses'))
+      .finally(() => setVehicleExpensesLoading(false));
+  }, [user]);
+
   const driverUsers = customerData?.users?.filter((item) => item.role === 'vehicle_user' && item.isActive !== false) || [];
 
   return {
@@ -79,6 +95,11 @@ export function useDashboardData(user) {
     leavesLoading,
     leaveError,
     setLeaveError,
+    vehicleExpenses,
+    setVehicleExpenses,
+    vehicleExpensesLoading,
+    vehicleExpenseError,
+    setVehicleExpenseError,
     driverUsers,
   };
 }

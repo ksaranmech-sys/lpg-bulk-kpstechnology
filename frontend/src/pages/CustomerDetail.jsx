@@ -7,12 +7,15 @@ import CustomerInfoForm from '../features/customer/CustomerInfoForm';
 import VehiclesTable from '../features/customer/VehiclesTable';
 import CustomerTripHistory from '../features/customer/CustomerTripHistory';
 import DriversTable from '../features/customer/DriversTable';
+import VehicleExpensesSummary from '../features/customer/VehicleExpensesSummary';
 
 export default function CustomerDetail() {
   const { user } = useAuth();
   const { customerId } = useParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  const [vehicleExpenses, setVehicleExpenses] = useState([]);
+  const [vehicleExpenseError, setVehicleExpenseError] = useState('');
 
   useEffect(() => {
     if (!['super_admin', 'customer_admin'].includes(user?.role)) return;
@@ -22,6 +25,10 @@ export default function CustomerDetail() {
         setData(res.data);
       })
       .catch((err) => setError(err.response?.data?.error || 'Failed to load customer'));
+    api
+      .listVehicleExpenses({ customerId })
+      .then((res) => setVehicleExpenses(res.data.expenses || []))
+      .catch((err) => setVehicleExpenseError(err.response?.data?.error || 'Failed to load vehicle expenses'));
   }, [customerId, user]);
 
   if (!['super_admin', 'customer_admin'].includes(user?.role)) {
@@ -57,7 +64,9 @@ export default function CustomerDetail() {
         <CustomerInfoForm customerId={customerId} data={data} setData={setData} />
       )}
 
-      <VehiclesTable customerId={customerId} data={data} setData={setData} user={user} />
+      <VehiclesTable customerId={customerId} data={data} setData={setData} user={user} vehicleExpenses={vehicleExpenses} />
+
+      <VehicleExpensesSummary expenses={vehicleExpenses} error={vehicleExpenseError} />
 
       <CustomerTripHistory vehicles={data?.vehicles} />
       {user?.role === 'customer_admin' && (

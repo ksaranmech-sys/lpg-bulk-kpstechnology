@@ -115,6 +115,22 @@ const rules = {
     optionalString('reason', 500),
   ]),
   leaveId: validate([objectId('leaveId')]),
+  createVehicleExpense: validate([
+    body('vehicleId').isMongoId().withMessage('vehicleId is not a valid id'),
+    body('category').isString().trim().isLength({ min: 1, max: 100 }).withMessage('category is required'),
+    body('amount').isFloat({ min: 0 }).withMessage('amount must be a positive number'),
+    body('date').isISO8601().withMessage('date must be a valid date'),
+    optionalString('note', 500),
+  ]),
+  updateVehicleExpense: validate([
+    objectId('expenseId'),
+    body('vehicleId').optional({ values: 'falsy' }).isMongoId().withMessage('vehicleId is not a valid id'),
+    body('category').optional().isString().trim().isLength({ min: 1, max: 100 }).withMessage('category is required'),
+    optionalNumber('amount'),
+    optionalDate('date'),
+    optionalString('note', 500),
+  ]),
+  expenseId: validate([objectId('expenseId')]),
   vehicleId: validate([objectId('vehicleId')]),
   tripId: validate([objectId('tripId')]),
   mobileAppUrl: validate([

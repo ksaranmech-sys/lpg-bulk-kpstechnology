@@ -2,6 +2,7 @@ const Vehicle = require('../models/Vehicle');
 const User = require('../models/User');
 const Customer = require('../models/Customer');
 const Trip = require('../models/Trip');
+const VehicleExpense = require('../models/VehicleExpense');
 const { ROLES } = require('../config/constants');
 const { sendVehicleReminderEmail } = require('../utils/mailer');
 
@@ -128,6 +129,7 @@ async function deleteVehicle(req, res) {
   await Promise.all([
     User.deleteMany({ vehicle: vehicleId }),
     Trip.deleteMany({ vehicle: vehicleId }),
+    VehicleExpense.deleteMany({ vehicle: vehicleId }),
     vehicle.deleteOne(),
   ]);
 

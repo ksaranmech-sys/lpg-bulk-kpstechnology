@@ -16,6 +16,7 @@ import SalarySection from '../features/dashboard/SalarySection';
 import AdminLeaveSection from '../features/dashboard/AdminLeaveSection';
 import DriverList from '../features/dashboard/DriverList';
 import MobileAppCard from '../features/dashboard/MobileAppCard';
+import VehicleExpensesSection from '../features/dashboard/VehicleExpensesSection';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -26,6 +27,7 @@ export default function Dashboard() {
     selectedVehicleId, setSelectedVehicleId,
     customerData, setCustomerData,
     leaves, setLeaves, leavesLoading, leaveError, setLeaveError,
+    vehicleExpenses, vehicleExpensesLoading, vehicleExpenseError,
     driverUsers,
   } = useDashboardData(user);
 
@@ -106,6 +108,17 @@ export default function Dashboard() {
           customerData={customerData}
           setCustomerData={setCustomerData}
           driverUsers={driverUsers}
+          vehicleExpenses={vehicleExpenses}
+        />
+      )}
+      {user?.role === 'customer_admin' && (
+        <VehicleExpensesSection
+          user={user}
+          vehicles={customerData?.vehicles || vehicles}
+          driverUsers={driverUsers}
+          expenses={vehicleExpenses}
+          loading={vehicleExpensesLoading}
+          error={vehicleExpenseError}
         />
       )}
     </Layout>

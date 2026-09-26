@@ -9,6 +9,7 @@ import { ButtonRow, LocationPicker, SummaryChips, trimText } from './common';
 function UnloadingForm({ trip, meta, routeUnloadingOptions, onSaved, onCancel }) {
   const table = meta.routeKmTable || [];
   const [unloadingLocation, setLoc] = useState(trip.unloadingLocation || '');
+  const [unloadingWeightTons, setWeightTons] = useState(trip.unloadingWeightTons != null ? String(trip.unloadingWeightTons) : '');
   const [unloadingDate, setDate] = useState(toDateInputValue(trip.unloadingDate) || '');
   const [manualKm, setManualKm] = useState(trip.manualKm != null ? String(trip.manualKm) : '');
   const [manualKmDivert, setManualKmDivert] = useState(trip.manualKmDivert != null ? String(trip.manualKmDivert) : '');
@@ -68,6 +69,7 @@ function UnloadingForm({ trip, meta, routeUnloadingOptions, onSaved, onCancel })
     try {
       await api.setUnloading(trip._id, {
         unloadingLocation,
+        unloadingWeightTons: unloadingWeightTons === '' ? null : Number(unloadingWeightTons),
         unloadingDate,
         manualKm: manualKm === '' ? undefined : Number(manualKm),
         manualKmDivert: manualKmDivert === '' ? undefined : Number(manualKmDivert),
@@ -100,6 +102,9 @@ function UnloadingForm({ trip, meta, routeUnloadingOptions, onSaved, onCancel })
         options={filteredUnloadingOptions}
         placeholder="Select or enter unloading location"
       />
+      <Field label="Weight (tons)">
+        <NumberInput value={unloadingWeightTons} onChangeText={setWeightTons} placeholder="Optional" />
+      </Field>
       {manualKmLoadVisible && (
         <Field
           label={`Manual KM Load${manualKmLoadRequired ? ' (required)' : ''}`}
@@ -141,11 +146,13 @@ function UnloadingForm({ trip, meta, routeUnloadingOptions, onSaved, onCancel })
 function UnloadingSummary({ trip, onEdit }) {
   const hasManualKm = trip.manualKm != null && trip.manualKm !== '';
   const hasManualKmDivert = trip.isDiverted && trip.manualKmDivert != null && trip.manualKmDivert !== '';
+  const hasWeight = trip.unloadingWeightTons != null && trip.unloadingWeightTons !== '';
   return (
     <View>
       <SummaryChips
         items={[
           { value: trip.unloadingLocation || '-' },
+          hasWeight && { label: 'Weight', value: `${trip.unloadingWeightTons} t` },
           { value: trip.unloadingDate ? formatDate(trip.unloadingDate) : '-', muted: true },
           hasManualKm && { label: 'Manual KM Load', value: `${trip.manualKm} km` },
           trip.isDiverted && { label: 'Divert', value: trip.divertUnloadingLocation || '-' },

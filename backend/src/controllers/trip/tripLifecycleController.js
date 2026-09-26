@@ -215,6 +215,7 @@ async function setUnloading(req, res) {
 
   const {
     unloadingLocation,
+    unloadingWeightTons,
     unloadingDate,
     unloadingExpense,
     manualKm,
@@ -224,6 +225,17 @@ async function setUnloading(req, res) {
     divertDate,
   } = req.body;
   if (unloadingLocation) trip.unloadingLocation = unloadingLocation;
+  if (unloadingWeightTons !== undefined) {
+    if (unloadingWeightTons === null || unloadingWeightTons === '') {
+      trip.unloadingWeightTons = null;
+    } else {
+      const tons = Number(unloadingWeightTons);
+      if (!Number.isFinite(tons) || tons < 0) {
+        return res.status(400).json({ error: 'unloadingWeightTons must be a non-negative number' });
+      }
+      trip.unloadingWeightTons = tons;
+    }
+  }
   if (!unloadingDate) return res.status(400).json({ error: 'unloadingDate is required' });
   const date = new Date(unloadingDate);
   if (Number.isNaN(date.getTime())) return res.status(400).json({ error: 'unloadingDate must be a valid date' });

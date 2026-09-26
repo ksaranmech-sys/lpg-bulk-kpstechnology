@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import * as api from '../../api/api';
 
-export default function VehiclesTable({ customerId, data, setData, user }) {
+export default function VehiclesTable({ customerId, data, setData, user, vehicleExpenses = [] }) {
   const [vehicleForm, setVehicleForm] = useState({ vehicleNumber: '' });
   const [vehicleError, setVehicleError] = useState('');
   const [vehicleSaving, setVehicleSaving] = useState(false);
@@ -83,6 +83,14 @@ export default function VehiclesTable({ customerId, data, setData, user }) {
     }
   }
 
+  const currentYear = new Date().getFullYear();
+  const yearExpenseByVehicle = vehicleExpenses.reduce((acc, expense) => {
+    if (new Date(expense.date).getFullYear() !== currentYear) return acc;
+    const vehicleId = String(expense.vehicle?._id || expense.vehicle || '');
+    acc[vehicleId] = (acc[vehicleId] || 0) + (Number(expense.amount) || 0);
+    return acc;
+  }, {});
+
   return (
     <>
       {user?.role === 'super_admin' && (
@@ -134,6 +142,9 @@ export default function VehiclesTable({ customerId, data, setData, user }) {
             ) : (
               <div style={{ flex: 1, color: 'inherit' }}>
                 <strong>{vehicle.vehicleNumber} | {vehicle.driverName || 'Not assigned'}</strong>
+                <div style={{ fontSize: 12, color: '#666' }}>
+                  Expenses {currentYear}: Rs {Math.round(yearExpenseByVehicle[String(vehicle._id)] || 0).toLocaleString('en-IN')}
+                </div>
               </div>
             )}
           </div>

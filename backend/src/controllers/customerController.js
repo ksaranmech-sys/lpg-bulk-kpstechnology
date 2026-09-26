@@ -3,6 +3,7 @@ const Customer = require('../models/Customer');
 const User = require('../models/User');
 const Vehicle = require('../models/Vehicle');
 const Trip = require('../models/Trip');
+const VehicleExpense = require('../models/VehicleExpense');
 const { ROLES } = require('../config/constants');
 
 // POST /api/v1/customers   (super_admin only - onboards a new customer/subgroup)
@@ -135,6 +136,7 @@ async function deleteCustomer(req, res) {
     User.deleteMany({ customer: customerId }),
     Vehicle.deleteMany({ customer: customerId }),
     Trip.deleteMany({ customer: customerId }),
+    VehicleExpense.deleteMany({ customer: customerId }),
   ]);
   await customer.deleteOne();
 
