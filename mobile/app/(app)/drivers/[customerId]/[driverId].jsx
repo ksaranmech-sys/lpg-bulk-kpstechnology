@@ -11,6 +11,7 @@ import DriverForm, { buildUpdatePayload, driverToForm, EMPTY_DRIVER_FORM } from 
 import DriverSalaryPanel from '../../../../src/features/drivers/DriverSalaryPanel';
 import DriverTripsByMonth from '../../../../src/features/drivers/DriverTripsByMonth';
 import DriverLeavesList from '../../../../src/features/drivers/DriverLeavesList';
+import DriverVehicleExpenses from '../../../../src/features/expenses/DriverVehicleExpenses';
 
 // Port of the web DriverDetail page. Editing uses PATCH /customers/:id/users/:userId, which the
 // backend only allows for customer_admin.
@@ -99,6 +100,7 @@ export default function DriverDetailScreen() {
         </Card>
       )}
       <DriverSalaryPanel customerId={customerId} driverId={driverId} data={data} driver={driver} vehicle={vehicle} setError={setError} />
+      {vehicle && <DriverVehicleExpenses customerId={customerId} vehicle={vehicle} setError={setError} />}
       <DriverTripsByMonth vehicle={vehicle} setError={setError} />
       <DriverLeavesList customerId={customerId} driverId={driverId} driver={driver} setError={setError} />
     </Screen>

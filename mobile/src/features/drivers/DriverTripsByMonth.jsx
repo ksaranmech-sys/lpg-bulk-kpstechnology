@@ -27,7 +27,7 @@ function groupClosedTripsByCloseMonth(trips) {
     }));
 }
 
-export default function DriverTripsByMonth({ vehicle, setError }) {
+export default function DriverTripsByMonth({ vehicle, setError, title = 'Trip History' }) {
   const router = useRouter();
   const [trips, setTrips] = useState([]);
   const [tripsLoading, setTripsLoading] = useState(false);
@@ -55,7 +55,7 @@ export default function DriverTripsByMonth({ vehicle, setError }) {
   }, [vehicle?._id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <Card title="Trip History">
+    <Card title={title}>
       {tripsLoading ? <Loading text="Loading trips..." /> : (
         <>
           <SectionTitle>Open Trips ({openTrips.length})</SectionTitle>
