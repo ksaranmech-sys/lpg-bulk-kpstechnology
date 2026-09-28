@@ -15,11 +15,16 @@ async function scopeToTrip(req, res, next) {
   return res.status(403).json({ error: 'Not allowed to access this trip' });
 }
 
+// Trip entries are edited only by the assigned driver (while the trip is open) or a super admin.
+// Customer admins can view, close and delete trips but never change the details themselves.
 async function scopeToOpenTripForUser(req, res, next) {
   const trip = await getTripOr404(req, res);
   if (!trip) return;
 
-  if (hasAdministrativeTripAccess(req, trip)) return next();
+  if (req.user.role === ROLES.SUPER_ADMIN) return next();
+  if (req.user.role === ROLES.CUSTOMER_ADMIN) {
+    return res.status(403).json({ error: 'Customer admins cannot edit trip details' });
+  }
 
   const currentUser = req.user.role === ROLES.VEHICLE_USER
     ? await User.findById(req.user.id).select('role vehicle isActive')
@@ -34,7 +39,7 @@ async function scopeToOpenTripForUser(req, res, next) {
     return next();
   }
 
-  return res.status(403).json({ error: 'Only the assigned user or customer can edit this trip' });
+  return res.status(403).json({ error: 'Only the assigned user can edit this trip' });
 }
 
 async function scopeToTripClose(req, res, next) {

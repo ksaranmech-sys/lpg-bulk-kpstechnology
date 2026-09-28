@@ -66,7 +66,9 @@ export default function TripDetail() {
 
   const routeUnloadingOptions = Array.from(new Set((meta.routeKmTable || []).map((row) => row.unloadingLocation).filter(Boolean)));
   // The driver can no longer edit a trip they've already Trip Closed - only admins can adjust it.
+  // Customer admins can view trips but never edit the details.
   const lockedForDriver = user?.role === 'vehicle_user' && trip.status !== 'open';
+  const readOnly = lockedForDriver || user?.role === 'customer_admin';
 
   return (
     <Layout>
@@ -84,7 +86,7 @@ export default function TripDetail() {
         </p>
       </div>
 
-      <fieldset disabled={lockedForDriver} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+      <fieldset disabled={readOnly} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
         <>
         <div ref={sectionRef('advance')}>
           <AdvanceSection trip={trip} tripId={tripId} onSaved={load} onAdded={savedAndGoTo('loading')} />

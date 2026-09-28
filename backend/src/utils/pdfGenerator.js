@@ -63,7 +63,7 @@ async function buildTripSettlementPdf(trip, nextTrip = null) {
     styledSectionHeader(doc, 'Odometer KM');
     renderSalaryRows(doc, [
       ['Odometer KM', formatKm(odometerKm)],
-      ['Manual KM', formatKm(trip.manualKm)],
+      ...manualKmRows(trip).map(([label, value, legText]) => [`${label} (${legText})`, value]),
     ]);
 
     styledSectionHeader(doc, 'Driver Advance Details');
@@ -461,7 +461,7 @@ function renderTripOverview(doc, trip, customer, driver, vehicle, odometerKm = n
       row.forEach((value, index) => {
         const columnX = x + columnWidths.slice(0, index).reduce((sum, itemWidth) => sum + itemWidth, 0);
         doc.fillColor('#102f52').font(index === 0 ? 'Helvetica-Bold' : 'Helvetica').fontSize(7.5).text(
-          String(value), columnX + 8, rowY + 5, { width: columnWidths[index] - 16, align: index === 0 ? 'left' : 'right' }
+          String(value), columnX + 8, rowY + 5, { width: columnWidths[index] - 16, align: index === 0 ? 'left' : 'right', lineBreak: false }
         );
       });
     });
@@ -475,9 +475,20 @@ function renderTripOverview(doc, trip, customer, driver, vehicle, odometerKm = n
   ], threeColumnWidths);
   doc.y = drawKmTable(remainingTableY, ['KM Type', 'KM'], [
     ['Corp. KM', trip.corpKm != null ? `${fmtMoney(trip.corpKm)} km` : 'NA'],
-    ...(trip.manualKm != null ? [['Manual KM', `${fmtMoney(trip.manualKm)} km`]] : []),
+    ...manualKmRows(trip).map(([label, value, legText]) => [`${label} (${legText})`, value]),
     ['Driver KM', trip.corporationKm != null ? `${fmtMoney(trip.corporationKm)} km` : 'NA'],
   ], twoColumnWidths);
+}
+
+// [label, value, leg] for each manual KM entered on the trip - mirrors the web single-trip print.
+function manualKmRows(trip) {
+  const hasValue = (value) => value != null && value !== '';
+  const returnTarget = trip.isDiverted && trip.divertUnloadingLocation ? trip.divertUnloadingLocation : (trip.unloadingLocation || '-');
+  return [
+    ...(hasValue(trip.manualKm) ? [['Manual KM Load', `${fmtMoney(trip.manualKm)} km (One Way)`, `${trip.loadingLocation || '-'} -> ${trip.unloadingLocation || '-'}`]] : []),
+    ...(hasValue(trip.manualKmDivert) ? [['Manual KM Divert', `${fmtMoney(trip.manualKmDivert)} km (One Way)`, `${trip.unloadingLocation || '-'} -> ${trip.divertUnloadingLocation || '-'}`]] : []),
+    ...(hasValue(trip.manualKmReturn) ? [['Manual KM Return', `${fmtMoney(trip.manualKmReturn)} km (One Way)`, `${trip.fillingOrderLocation || '-'} -> ${returnTarget}`]] : []),
+  ];
 }
 
 function styledSectionHeader(doc, text) {

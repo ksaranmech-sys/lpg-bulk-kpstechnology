@@ -5,6 +5,7 @@ const Trip = require('../models/Trip');
 const VehicleExpense = require('../models/VehicleExpense');
 const { ROLES } = require('../config/constants');
 const { sendVehicleReminderEmail } = require('../utils/mailer');
+const { pickCurrentDriver } = require('../utils/driverAssignment');
 
 const REMINDER_DEFINITIONS = {
   qTax: { label: 'QTax', reminderDays: 0 },
@@ -37,12 +38,16 @@ function getDocumentReminderStatus(doc, key) {
 
 async function withVehicleDetails(vehicles) {
   const vehicleIds = vehicles.map((vehicle) => vehicle._id);
-  const drivers = await User.find({ role: ROLES.VEHICLE_USER, isActive: true, vehicle: { $in: vehicleIds } }).select('name mobileNumber vehicle');
-  const driverByVehicle = new Map(drivers.map((driver) => [String(driver.vehicle), driver]));
+  const drivers = await User.find({ role: ROLES.VEHICLE_USER, isActive: true, vehicle: { $in: vehicleIds } }).select('name mobileNumber vehicle joiningDate resigningDate isActive');
+  const driversByVehicle = new Map();
+  drivers.forEach((driver) => {
+    const key = String(driver.vehicle);
+    driversByVehicle.set(key, [...(driversByVehicle.get(key) || []), driver]);
+  });
 
   return vehicles.map((vehicle) => {
     const result = vehicle.toObject();
-    const driver = driverByVehicle.get(String(vehicle._id));
+    const driver = pickCurrentDriver(driversByVehicle.get(String(vehicle._id)));
     const documentReminders = {};
     Object.entries(REMINDER_DEFINITIONS).forEach(([key, def]) => {
       const doc = result.documentReminders?.[key] || {};

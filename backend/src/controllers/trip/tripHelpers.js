@@ -3,6 +3,7 @@ const Trip = require('../../models/Trip');
 const User = require('../../models/User');
 const { computeTripSettlement } = require('../../utils/tripCalculations');
 const { TRIP_STATUS, ROLES } = require('../../config/constants');
+const { findCurrentDriverForVehicle } = require('../../utils/driverAssignment');
 
 function getClosingDieselDate(trip, fallback = null) {
   const closingEntry = trip.dieselEntries?.[trip.dieselEntries.length - 1];
@@ -23,7 +24,7 @@ function getTripCloseDate(trip) {
 // in the background afterwards doesn't change that boundary. Entries also can't be dated after
 // this trip's own close date - if that isn't set yet, they also can't be dated in the future.
 async function getDriverJoiningDate(trip) {
-  const driver = await User.findOne({ role: ROLES.VEHICLE_USER, vehicle: trip.vehicle }).select('joiningDate');
+  const driver = await findCurrentDriverForVehicle(trip.vehicle, trip.loadingDate || trip.createdAt || new Date(), 'joiningDate');
   return driver?.joiningDate ? new Date(driver.joiningDate) : null;
 }
 
@@ -151,7 +152,10 @@ async function getOpenTripOr404(req, res) {
   }
 
   if (req.user.role === ROLES.SUPER_ADMIN) return trip;
-  if (req.user.role === ROLES.CUSTOMER_ADMIN && String(trip.customer) === String(req.user.customer)) return trip;
+  if (req.user.role === ROLES.CUSTOMER_ADMIN) {
+    res.status(403).json({ error: 'Customer admins cannot edit trip details' });
+    return null;
+  }
 
   const currentUser = req.user.role === ROLES.VEHICLE_USER
     ? await User.findById(req.user.id).select('role vehicle isActive')

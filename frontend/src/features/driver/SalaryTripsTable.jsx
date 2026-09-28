@@ -1,5 +1,15 @@
 import React from 'react';
 
+// Manual KM entered per leg (one way), shown under Driver KM like the single-trip print.
+function manualKmLines(trip) {
+  const hasValue = (value) => value != null && value !== '';
+  return [
+    ...(hasValue(trip.manualKm) ? [`Manual KM Load: ${trip.manualKm} km`] : []),
+    ...(hasValue(trip.manualKmDivert) ? [`Manual KM Divert: ${trip.manualKmDivert} km`] : []),
+    ...(hasValue(trip.manualKmReturn) ? [`Manual KM Return: ${trip.manualKmReturn} km`] : []),
+  ];
+}
+
 // Shared trip-rows table for both the regular driver's and the temporary driver's salary
 // breakdown - each shows only the trip entries attributed to that side, but both keep the same
 // per-trip "Closed" checkbox since Trip Close still acts on the whole trip.
@@ -35,7 +45,12 @@ export default function SalaryTripsTable({ trips, closingTripId, onCloseTrip, to
               <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingLocation || '-'}</td>
               <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}</td>
               <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.isDiverted ? trip.divertUnloadingLocation || '-' : '-'}</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.corporationKm != null && trip.corporationKm > 0 ? `${Math.round(trip.corporationKm)} km` : '-'}</td>
+              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>
+                {trip.corporationKm != null && trip.corporationKm > 0 ? `${Math.round(trip.corporationKm)} km` : '-'}
+                {manualKmLines(trip).map((line) => (
+                  <div key={line} style={{ fontSize: 11, color: '#4b5f52', whiteSpace: 'nowrap' }}>{line}</div>
+                ))}
+              </td>
               <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.dieselLitres ?? 0} L</td>
               <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.dieselTotal ?? 0}</td>
               <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.advanceTotal ?? 0}</td>

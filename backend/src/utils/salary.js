@@ -6,6 +6,7 @@ const { ROLES } = require('../config/constants');
 const { formatMonth } = require('./pdfGenerator');
 const { findRouteKm, getCorporationKmDetails } = require('./corporationKm');
 const settings = require('./settings');
+const { isDriverAssignedOn } = require('./driverAssignment');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -442,7 +443,12 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
       )
       .sort('-loadingDate -closedAt')
     : [];
-  const monthTrips = trips.filter((trip) => isTripInSalaryMonth(trip, monthStart, monthEnd));
+  // A vehicle can carry several drivers over time (one per date range) - only trips that fall
+  // inside this driver's own joining/resigning window belong on their sheet.
+  const monthTrips = trips.filter((trip) => (
+    isTripInSalaryMonth(trip, monthStart, monthEnd)
+    && isDriverAssignedOn(driver, getTripSalaryDate(trip))
+  ));
   const routeKmTable = loadRouteKmTable();
 
   const tempDriverInfo = driver.temporaryDriver?.required && driver.temporaryDriver?.joiningDate

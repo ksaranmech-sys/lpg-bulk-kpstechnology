@@ -49,12 +49,14 @@ export default function TripScreen() {
   }
 
   // The driver can no longer edit a trip they've already Trip Closed - only admins can adjust it.
+  // Customer admins can view trips but never edit the details.
   const lockedForDriver = user?.role === 'vehicle_user' && trip.status !== 'open';
+  const locked = lockedForDriver || user?.role === 'customer_admin';
   const withDate = (value) => (value ? ` (${formatDateLong(value)})` : '');
   const heading = `${trip.loadingLocation || 'Loading pending'}${withDate(trip.loadingDate)} \u2192 `
     + `${trip.unloadingLocation || '(unloading pending)'}${withDate(trip.unloadingDate)}`
     + (trip.isDiverted && trip.divertUnloadingLocation ? ` \u2192 ${trip.divertUnloadingLocation}${withDate(trip.divertDate)} - Divert` : '');
-  const sectionProps = { trip, meta, reload, locked: lockedForDriver };
+  const sectionProps = { trip, meta, reload, locked };
 
   return (
     <Screen scrollRef={scrollRef}>

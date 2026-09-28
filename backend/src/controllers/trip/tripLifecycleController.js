@@ -1,11 +1,11 @@
 // Trip lifecycle handlers: create, read, loading/unloading/turn details, close, delete.
 const Trip = require('../../models/Trip');
 const Vehicle = require('../../models/Vehicle');
-const User = require('../../models/User');
 const { saveUploadedFile } = require('../../middleware/upload');
 const { computeTripSettlement, calculateTripKm } = require('../../utils/tripCalculations');
 const { TRIP_STATUS, ROLES } = require('../../config/constants');
 const { removeExpiredClosedTrips } = require('../../utils/tripRetention');
+const { findCurrentDriverForVehicle } = require('../../utils/driverAssignment');
 const metaRoutes = require('../../routes/metaRoutes');
 const { getCorporationKmDetails, findRouteKm } = require('../../utils/corporationKm');
 const {
@@ -28,11 +28,7 @@ async function createTrip(req, res) {
   const vehicle = await Vehicle.findById(vehicleId);
   if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
 
-  const driver = await User.findOne({
-    role: ROLES.VEHICLE_USER,
-    vehicle: vehicle._id,
-    isActive: true,
-  });
+  const driver = await findCurrentDriverForVehicle(vehicle._id);
 
   if (!driver) {
     return res.status(400).json({ error: 'Driver must be assigned before starting a trip' });
@@ -179,7 +175,7 @@ async function getTrip(req, res) {
     vehicle: trip.vehicle._id,
     createdAt: { $gt: trip.createdAt },
   }).sort('createdAt');
-  const driver = await User.findOne({ role: ROLES.VEHICLE_USER, vehicle: trip.vehicle._id }).select('name temporaryDriver joiningDate');
+  const driver = await findCurrentDriverForVehicle(trip.vehicle._id, trip.loadingDate || trip.createdAt || new Date(), 'name temporaryDriver joiningDate');
   if (trip.status === TRIP_STATUS.CLOSED) await refreshTripSettlement(trip);
   const result = trip.toObject();
   result.odometerKm = trip.status === TRIP_STATUS.CLOSED && trip.settlement?.totalKm != null

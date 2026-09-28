@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { formatMonthLabel, latestCalculableMonth } from '@kps/shared';
+import { formatDate, formatMonthLabel, latestCalculableMonth } from '@kps/shared';
 import { api } from '../../api';
 import { Button, Card, Loading, Muted, Row, Select } from '../../ui';
 import { spacing } from '../../theme';
@@ -54,6 +54,21 @@ export default function SalaryDetailsCard({ customerId, customerData, driverUser
                 <Row label="Payable Days" value={String(salary.payableDays ?? '-')} />
                 <Row label="Leaves Taken" value={String(leavesTakenInMonth(leaves, driverId, salaryMonth))} />
               </>
+            )}
+            {salary?.temporaryDriver && (
+              <Card
+                title={`Temporary Driver: ${salary.temporaryDriver.name || 'Temporary driver'}`}
+                style={{ marginTop: spacing.md }}
+              >
+                <Row label="Covering" value={`${formatDate(salary.temporaryDriver.joiningDate)} - ${salary.temporaryDriver.returningDate ? formatDate(salary.temporaryDriver.returningDate) : 'Ongoing'}`} />
+                <Row label="Basic Salary Payable" value={`Rs ${Math.round(salary.temporaryDriver.basicSalary || 0)}`} />
+                <Row label="Corporation KM" value={`${Math.round(salary.temporaryDriver.corporationKm || 0)} km`} />
+                <Row label="KM Beta" value={`Rs ${Math.round(salary.temporaryDriver.kmBeta || 0)}`} />
+                <Row label="Special Trip Charges" value={`Rs ${Math.round(salary.temporaryDriver.specialTripCharges || 0)}`} />
+                <Row label="Balance" value={`Rs ${Math.round(salary.temporaryDriver.totalBalance || 0)}`} />
+                <Row label="Salary Balance" value={`Rs ${Math.round(salary.temporaryDriver.salaryBalance || 0)}`} bold />
+                <Row label="Days Covered" value={String(salary.temporaryDriver.days ?? 0)} />
+              </Card>
             )}
             <Button title="Open driver" variant="secondary" onPress={() => router.push(`/drivers/${customerId}/${driverId}`)} style={{ marginTop: spacing.md }} />
           </Card>

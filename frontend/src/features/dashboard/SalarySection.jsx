@@ -103,6 +103,46 @@ export default function SalarySection({ user, customerData, driverUsers, leaves,
                   </tbody>
                   </table>
                 </div>
+                {salary?.temporaryDriver && (
+                  <div className="salary-summary-block" style={{ marginTop: 12 }}>
+                    <div className="salary-summary-identity">
+                      <div><strong>Customer Name:</strong> {customerData?.customer?.companyName || '-'}</div>
+                      <div>
+                        <strong>Temporary Driver:</strong>{' '}
+                        <Link to={`/drivers/${user.customer}/${driverId}`}>{salary.temporaryDriver.name || 'Temporary driver'}</Link>
+                      </div>
+                      <div><strong>Vehicle Number:</strong> {vehicleNumber}</div>
+                      <div>
+                        <strong>Covering:</strong>{' '}
+                        {new Date(salary.temporaryDriver.joiningDate).toLocaleDateString('en-IN')} - {salary.temporaryDriver.returningDate ? new Date(salary.temporaryDriver.returningDate).toLocaleDateString('en-IN') : 'Ongoing'}
+                      </div>
+                    </div>
+                    <table className="salary-summary" style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: 'right', padding: '8px 12px' }}>Basic Salary Payable</th>
+                          <th style={{ textAlign: 'right', padding: '8px 12px' }}>Corporation KM</th>
+                          <th style={{ textAlign: 'right', padding: '8px 12px' }}>KM Beta</th>
+                          <th style={{ textAlign: 'right', padding: '8px 12px' }}>Special Trip Charges</th>
+                          <th style={{ textAlign: 'right', padding: '8px 12px' }}>Balance</th>
+                          <th style={{ textAlign: 'right', padding: '8px 12px' }}>Salary Balance</th>
+                          <th style={{ textAlign: 'right', padding: '8px 12px' }}>Days Covered</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td style={{ padding: '8px 12px', textAlign: 'right' }}>Rs {Math.round(salary.temporaryDriver.basicSalary || 0)}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right' }}>{Math.round(salary.temporaryDriver.corporationKm || 0)} km</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right' }}>Rs {Math.round(salary.temporaryDriver.kmBeta || 0)}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right' }}>Rs {Math.round(salary.temporaryDriver.specialTripCharges || 0)}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right' }}>Rs {Math.round(salary.temporaryDriver.totalBalance || 0)}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700 }}>Rs {Math.round(salary.temporaryDriver.salaryBalance || 0)}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right' }}>{salary.temporaryDriver.days ?? 0}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             );
           })}

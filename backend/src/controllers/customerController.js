@@ -5,6 +5,7 @@ const Vehicle = require('../models/Vehicle');
 const Trip = require('../models/Trip');
 const VehicleExpense = require('../models/VehicleExpense');
 const { ROLES } = require('../config/constants');
+const { pickCurrentDriver } = require('../utils/driverAssignment');
 
 // POST /api/v1/customers   (super_admin only - onboards a new customer/subgroup)
 // body: { companyName, mobileNumber, email, address, adminUsername, adminPassword }
@@ -44,13 +45,15 @@ async function getCustomer(req, res) {
     User.find({ customer: customer._id }).sort('username'),
   ]);
   const safeUsers = users.map((user) => user.toSafeJSON());
-  const driverByVehicle = new Map(
-    safeUsers
-      .filter((user) => user.role === ROLES.VEHICLE_USER && user.isActive !== false && user.vehicle)
-      .map((user) => [String(user.vehicle), user])
-  );
+  const driversByVehicle = new Map();
+  safeUsers
+    .filter((user) => user.role === ROLES.VEHICLE_USER && user.isActive !== false && user.vehicle)
+    .forEach((user) => {
+      const key = String(user.vehicle);
+      driversByVehicle.set(key, [...(driversByVehicle.get(key) || []), user]);
+    });
   const vehicleDetails = vehicles.map((vehicle) => {
-    const driver = driverByVehicle.get(String(vehicle._id));
+    const driver = pickCurrentDriver(driversByVehicle.get(String(vehicle._id)));
     return {
       ...vehicle.toObject(),
       driverName: driver?.displayName || driver?.name || null,

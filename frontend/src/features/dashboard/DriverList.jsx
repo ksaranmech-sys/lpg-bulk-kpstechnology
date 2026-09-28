@@ -196,60 +196,106 @@ export default function DriverList({ user, vehicles, setVehicles, customerData, 
     acc[vehicleId] = (acc[vehicleId] || 0) + (Number(expense.amount) || 0);
     return acc;
   }, {});
+  // One row per driver: vehicles can carry several drivers (one per date range) and drivers
+  // can exist without a vehicle, so every driver is listed either under a vehicle or at the end.
+  const vehicleIds = new Set(customerVehicles.map((vehicle) => String(vehicle._id)));
+  const driversForVehicle = (vehicleId) => driverUsers
+    .filter((entry) => String(entry.vehicle) === String(vehicleId))
+    .sort((a, b) => new Date(a.joiningDate || 0) - new Date(b.joiningDate || 0));
+  const unassignedDrivers = driverUsers.filter((entry) => !entry.vehicle || !vehicleIds.has(String(entry.vehicle)));
+  const isDriverAssignedToday = (driver) => {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    if (driver.joiningDate && new Date(driver.joiningDate) > today) return false;
+    if (driver.resigningDate && new Date(driver.resigningDate) < today) return false;
+    return true;
+  };
+  const formatAssignmentDates = (driver) => (
+    `${driver.joiningDate ? new Date(driver.joiningDate).toLocaleDateString('en-IN') : 'Not set'}`
+    + `${driver.resigningDate ? ` - ${new Date(driver.resigningDate).toLocaleDateString('en-IN')}` : ''}`
+  );
+  const toggleDriver = (driver) => {
+    const driverId = String(driver.id || driver._id);
+    setSelectedDrivers((current) => (
+      current.includes(driverId) ? current.filter((id) => id !== driverId) : [...current, driverId]
+    ));
+  };
+  const renderDriverCell = (driver) => (
+    <>
+      <Link to={`/drivers/${user.customer}/${driver.id || driver._id}`} style={{ color: 'var(--green-900)', fontWeight: 700 }}>
+        {driver.displayName || driver.name || 'Unnamed driver'}
+      </Link>
+      {driver.vehicle && !isDriverAssignedToday(driver) && (
+        <span style={{ marginLeft: 6, fontSize: 11, color: '#8a6d1f' }}>(not current)</span>
+      )}
+      <div style={{ fontSize: 12, color: '#666' }}>
+        {driver.username} | Joining Date: {formatAssignmentDates(driver)}
+      </div>
+    </>
+  );
 
   return (
     <div className="card customer-admin-driver-list" style={{ marginTop: 24 }}>
       <h3 className="section-title" style={{ marginTop: 0 }}>Vehicle & Driver List</h3>
       <div style={{ display: 'grid', gap: 10, marginBottom: 20 }}>
-        {customerVehicles.length === 0 ? (
-          <p>No vehicles found.</p>
+        {customerVehicles.length === 0 && unassignedDrivers.length === 0 ? (
+          <p>No vehicles or drivers found.</p>
         ) : (
-          customerVehicles.map((vehicle) => {
-            const driver = driverUsers.find((entry) => String(entry.vehicle) === String(vehicle._id));
-            return (
-            <div key={vehicle._id} className="list-item" style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr 1fr', alignItems: 'center', gap: 16 }}>
+          <>
+          {customerVehicles.map((vehicle) => {
+            const drivers = driversForVehicle(vehicle._id);
+            const rows = drivers.length ? drivers : [null];
+            return rows.map((driver, index) => (
+            <div key={`${vehicle._id}-${driver ? (driver.id || driver._id) : 'none'}`} className="list-item" style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr 1fr', alignItems: 'center', gap: 16 }}>
               <input
                 type="checkbox"
                 checked={driver ? selectedDrivers.includes(String(driver.id || driver._id)) : false}
-                onChange={() => {
-                  if (!driver) return;
-                  const driverId = String(driver.id || driver._id);
-                  setSelectedDrivers((current) => (
-                    current.includes(driverId)
-                      ? current.filter((id) => id !== driverId)
-                      : [...current, driverId]
-                  ));
-                }}
+                onChange={() => { if (driver) toggleDriver(driver); }}
                 disabled={!driver}
                 aria-label={driver ? `Select ${driver.name || driver.username}` : 'Unassigned vehicle'}
                 style={{ width: 'auto' }}
               />
               <div>
-                <strong>{vehicle.vehicleNumber}</strong>
-                <div style={{ fontSize: 12, color: '#666' }}>
-                  Expenses {currentYear}: Rs {Math.round(yearExpenseByVehicle[String(vehicle._id)] || 0).toLocaleString('en-IN')}
-                </div>
+                {index === 0 ? (
+                  <>
+                    <strong>{vehicle.vehicleNumber}</strong>
+                    <div style={{ fontSize: 12, color: '#666' }}>
+                      Expenses {currentYear}: Rs {Math.round(yearExpenseByVehicle[String(vehicle._id)] || 0).toLocaleString('en-IN')}
+                    </div>
+                  </>
+                ) : (
+                  <span style={{ fontSize: 12, color: '#666' }}>{vehicle.vehicleNumber}</span>
+                )}
               </div>
               <div style={{ textAlign: 'center', color: '#4b6470' }}>
                 {driver?.mobileNumber || 'No phone'}
               </div>
               <div style={{ textAlign: 'right' }}>
-                {driver ? (
-                  <>
-                    <Link to={`/drivers/${user.customer}/${driver.id || driver._id}`} style={{ color: 'var(--green-900)', fontWeight: 700 }}>
-                      {driver.displayName || driver.name || 'Unnamed driver'}
-                    </Link>
-                    <div style={{ fontSize: 12, color: '#666' }}>
-                      {driver.username} | Joining Date: {driver.joiningDate ? new Date(driver.joiningDate).toLocaleDateString('en-IN') : 'Not set'}
-                    </div>
-                  </>
-                ) : (
-                  <span style={{ color: '#666' }}>Unassigned vehicle</span>
-                )}
+                {driver ? renderDriverCell(driver) : <span style={{ color: '#666' }}>Unassigned vehicle</span>}
               </div>
             </div>
-            );
-          })
+            ));
+          })}
+          {unassignedDrivers.map((driver) => (
+            <div key={`unassigned-${driver.id || driver._id}`} className="list-item" style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr 1fr', alignItems: 'center', gap: 16 }}>
+              <input
+                type="checkbox"
+                checked={selectedDrivers.includes(String(driver.id || driver._id))}
+                onChange={() => toggleDriver(driver)}
+                aria-label={`Select ${driver.name || driver.username}`}
+                style={{ width: 'auto' }}
+              />
+              <div>
+                <strong style={{ color: '#666' }}>No vehicle</strong>
+              </div>
+              <div style={{ textAlign: 'center', color: '#4b6470' }}>
+                {driver.mobileNumber || 'No phone'}
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                {renderDriverCell(driver)}
+              </div>
+            </div>
+          ))}
+          </>
         )}
       </div>
 

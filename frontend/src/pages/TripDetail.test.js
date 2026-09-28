@@ -26,8 +26,9 @@ jest.mock('../api/api', () => ({
   deleteOtherExpense: jest.fn(),
 }));
 
+// Customer admins are read-only on trips; edit interactions below need an admin who can edit.
 jest.mock('../context/AuthContext', () => ({
-  useAuth: () => ({ user: { role: 'customer_admin' } }),
+  useAuth: () => ({ user: { role: 'super_admin' } }),
 }));
 
 jest.mock('../components/Layout', () => ({ children }) => <>{children}</>);

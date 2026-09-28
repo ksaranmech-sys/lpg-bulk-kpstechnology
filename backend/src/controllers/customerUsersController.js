@@ -3,6 +3,7 @@ const User = require('../models/User');
 const Vehicle = require('../models/Vehicle');
 const Leave = require('../models/Leave');
 const { ROLES } = require('../config/constants');
+const { findAssignmentConflict, formatConflictError } = require('../utils/driverAssignment');
 
 // Validates the optional temporaryDriver block shared by createVehicleUser/updateVehicleUser.
 // Returns { value, error } - value is undefined when the caller didn't send temporaryDriver at all,
@@ -55,10 +56,13 @@ async function createVehicleUser(req, res) {
   if (vehicleId) {
     const vehicle = await Vehicle.findOne({ _id: vehicleId, customer: customerId });
     if (!vehicle) return res.status(404).json({ error: 'Vehicle not found under this customer' });
-    await User.updateMany(
-      { customer: customerId, role: ROLES.VEHICLE_USER, vehicle: vehicleId, isActive: true },
-      { $set: { isActive: false, resigningDate: new Date() } }
-    );
+    const conflict = await findAssignmentConflict({
+      customerId,
+      vehicleId,
+      joiningDate: joiningDate || null,
+      resigningDate: resigningDate || null,
+    });
+    if (conflict) return res.status(409).json({ error: formatConflictError(conflict, vehicle.vehicleNumber) });
   }
 
   const user = new User({
@@ -97,10 +101,6 @@ async function updateVehicleUser(req, res) {
   if (vehicleId !== undefined && vehicleId !== null && vehicleId !== '') {
     const vehicle = await Vehicle.findOne({ _id: vehicleId, customer: customerId });
     if (!vehicle) return res.status(404).json({ error: 'Vehicle not found under this customer' });
-    await User.updateMany(
-      { customer: customerId, role: ROLES.VEHICLE_USER, vehicle: vehicleId, isActive: true, _id: { $ne: user._id } },
-      { $set: { isActive: false, resigningDate: new Date() } }
-    );
     user.vehicle = vehicleId;
   } else if (vehicleId === '') {
     user.vehicle = null;
@@ -109,6 +109,19 @@ async function updateVehicleUser(req, res) {
   if (mobileNumber !== undefined) user.mobileNumber = mobileNumber.trim();
   if (joiningDate !== undefined) user.joiningDate = joiningDate || null;
   if (resigningDate !== undefined) user.resigningDate = resigningDate || null;
+  if (user.vehicle) {
+    const conflict = await findAssignmentConflict({
+      customerId,
+      vehicleId: user.vehicle,
+      joiningDate: user.joiningDate,
+      resigningDate: user.resigningDate,
+      excludeUserId: user._id,
+    });
+    if (conflict) {
+      const vehicle = await Vehicle.findById(user.vehicle).select('vehicleNumber');
+      return res.status(409).json({ error: formatConflictError(conflict, vehicle?.vehicleNumber) });
+    }
+  }
   if (basicSalary !== undefined) user.basicSalary = basicSalary;
   if (kmCharges !== undefined) user.kmCharges = kmCharges;
   if (minKmCharges !== undefined) user.minKmCharges = minKmCharges;
