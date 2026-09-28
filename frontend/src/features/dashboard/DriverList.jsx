@@ -224,7 +224,9 @@ export default function DriverList({ user, vehicles, setVehicles, customerData, 
       <Link to={`/drivers/${user.customer}/${driver.id || driver._id}`} style={{ color: 'var(--green-900)', fontWeight: 700 }}>
         {driver.displayName || driver.name || 'Unnamed driver'}
       </Link>
-      {driver.vehicle && !isDriverAssignedToday(driver) && (
+      {driver.isActive === false ? (
+        <span style={{ marginLeft: 6, fontSize: 11, color: '#a33' }}>(inactive)</span>
+      ) : driver.vehicle && !isDriverAssignedToday(driver) && (
         <span style={{ marginLeft: 6, fontSize: 11, color: '#8a6d1f' }}>(not current)</span>
       )}
       <div style={{ fontSize: 12, color: '#666' }}>

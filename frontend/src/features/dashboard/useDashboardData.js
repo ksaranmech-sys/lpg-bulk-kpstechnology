@@ -76,7 +76,10 @@ export function useDashboardData(user) {
       .finally(() => setVehicleExpensesLoading(false));
   }, [user]);
 
-  const driverUsers = customerData?.users?.filter((item) => item.role === 'vehicle_user' && item.isActive !== false) || [];
+  // Drivers replaced under the old "one driver per vehicle" rule were deactivated rather than
+  // dated out, so the driver list needs every account - salary/leaves keep to active ones.
+  const allDriverUsers = customerData?.users?.filter((item) => item.role === 'vehicle_user') || [];
+  const driverUsers = allDriverUsers.filter((item) => item.isActive !== false);
 
   return {
     vehicles,
@@ -101,5 +104,6 @@ export function useDashboardData(user) {
     vehicleExpenseError,
     setVehicleExpenseError,
     driverUsers,
+    allDriverUsers,
   };
 }

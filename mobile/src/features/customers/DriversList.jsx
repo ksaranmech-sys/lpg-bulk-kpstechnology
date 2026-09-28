@@ -11,7 +11,8 @@ const formatRs = (value) => `Rs ${Math.round(Number(value) || 0).toLocaleString(
 export default function DriversList({ customerId, data, canAdd, vehicleExpenses = [] }) {
   const router = useRouter();
   const vehicles = data?.vehicles || [];
-  const drivers = (data?.users || []).filter((item) => item.role === 'vehicle_user' && item.isActive !== false);
+  // Deactivated accounts stay listed (tagged) - they were the vehicle's driver for earlier dates.
+  const drivers = (data?.users || []).filter((item) => item.role === 'vehicle_user');
   const vehicleIds = new Set(vehicles.map((vehicle) => String(vehicle._id)));
   const unassignedDrivers = drivers.filter((entry) => !entry.vehicle || !vehicleIds.has(String(entry.vehicle)));
   const currentYear = new Date().getFullYear();
@@ -23,7 +24,8 @@ export default function DriversList({ customerId, data, canAdd, vehicleExpenses 
   }, {});
   const driverLine = (driver) => {
     const dates = `${driver.joiningDate ? formatDate(driver.joiningDate) : 'Not set'}${driver.resigningDate ? ` - ${formatDate(driver.resigningDate)}` : ''}`;
-    return `${driver.displayName || driver.name || 'Unnamed driver'} | ${driver.mobileNumber || 'No phone'}\n${driver.username} | Joining Date: ${dates}`;
+    const name = `${driver.displayName || driver.name || 'Unnamed driver'}${driver.isActive === false ? ' (inactive)' : ''}`;
+    return `${name} | ${driver.mobileNumber || 'No phone'}\n${driver.username} | Joining Date: ${dates}`;
   };
 
   return (

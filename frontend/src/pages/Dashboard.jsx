@@ -28,7 +28,7 @@ export default function Dashboard() {
     customerData, setCustomerData,
     leaves, setLeaves, leavesLoading, leaveError, setLeaveError,
     vehicleExpenses, vehicleExpensesLoading, vehicleExpenseError,
-    driverUsers,
+    driverUsers, allDriverUsers,
   } = useDashboardData(user);
 
   return (
@@ -107,7 +107,7 @@ export default function Dashboard() {
           setVehicles={setVehicles}
           customerData={customerData}
           setCustomerData={setCustomerData}
-          driverUsers={driverUsers}
+          driverUsers={allDriverUsers}
           vehicleExpenses={vehicleExpenses}
         />
       )}
