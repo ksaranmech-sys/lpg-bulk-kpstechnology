@@ -88,10 +88,13 @@ async function createVehicleUser(req, res) {
 // PATCH /api/v1/customers/:customerId/users/:userId  (customer_admin updates vehicle_user)
 async function updateVehicleUser(req, res) {
   const { customerId, userId } = req.params;
-  const { name, mobileNumber, joiningDate, resigningDate, username, password, vehicleId, basicSalary, kmCharges, minKmCharges, temporaryDriver } = req.body;
+  const { name, mobileNumber, joiningDate, resigningDate, username, password, vehicleId, basicSalary, kmCharges, minKmCharges, temporaryDriver, isActive } = req.body;
 
   const user = await User.findOne({ _id: userId, customer: customerId, role: ROLES.VEHICLE_USER });
   if (!user) return res.status(404).json({ error: 'Driver user not found' });
+  if (isActive !== undefined && typeof isActive !== 'boolean') {
+    return res.status(400).json({ error: 'isActive must be a boolean' });
+  }
 
   const parsedTemporaryDriver = parseTemporaryDriver(temporaryDriver);
   if (parsedTemporaryDriver.error) {
@@ -109,7 +112,9 @@ async function updateVehicleUser(req, res) {
   if (mobileNumber !== undefined) user.mobileNumber = mobileNumber.trim();
   if (joiningDate !== undefined) user.joiningDate = joiningDate || null;
   if (resigningDate !== undefined) user.resigningDate = resigningDate || null;
-  if (user.vehicle) {
+  if (isActive !== undefined) user.isActive = isActive;
+  // Inactive drivers hold no assignment, so only an active driver can clash with another one.
+  if (user.vehicle && user.isActive) {
     const conflict = await findAssignmentConflict({
       customerId,
       vehicleId: user.vehicle,

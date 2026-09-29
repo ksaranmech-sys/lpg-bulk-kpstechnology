@@ -15,6 +15,7 @@ export default function DriverList({ user, vehicles, setVehicles, customerData, 
   const [driverEditSaving, setDriverEditSaving] = useState(false);
   const [selectedDrivers, setSelectedDrivers] = useState([]);
   const [showAddDriverForm, setShowAddDriverForm] = useState(false);
+  const [reactivatingId, setReactivatingId] = useState('');
 
   async function addDriver(e) {
     e.preventDefault();
@@ -188,6 +189,29 @@ export default function DriverList({ user, vehicles, setVehicles, customerData, 
     }
   }
 
+  async function reactivateDriver(driver) {
+    if (!user?.customer) return;
+    setDriverEditError('');
+    setReactivatingId(String(driver.id || driver._id));
+    try {
+      const res = await api.updateVehicleUser(user.customer, driver.id || driver._id, { isActive: true });
+      setVehicleIdAndDriverState(res.data.user);
+      setCustomerData((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          users: current.users.map((userEntry) => (
+            String(userEntry._id || userEntry.id) === String(res.data.user.id || res.data.user._id) ? res.data.user : userEntry
+          )),
+        };
+      });
+    } catch (err) {
+      setDriverEditError(err.response?.data?.error || 'Failed to reactivate driver');
+    } finally {
+      setReactivatingId('');
+    }
+  }
+
   const customerVehicles = customerData?.vehicles || vehicles;
   const currentYear = new Date().getFullYear();
   const yearExpenseByVehicle = vehicleExpenses.reduce((acc, expense) => {
@@ -225,7 +249,18 @@ export default function DriverList({ user, vehicles, setVehicles, customerData, 
         {driver.displayName || driver.name || 'Unnamed driver'}
       </Link>
       {driver.isActive === false ? (
-        <span style={{ marginLeft: 6, fontSize: 11, color: '#a33' }}>(inactive)</span>
+        <>
+          <span style={{ marginLeft: 6, fontSize: 11, color: '#a33' }}>(inactive)</span>
+          <button
+            type="button"
+            className="salary-archive-link"
+            style={{ marginLeft: 8, fontSize: 11 }}
+            disabled={reactivatingId === String(driver.id || driver._id)}
+            onClick={() => reactivateDriver(driver)}
+          >
+            {reactivatingId === String(driver.id || driver._id) ? 'Reactivating...' : 'Reactivate'}
+          </button>
+        </>
       ) : driver.vehicle && !isDriverAssignedToday(driver) && (
         <span style={{ marginLeft: 6, fontSize: 11, color: '#8a6d1f' }}>(not current)</span>
       )}
@@ -300,6 +335,8 @@ export default function DriverList({ user, vehicles, setVehicles, customerData, 
           </>
         )}
       </div>
+
+      {driverEditError && !driverEditId && <div className="error-text" style={{ marginBottom: 12 }}>{driverEditError}</div>}
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16 }}>
         <button type="button" className="btn" onClick={() => setShowAddDriverForm(true)}>
