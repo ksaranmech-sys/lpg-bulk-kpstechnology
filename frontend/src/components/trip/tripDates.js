@@ -11,3 +11,9 @@ export function getEntryMaxDate(trip) {
 export function getEntryMinDate(trip) {
   return toDateInputValue(trip?.entryMinDate);
 }
+
+// Odometer readings must be strictly above the previous trip's highest reading.
+export function getOdometerMinKm(trip) {
+  const previous = Number(trip?.previousTripMaxOdometerKm);
+  return Number.isFinite(previous) ? previous + 1 : 0;
+}

@@ -11,6 +11,7 @@ const { getCorporationKmDetails, findRouteKm } = require('../../utils/corporatio
 const {
   getTripCloseDate,
   getEntryFloorDate,
+  getPreviousTripMaxOdometer,
   getMissingTripRouteFields,
   tryCloseVehiclePreviousTrip,
   refreshTripSettlement,
@@ -201,6 +202,8 @@ async function getTrip(req, res) {
   result.entryMinDate = driverJoiningDate && previousTripCloseDate
     ? (driverJoiningDate > previousTripCloseDate ? driverJoiningDate : previousTripCloseDate)
     : (driverJoiningDate || previousTripCloseDate || null);
+  // New odometer readings on this trip must exceed this (previous trip's highest reading).
+  result.previousTripMaxOdometerKm = await getPreviousTripMaxOdometer(trip);
   res.json({ trip: result });
 }
 

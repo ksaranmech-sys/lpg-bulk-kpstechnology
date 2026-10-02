@@ -5,7 +5,7 @@ import { api, assetToUploadFile, errorMessage, getCurrentPosition } from '../api
 import { Button, Card, DateField, ErrorText, Field, Muted, NumberInput, PhotoPicker, Select, Toggle } from '../ui';
 import { spacing } from '../theme';
 import { EntryRow, SectionTitle, confirm } from './common';
-import { getEntryMaxDate, getEntryMinDate } from './tripDates';
+import { getEntryMaxDate, getEntryMinDate, getOdometerMinKm } from './tripDates';
 
 const PAYMENT_OPTIONS = [
   { value: 'diesel_card', label: 'Diesel Card' },
@@ -24,6 +24,7 @@ function DieselForm({ trip, onSaved }) {
   const [error, setError] = useState('');
   const minDate = getEntryMinDate(trip);
   const maxDate = getEntryMaxDate(trip);
+  const minOdometerKm = getOdometerMinKm(trip);
 
   async function submit() {
     setBusy(true);
@@ -66,7 +67,7 @@ function DieselForm({ trip, onSaved }) {
         onChange={(next) => { if (next) setPaymentMethod(next); }}
       />
       <Toggle label="Tank Fill" value={dieselFilledConfirmed} onChange={setDieselFilledConfirmed} />
-      <Field label="Odometer Reading"><NumberInput value={odometerKm} onChangeText={setOdo} placeholder="Optional" /></Field>
+      <Field label="Odometer Reading"><NumberInput value={odometerKm} onChangeText={setOdo} placeholder={minOdometerKm > 0 ? `Above ${minOdometerKm - 1}` : 'Optional'} /></Field>
       <DateField label="Date" value={filledAt} onChange={setFilledAt} min={minDate} max={maxDate} />
       <PhotoPicker label="Photo (optional)" asset={photo} onChange={setPhoto} />
       <Button title="Add" onPress={submit} loading={busy} disabled={!volumeLitres || !totalValue || !filledAt} />

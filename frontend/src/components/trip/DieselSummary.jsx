@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import * as api from '../../api/api';
-import { getEntryMaxDate, getEntryMinDate } from './tripDates';
+import { getEntryMaxDate, getEntryMinDate, getOdometerMinKm } from './tripDates';
 
 export default function DieselSummary({ trip, tripId, onSaved }) {
   const entries = trip.dieselEntries || [];
@@ -14,6 +14,7 @@ export default function DieselSummary({ trip, tripId, onSaved }) {
   const [error, setError] = useState('');
   const minDate = getEntryMinDate(trip);
   const maxDate = getEntryMaxDate(trip);
+  const minOdometerKm = getOdometerMinKm(trip);
 
   function startEdit(index, entry) {
     setEditingIndex(index);
@@ -58,7 +59,7 @@ export default function DieselSummary({ trip, tripId, onSaved }) {
                   <>
                     <td><input type="number" value={volume} onChange={(e) => setVolume(e.target.value)} min="0" /></td>
                     <td><input type="number" value={totalValue} onChange={(e) => setTotalValue(e.target.value)} min="0" /></td>
-                    <td><input type="number" value={odometerKm} onChange={(e) => setOdometerKm(e.target.value)} min="0" /></td>
+                    <td><input type="number" value={odometerKm} onChange={(e) => setOdometerKm(e.target.value)} min={minOdometerKm} /></td>
                     <td><input type="date" value={date} onChange={(e) => setDate(e.target.value)} min={minDate} max={maxDate} /></td>
                     <td style={{ textAlign: 'right' }}>
                       <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>

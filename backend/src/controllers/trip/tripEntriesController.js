@@ -3,6 +3,7 @@ const Vehicle = require('../../models/Vehicle');
 const { saveUploadedFile } = require('../../middleware/upload');
 const {
   validateEntryDate,
+  validateOdometerKm,
   hasValidGpsCoordinates,
   tryCloseVehiclePreviousTrip,
   refreshRelatedSettlements,
@@ -97,21 +98,25 @@ async function addDieselEntry(req, res) {
   const dieselDateError = await validateEntryDate(trip, dieselDate, 'Diesel');
   if (dieselDateError) return res.status(400).json({ error: dieselDateError });
 
+  const odometer = odometerKm != null && odometerKm !== '' ? Number(odometerKm) : null;
+  const odometerError = await validateOdometerKm(trip, odometer);
+  if (odometerError) return res.status(400).json({ error: odometerError });
+
   trip.dieselEntries.push({
     volumeLitres: volume,
     ratePerLitre: calculatedRate,
     amount,
     paymentMethod,
     loadingPointTankFill: loadingPointTankFill === true || loadingPointTankFill === 'true',
-    odometerKm: odometerKm != null && odometerKm !== '' ? Number(odometerKm) : null,
+    odometerKm: odometer,
     filledAt: dieselDate,
     gps: hasGps ? { lat: Number(lat), lng: Number(lng) } : undefined,
     photo,
   });
   await trip.save();
 
-  if (odometerKm != null) {
-    await Vehicle.findByIdAndUpdate(trip.vehicle, { lastKnownOdometer: Number(odometerKm) });
+  if (odometer != null) {
+    await Vehicle.findByIdAndUpdate(trip.vehicle, { lastKnownOdometer: odometer });
   }
 
   // This diesel fill might be the FIRST fill of a brand-new trip, which is
@@ -147,9 +152,8 @@ async function updateDieselEntry(req, res) {
   if (!['diesel_card', 'cash'].includes(paymentMethod)) {
     return res.status(400).json({ error: 'paymentMethod must be diesel_card or cash' });
   }
-  if (odometerKm != null && (!Number.isFinite(odometerKm) || odometerKm < 0)) {
-    return res.status(400).json({ error: 'odometerKm must be a non-negative number' });
-  }
+  const odometerError = await validateOdometerKm(trip, odometerKm);
+  if (odometerError) return res.status(400).json({ error: odometerError });
 
   entry.volumeLitres = volume;
   entry.amount = amount;

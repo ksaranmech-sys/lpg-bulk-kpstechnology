@@ -62,6 +62,32 @@ async function validateEntryDate(trip, date, label) {
   return null;
 }
 
+// Highest odometer reading recorded on the vehicle's most recent earlier trip that has one -
+// a new reading on this trip must be above it, since the odometer only ever moves forward.
+async function getPreviousTripMaxOdometer(trip) {
+  const previousTrip = await Trip.findOne({
+    vehicle: trip.vehicle,
+    _id: { $ne: trip._id },
+    createdAt: { $lt: trip.createdAt },
+    'dieselEntries.odometerKm': { $ne: null },
+  }).sort('-createdAt').select('dieselEntries.odometerKm');
+  if (!previousTrip) return null;
+  const readings = (previousTrip.dieselEntries || [])
+    .map((entry) => Number(entry.odometerKm))
+    .filter((value) => Number.isFinite(value));
+  return readings.length ? Math.max(...readings) : null;
+}
+
+async function validateOdometerKm(trip, odometerKm) {
+  if (odometerKm == null) return null;
+  if (!Number.isFinite(odometerKm) || odometerKm < 0) return 'odometerKm must be a non-negative number';
+  const previousMax = await getPreviousTripMaxOdometer(trip);
+  if (previousMax != null && odometerKm <= previousMax) {
+    return `Odometer reading must be more than the previous trip's reading (${previousMax} km).`;
+  }
+  return null;
+}
+
 // Loading/unloading location + date are compulsory before a trip can close.
 const REQUIRED_CLOSE_FIELDS = [
   ['loadingLocation', 'loading location'],
@@ -186,6 +212,8 @@ module.exports = {
   getPreviousTripCloseDate,
   getEntryFloorDate,
   validateEntryDate,
+  getPreviousTripMaxOdometer,
+  validateOdometerKm,
   getMissingTripRouteFields,
   hasValidGpsCoordinates,
   tryCloseVehiclePreviousTrip,

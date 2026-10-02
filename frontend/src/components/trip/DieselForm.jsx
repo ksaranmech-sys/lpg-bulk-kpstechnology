@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import * as api from '../../api/api';
-import { getEntryMaxDate, getEntryMinDate } from './tripDates';
+import { getEntryMaxDate, getEntryMinDate, getOdometerMinKm } from './tripDates';
 
 export default function DieselForm({
   tripId,
@@ -20,6 +20,7 @@ export default function DieselForm({
   const [error, setError] = useState('');
   const minDate = getEntryMinDate(trip);
   const maxDate = getEntryMaxDate(trip);
+  const minOdometerKm = getOdometerMinKm(trip);
 
   async function submit(e) {
     e.preventDefault();
@@ -70,7 +71,7 @@ export default function DieselForm({
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end', marginTop: 12 }}>
-        <div className="field" style={{ margin: 0 }}><label>Odometer Reading</label><input type="number" value={odometerKm} onChange={(e) => setOdo(e.target.value)} placeholder="Optional" /></div>
+        <div className="field" style={{ margin: 0 }}><label>Odometer Reading</label><input type="number" value={odometerKm} onChange={(e) => setOdo(e.target.value)} min={minOdometerKm} placeholder={minOdometerKm > 0 ? `Above ${minOdometerKm - 1}` : 'Optional'} /></div>
         <div className="field" style={{ margin: 0 }}>
           <label>Date</label>
           <input type="date" value={filledAt} onChange={(e) => setFilledAt(e.target.value)} min={minDate} max={maxDate} required />
