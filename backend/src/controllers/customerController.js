@@ -171,5 +171,6 @@ module.exports = {
   deleteCustomer,
   addVehicle,
   ...require('./salaryController'),
+  ...require('./incomeController'),
   ...require('./customerUsersController'),
 };

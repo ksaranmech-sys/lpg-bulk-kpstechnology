@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { dieselEntryError } from '@kps/shared';
 import * as api from '../../api/api';
 import { getEntryMaxDate, getEntryMinDate, getOdometerMinKm } from './tripDates';
 
@@ -24,6 +25,11 @@ export default function DieselForm({
 
   async function submit(e) {
     e.preventDefault();
+    const limitError = dieselEntryError(volumeLitres, totalValue);
+    if (limitError) {
+      setError(limitError);
+      return;
+    }
     setError('');
     try {
       // GPS is optional - used only to group same-day fills at one pump when available.
@@ -49,8 +55,8 @@ export default function DieselForm({
       {title ? <h3 className="section-title">{title}</h3> : null}
       {error && <div className="error-text">{error}</div>}
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto', gap: 14, alignItems: 'end' }}>
-        <div className="field" style={{ margin: 0 }}><label>Volume (Litres)</label><input type="number" value={volumeLitres} onChange={(e) => setVolume(e.target.value)} required /></div>
-        <div className="field" style={{ margin: 0 }}><label>Total Value (Rs)</label><input type="number" value={totalValue} onChange={(e) => setTotalValue(e.target.value)} required /></div>
+        <div className="field" style={{ margin: 0 }}><label>Volume (Litres)</label><input type="number" min="5.01" step="0.01" value={volumeLitres} onChange={(e) => setVolume(e.target.value)} placeholder="More than 5 L" required /></div>
+        <div className="field" style={{ margin: 0 }}><label>Total Value (Rs)</label><input type="number" min="0" step="0.01" value={totalValue} onChange={(e) => setTotalValue(e.target.value)} placeholder="More than Rs 50 / L" required /></div>
         <div className="field" style={{ margin: 0 }}>
           <label>Payment Method</label>
           <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>

@@ -15,6 +15,8 @@ const tripRoutes = require('./routes/tripRoutes');
 const metaRoutes = require('./routes/metaRoutes');
 const leaveRoutes = require('./routes/leaveRoutes');
 const vehicleExpenseRoutes = require('./routes/vehicleExpenseRoutes');
+const dieselPriceRoutes = require('./routes/dieselPriceRoutes');
+const rateTableRoutes = require('./routes/rateTableRoutes');
 
 const app = express();
 const uploadsPath = path.resolve(__dirname, '../', config.storage.uploadDir);
@@ -54,6 +56,8 @@ app.use('/api/v1/trips', tripRoutes);
 app.use('/api/v1/meta', requireAuth, metaRoutes);
 app.use('/api/v1/leaves', leaveRoutes);
 app.use('/api/v1/vehicle-expenses', vehicleExpenseRoutes);
+app.use('/api/v1/diesel-prices', dieselPriceRoutes);
+app.use('/api/v1/rate-tables', rateTableRoutes);
 
 // Serve the React application from the same origin as the API.
 app.use(express.static(frontendBuildPath));

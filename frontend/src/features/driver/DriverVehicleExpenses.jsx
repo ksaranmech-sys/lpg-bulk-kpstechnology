@@ -3,7 +3,7 @@ import { VEHICLE_EXPENSE_CATEGORIES, currentMonth, formatMonthLabel, monthKey } 
 import * as api from '../../api/api';
 import ComboBoxInput from '../../components/ComboBoxInput';
 
-const EMPTY_FORM = { category: '', amount: '', date: '', note: '' };
+const EMPTY_FORM = { category: '', amount: '', date: '', note: '', photo: null, removePhoto: false };
 const cell = { padding: '8px 12px' };
 
 function formatRs(value) {
@@ -12,6 +12,12 @@ function formatRs(value) {
 
 function toInputDate(value) {
   return value ? new Date(value).toISOString().slice(0, 10) : '';
+}
+
+// Strips the client-only photo state from a form before sending it to the API.
+function expensePayload(state) {
+  const { photo, removePhoto, ...fields } = state;
+  return { ...fields, amount: Number(state.amount) };
 }
 
 // Add / edit / delete running costs for this driver's vehicle; the dashboard only shows totals.
@@ -65,7 +71,7 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
     setError('');
     setSaving(true);
     try {
-      const res = await api.createVehicleExpense({ ...form, vehicleId: vehicle._id, amount: Number(form.amount) });
+      const res = await api.createVehicleExpense({ ...expensePayload(form), vehicleId: vehicle._id }, form.photo);
       setExpenses((current) => [res.data.expense, ...current]);
       setForm(EMPTY_FORM);
       setShowAddForm(false);
@@ -86,6 +92,8 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
       amount: String(expense.amount ?? ''),
       date: toInputDate(expense.date),
       note: expense.note || '',
+      photo: null,
+      removePhoto: false,
     });
     setError('');
   }
@@ -101,7 +109,9 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
     setError('');
     setEditSaving(true);
     try {
-      const res = await api.updateVehicleExpense(editId, { ...editForm, amount: Number(editForm.amount) });
+      const payload = expensePayload(editForm);
+      if (editForm.removePhoto && !editForm.photo) payload.removePhoto = true;
+      const res = await api.updateVehicleExpense(editId, payload, editForm.photo);
       setExpenses((current) => current.map((expense) => (expense._id === editId ? res.data.expense : expense)));
       cancelEdit();
       setSelected([]);
@@ -125,7 +135,7 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
     }
   }
 
-  function renderFields(state, setState) {
+  function renderFields(state, setState, existingPhotoUrl) {
     return (
       <>
         <div className="grid-2">
@@ -153,6 +163,29 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
             <label>Note (optional)</label>
             <input value={state.note} onChange={(e) => setState({ ...state, note: e.target.value })} />
           </div>
+        </div>
+        <div className="field">
+          <label>Receipt photo (optional)</label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => setState({ ...state, photo: e.target.files?.[0] || null, removePhoto: false })}
+          />
+          {existingPhotoUrl && !state.photo && (
+            <div style={{ fontSize: 13, marginTop: 6, display: 'flex', gap: 10, alignItems: 'center' }}>
+              {state.removePhoto ? (
+                <>
+                  <span>Current photo will be removed.</span>
+                  <button type="button" className="salary-archive-link" onClick={() => setState({ ...state, removePhoto: false })}>Keep photo</button>
+                </>
+              ) : (
+                <>
+                  <a href={existingPhotoUrl} target="_blank" rel="noreferrer">View current photo</a>
+                  <button type="button" className="salary-archive-link" onClick={() => setState({ ...state, removePhoto: true })}>Remove photo</button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </>
     );
@@ -183,15 +216,16 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
                 <th style={{ textAlign: 'left', ...cell }}>Expense Type</th>
                 <th style={{ textAlign: 'right', ...cell }}>Amount</th>
                 <th style={{ textAlign: 'left', ...cell }}>Note</th>
+                <th style={{ textAlign: 'left', ...cell }}>Photo</th>
               </tr>
             </thead>
             <tbody>
               {visibleEntries.map((expense) => (
                 <tr key={expense._id}>
                   {editId === expense._id ? (
-                    <td colSpan={5} style={cell}>
+                    <td colSpan={6} style={cell}>
                       <form onSubmit={saveEdit}>
-                        {renderFields(editForm, setEditForm)}
+                        {renderFields(editForm, setEditForm, expense.photo?.url)}
                         <div style={{ display: 'flex', gap: 8 }}>
                           <button className="btn" disabled={editSaving} type="submit">{editSaving ? 'Saving...' : 'Save'}</button>
                           <button type="button" className="btn secondary" onClick={cancelEdit}>Cancel</button>
@@ -215,6 +249,7 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
                       <td style={cell}>{expense.category}</td>
                       <td style={{ ...cell, textAlign: 'right' }}>{formatRs(expense.amount)}</td>
                       <td style={cell}>{expense.note || '-'}</td>
+                      <td style={cell}>{expense.photo?.url ? <a href={expense.photo.url} target="_blank" rel="noreferrer">view</a> : '-'}</td>
                     </>
                   )}
                 </tr>
@@ -224,12 +259,12 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
               <tr>
                 <td colSpan={3} style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>Month Total</td>
                 <td style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>{formatRs(visibleTotal)}</td>
-                <td />
+                <td colSpan={2} />
               </tr>
               <tr>
                 <td colSpan={3} style={{ ...cell, textAlign: 'right', fontWeight: 700, borderTop: '1px solid var(--border)' }}>Yearly Total {year}</td>
                 <td style={{ ...cell, textAlign: 'right', fontWeight: 700, borderTop: '1px solid var(--border)' }}>{formatRs(yearTotal)}</td>
-                <td style={{ borderTop: '1px solid var(--border)' }} />
+                <td colSpan={2} style={{ borderTop: '1px solid var(--border)' }} />
               </tr>
             </tfoot>
           </table>

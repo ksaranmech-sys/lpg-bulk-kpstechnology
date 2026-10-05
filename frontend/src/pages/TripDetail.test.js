@@ -117,3 +117,91 @@ test('renders trip sections in order and toggles divert fields', async () => {
   await act(async () => root.unmount());
   globalThis.IS_REACT_ACT_ENVIRONMENT = false;
 });
+
+test('shows Trip Income KM and Trip Income for admins between Load Turn Added and Single Trip', async () => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  api.getTrip.mockResolvedValue({
+    data: {
+      trip: {
+        _id: 'trip-2',
+        status: 'closed',
+        customer: { companyName: 'Customer' },
+        driverAdvances: [],
+        dieselEntries: [],
+        rtoEntries: [],
+        otherExpenses: [],
+        loadingLocation: 'Total, Mangalore',
+        loadingDate: '2026-10-02T00:00:00.000Z',
+        unloadingLocation: 'Shimoga',
+        unloadingDate: '2026-10-03T00:00:00.000Z',
+        unloadingWeightTons: 18,
+        isDiverted: true,
+        divertUnloadingLocation: 'Davangere',
+        divertDate: '2026-10-04T00:00:00.000Z',
+        manualKmDivert: 100,
+        turnNumber: 7,
+        turnDate: '2026-10-05T00:00:00.000Z',
+        unTurnNumber: 8,
+        unTurnDate: '2026-10-03T00:00:00.000Z',
+        tripIncome: {
+          weightTons: 18,
+          tonnageClass: 18,
+          corporation: 'IOC-KA',
+          corporationSource: 'route',
+          mangaloreBase: true,
+          rateTable: { id: 'ka-18mt', title: 'Rate/KM/Ton - KA (18MT)' },
+          month: '2026-10',
+          legs: [
+            { leg: 'load', from: 'Total, Mangalore', to: 'Shimoga', km: 628, kmSource: 'km_table', manualOneWayKm: null, type: 'mangalore-451', rateLabel: '451 Mangalore base', rate: 3.8697, rateMonth: '2026-10', income: 43743.09 },
+            { leg: 'divert', from: 'Shimoga', to: 'Davangere', km: 200, kmSource: 'manual', manualOneWayKm: 100, type: 'band', rateLabel: '151~200 KM', rate: 1044.9114, rateMonth: '2026-10', income: 18808.41 },
+          ],
+          totalKm: 828,
+          totalIncome: 62551.5,
+          errors: [],
+        },
+      },
+    },
+  });
+  api.getMeta.mockResolvedValue({ data: { loadingLocations: [], unloadingLocations: [], routeKmTable: [] } });
+
+  const container = document.createElement('div');
+  const root = createRoot(container);
+  await act(async () => {
+    root.render(
+      <MemoryRouter initialEntries={['/trips/trip-2']}>
+        <Routes>
+          <Route path="/trips/:tripId" element={<TripDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+  });
+  await act(async () => {});
+
+  const headings = Array.from(container.querySelectorAll('h3')).map((h3) => h3.textContent);
+  const turnIndex = headings.indexOf('Load Turn Added');
+  const incomeIndex = headings.indexOf('Trip Income');
+  const singleTripIndex = headings.indexOf('Single Trip');
+  expect(turnIndex).toBeGreaterThanOrEqual(0);
+  expect(incomeIndex).toBeGreaterThan(turnIndex);
+  expect(singleTripIndex).toBeGreaterThan(incomeIndex);
+
+  const card = container.querySelector('[data-testid="trip-income"]');
+  expect(card.textContent).toContain('Total, Mangalore \u2192 Shimoga');
+  expect(card.textContent).toContain('628 km');
+  expect(card.textContent).toContain('Shimoga \u2192 Davangere');
+  expect(card.textContent).toContain('Manual KM Divert 100 km x 2');
+  expect(card.textContent).toContain('200 km');
+  expect(card.textContent).toContain('Total Trip Income KM');
+  expect(card.textContent).toContain('828 km');
+  expect(card.textContent).toContain('451 Mangalore base: 3.8697 / km / ton');
+  expect(card.textContent).toContain('18 t x 628 km x 3.8697');
+  expect(card.textContent).toContain('151~200 KM: 1044.9114');
+  expect(card.textContent).toContain('18 t x 1044.9114');
+  expect(card.textContent).toContain('Rate/KM/Ton - KA (18MT) - Oct-26');
+  expect(card.textContent).toContain('62,551.50');
+  // the card is not part of the printable Single Trip area
+  expect(card.closest('.trip-details-print-area')).toBeNull();
+
+  await act(async () => root.unmount());
+  globalThis.IS_REACT_ACT_ENVIRONMENT = false;
+});

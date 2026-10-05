@@ -182,8 +182,11 @@ app automatically talks to the backend running on your PC (port 5001); set
 | POST | `/auth/reset-password-with-code` | public — `{ username, code, newPassword }` |
 | POST | `/auth/reset-password` | admin resets a user under their scope |
 | GET/PUT | `/meta`, `/meta/route-km` | location lists and route KM table |
+| GET/PUT/POST | `/diesel-prices`, `/diesel-prices/sync` | (super_admin) average diesel price per state/month, priced from one reference city per state with state-level fallback (fuelpricetoday.in daily prices, v3cars.com backfill); PUT `{ cells }` for manual edits, POST sync to refresh now |
+| GET/PUT | `/rate-tables[/:id]`, `/rate-tables/:id/bases` | (super_admin) Rate/KM/Ton tables per state and tonnage class - ids `<state>-18mt` / `<state>-21mt` for TN (Tamil Nadu / 92.39), KA (Karnataka / 88.94), AP (Andhra Pradesh / 97.48), KL (Kerala / 96.37), PY (Pondicherry / 86.50), TS (Telangana / 95.70) - calculated from the average diesel price (/ 3.2 x tonnage); Trip Income picks the state from the suffix of the KM table's corporation (IOC-TN, BPC-TN -> TN; ...) and the tonnage class from the unloading weight (<= 18 t -> 18MT, else 21MT); PUT `{ bases }` edits the Base column |
 | GET/POST | `/customers` | (super_admin) list / onboard customer + admin login |
 | GET/PATCH/DELETE | `/customers/:id` | customer detail / update / delete |
+| GET | `/customers/:id/income?month=YYYY-MM` | (admins) Monthly Income: every unloading in the month grouped by corporation - a trip's Load leg by its Unloading date, a diverted trip's Divert leg by its Divert date, each with that leg's income, TDS (2%), Diesel ((income - TDS) x 40%) and Amount ((income - TDS) x 60%); defaults to last month, future months rejected |
 | POST | `/customers/:id/vehicles` | add a vehicle |
 | POST/PATCH/DELETE | `/customers/:id/users[/:userId]` | driver logins |
 | GET | `/customers/:id/users/:userId/salary?month=YYYY-MM` | monthly salary breakdown |
@@ -191,15 +194,16 @@ app automatically talks to the backend running on your PC (port 5001); set
 | GET | `/vehicles` | vehicles visible to the current user |
 | PATCH | `/vehicles/:id/document-reminders` | RC/insurance/permit expiry dates |
 | GET/POST | `/vehicles/:id/trips` | list / start trips |
-| GET/DELETE | `/trips/:id` | trip detail (with settlement) / delete |
+| GET/DELETE | `/trips/:id` | trip detail (with settlement; `tripIncome` KM/income breakdown for admins - routes missing from the KM table use Manual KM x 2 and the corporation with the most KM-table routes from the loading location) / delete |
 | POST/PATCH/DELETE | `/trips/:id/advances[/:i]` | driver advances |
-| POST/PATCH/DELETE | `/trips/:id/diesel[/:i]` | multipart: volume, total, odometer, photo, `lat`/`lng` (required) |
+| POST/PATCH/DELETE | `/trips/:id/diesel[/:i]` | multipart: volume (> 5 L), total (> Rs 50 / L), odometer, photo, `lat`/`lng` (required) |
 | POST/PATCH | `/trips/:id/rto[/:i]` | multipart: amount, date, photo |
 | POST/PATCH/DELETE | `/trips/:id/other-expenses[/:i]` | multipart: description, amount, date, photo |
-| PATCH | `/trips/:id/loading` · `/unloading` · `/turn` · `/unloading-turn` | trip stages |
+| PATCH | `/trips/:id/loading` · `/unloading` · `/turn` · `/unloading-turn` | trip stages (`/unloading` requires `unloadingWeightTons` > 0) |
 | POST | `/trips/:id/close` | close (settle) a trip |
 | GET / POST | `/trips/:id/report` · `/send-report` | settlement PDF / email it |
 | GET/POST/PATCH/DELETE | `/leaves[/:id]` | driver leave entries |
+| GET/POST/PATCH/DELETE | `/vehicle-expenses[/:id]` | (admins) vehicle running costs; JSON or multipart with an optional `photo` receipt (PATCH `removePhoto: true` clears it) |
 
 ## 7. Deployment
 

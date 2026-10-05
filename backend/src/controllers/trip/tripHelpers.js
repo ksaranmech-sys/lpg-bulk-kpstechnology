@@ -2,7 +2,7 @@
 const Trip = require('../../models/Trip');
 const User = require('../../models/User');
 const { computeTripSettlement } = require('../../utils/tripCalculations');
-const { TRIP_STATUS, ROLES } = require('../../config/constants');
+const { TRIP_STATUS, ROLES, DIESEL_MIN_LITRES, DIESEL_MIN_RATE_PER_LITRE } = require('../../config/constants');
 const { findCurrentDriverForVehicle } = require('../../utils/driverAssignment');
 
 function getClosingDieselDate(trip, fallback = null) {
@@ -114,6 +114,19 @@ function hasValidGpsCoordinates(lat, lng) {
     && longitude >= -180 && longitude <= 180;
 }
 
+// A diesel fill must be more than DIESEL_MIN_LITRES and cost more than DIESEL_MIN_RATE_PER_LITRE
+// per litre - anything else is almost certainly a typo (litres and amount swapped, missing digit).
+function dieselEntryError(volume, amount) {
+  if (!Number.isFinite(volume) || !Number.isFinite(amount) || volume <= 0 || amount < 0) {
+    return 'volumeLitres and totalValue must be valid positive numbers';
+  }
+  if (volume <= DIESEL_MIN_LITRES) return `Diesel volume must be more than ${DIESEL_MIN_LITRES} litres`;
+  if (amount / volume <= DIESEL_MIN_RATE_PER_LITRE) {
+    return `Diesel price must be more than Rs ${DIESEL_MIN_RATE_PER_LITRE} per litre (entered ${(amount / volume).toFixed(2)}/L) - check the litres and total amount`;
+  }
+  return null;
+}
+
 /**
  * Shared logic: whenever a new trip's first diesel entry is saved, look up
  * the vehicle's previous OPEN trip and attempt to compute + finalize its
@@ -216,6 +229,7 @@ module.exports = {
   validateOdometerKm,
   getMissingTripRouteFields,
   hasValidGpsCoordinates,
+  dieselEntryError,
   tryCloseVehiclePreviousTrip,
   refreshRelatedSettlements,
   refreshTripSettlement,

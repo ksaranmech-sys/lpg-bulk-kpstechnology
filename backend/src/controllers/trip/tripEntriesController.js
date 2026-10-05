@@ -5,6 +5,7 @@ const {
   validateEntryDate,
   validateOdometerKm,
   hasValidGpsCoordinates,
+  dieselEntryError,
   tryCloseVehiclePreviousTrip,
   refreshRelatedSettlements,
   getOpenTripOr404,
@@ -89,9 +90,8 @@ async function addDieselEntry(req, res) {
   const volume = Number(volumeLitres);
   const amount = totalValue != null ? Number(totalValue) : volume * Number(ratePerLitre);
   const calculatedRate = amount / volume;
-  if (!Number.isFinite(volume) || volume <= 0 || !Number.isFinite(amount) || amount < 0) {
-    return res.status(400).json({ error: 'volumeLitres and totalValue must be valid positive numbers' });
-  }
+  const dieselError = dieselEntryError(volume, amount);
+  if (dieselError) return res.status(400).json({ error: dieselError });
 
   const dieselDate = filledAt ? new Date(filledAt) : new Date();
   if (Number.isNaN(dieselDate.getTime())) return res.status(400).json({ error: 'filledAt must be a valid date' });
@@ -146,9 +146,8 @@ async function updateDieselEntry(req, res) {
   const paymentMethod = req.body.paymentMethod || entry.paymentMethod || 'diesel_card';
   const loadingPointTankFill = req.body.loadingPointTankFill === true || req.body.loadingPointTankFill === 'true';
   const odometerKm = req.body.odometerKm != null && req.body.odometerKm !== '' ? Number(req.body.odometerKm) : null;
-  if (!Number.isFinite(volume) || volume <= 0 || !Number.isFinite(amount) || amount < 0) {
-    return res.status(400).json({ error: 'volumeLitres and totalValue must be valid numbers' });
-  }
+  const dieselError = dieselEntryError(volume, amount);
+  if (dieselError) return res.status(400).json({ error: dieselError });
   if (!['diesel_card', 'cash'].includes(paymentMethod)) {
     return res.status(400).json({ error: 'paymentMethod must be diesel_card or cash' });
   }

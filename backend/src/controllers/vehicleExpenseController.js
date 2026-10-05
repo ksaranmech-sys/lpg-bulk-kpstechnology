@@ -1,6 +1,7 @@
 const VehicleExpense = require('../models/VehicleExpense');
 const Vehicle = require('../models/Vehicle');
 const { ROLES } = require('../config/constants');
+const { saveUploadedFile } = require('../middleware/upload');
 
 const POPULATE_VEHICLE = ['vehicle', 'vehicleNumber'];
 
@@ -51,7 +52,7 @@ async function listVehicleExpenses(req, res) {
   res.json({ expenses: expenses.map((expense) => expense.toObject()) });
 }
 
-// POST /api/v1/vehicle-expenses   body: { vehicleId, category, amount, date, note }
+// POST /api/v1/vehicle-expenses   body: { vehicleId, category, amount, date, note } + optional multipart `photo`
 async function createVehicleExpense(req, res) {
   const { user } = req;
   const { vehicleId, category, amount, date, note } = req.body;
@@ -68,6 +69,7 @@ async function createVehicleExpense(req, res) {
   const { vehicle, error } = await resolveVehicleForUser(user, vehicleId);
   if (error) return res.status(error.status).json({ error: error.message });
 
+  const photo = req.file ? { url: await saveUploadedFile(req.file) } : undefined;
   const expense = await VehicleExpense.create({
     customer: vehicle.customer,
     vehicle: vehicle._id,
@@ -75,13 +77,15 @@ async function createVehicleExpense(req, res) {
     amount: parsedAmount,
     date: parsedDate,
     note: note ? String(note).trim() : undefined,
+    photo,
     createdBy: user.id,
   });
   const populated = await expense.populate(...POPULATE_VEHICLE);
   res.status(201).json({ expense: populated.toObject() });
 }
 
-// PATCH /api/v1/vehicle-expenses/:expenseId   body: { vehicleId?, category?, amount?, date?, note? }
+// PATCH /api/v1/vehicle-expenses/:expenseId   body: { vehicleId?, category?, amount?, date?, note?, removePhoto? }
+// + optional multipart `photo` (replaces the existing one).
 async function updateVehicleExpense(req, res) {
   const { user } = req;
   const expense = await VehicleExpense.findById(req.params.expenseId);
@@ -111,6 +115,11 @@ async function updateVehicleExpense(req, res) {
     expense.date = parsedDate;
   }
   if (note !== undefined) expense.note = note ? String(note).trim() : undefined;
+  if (req.file) {
+    expense.photo = { url: await saveUploadedFile(req.file) };
+  } else if (req.body.removePhoto === true || req.body.removePhoto === 'true') {
+    expense.photo = undefined;
+  }
 
   await expense.save();
   const populated = await expense.populate(...POPULATE_VEHICLE);

@@ -73,6 +73,7 @@ body {
 .customer-admin-driver-list { order: -1; }
 .customer-admin-leave-section { order: 1; }
 .customer-admin-salary-section { order: 2; }
+.customer-admin-income-section { order: 3; }
 .superadmin-filter-section { order: -2; }
 .superadmin-app-section { order: -4; }
 .superadmin-customer-section { order: -3; }
@@ -228,6 +229,38 @@ tbody tr:hover { background: #f7fbfa; }
 @media (max-width: 720px) {
   .salary-summary-identity { grid-template-columns: 1fr 1fr; gap: 10px; }
 }
+
+/* Super admin "Average Diesel Price" table: sticky state column, latest 12 months in view,
+   older months reachable by scrolling left. */
+.diesel-price-scroll { overflow-x: auto; width: 100%; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); }
+.diesel-price-table { table-layout: fixed; border: 0; overflow: visible; }
+.diesel-price-table th,
+.diesel-price-table td { text-align: center; padding: 8px 4px; white-space: nowrap; border-right: 1px solid #e3ebef; }
+.diesel-price-table th:last-child,
+.diesel-price-table td:last-child { border-right: 0; }
+.diesel-price-table th { text-transform: none; letter-spacing: 0; font-size: 12px; }
+.diesel-price-table .diesel-price-group { text-align: left; font-size: 13px; font-weight: 700; }
+/* Keeps the merged header label in view while the month columns scroll beneath it. */
+.diesel-price-table .diesel-price-group-label { position: sticky; left: 150px; display: inline-block; }
+.diesel-price-table .diesel-price-sticky { position: sticky; left: 0; z-index: 2; text-align: left; background: #eef5f7; border-right: 1px solid var(--border); box-shadow: 2px 0 0 rgba(35, 77, 111, 0.08); }
+.diesel-price-table tbody .diesel-price-sticky { background: var(--surface); color: var(--green-900); font-weight: 600; line-height: 1.25; }
+.diesel-price-table .diesel-price-city { display: block; font-size: 11px; font-weight: 500; color: #5b6b78; }
+.diesel-price-table tbody tr:hover .diesel-price-sticky { background: #f7fbfa; }
+.diesel-price-table td.diesel-price-manual { background: #fff7e6; color: #8a5a00; font-weight: 600; }
+.diesel-price-table td.diesel-price-fallback { font-style: italic; color: #4b5b68; }
+.diesel-price-table td input { width: 100%; min-width: 0; padding: 4px 6px; font-size: 13px; text-align: right; }
+.diesel-price-note { font-size: 12px; color: #5b6b78; margin: 10px 0 0; line-height: 1.5; }
+
+/* Rate/KM/Ton - TN (18MT): second sticky column for Base; price rows separated from KM bands. */
+.ioc-rate-table .ioc-rate-base-col { left: 150px; text-align: right; }
+.ioc-rate-table tbody .ioc-rate-base-col { background: var(--surface); font-weight: 600; color: var(--green-900); }
+.ioc-rate-table tbody tr:hover .ioc-rate-base-col { background: #f7fbfa; }
+.ioc-rate-table tbody td { text-align: right; }
+.ioc-rate-table .ioc-rate-price-row td,
+.ioc-rate-table .ioc-rate-price-row th { background: #f3f7f9; }
+.ioc-rate-table .ioc-rate-price-row:last-of-type td { border-bottom: 2px solid var(--border); }
+.ioc-rate-table td.ioc-rate-carried { color: #7b8794; }
+.ioc-rate-table td input { text-align: right; }
 
 .badge {
   display: inline-block;

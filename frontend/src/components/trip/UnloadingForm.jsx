@@ -54,11 +54,15 @@ export default function UnloadingForm({ tripId, meta, trip, routeUnloadingOption
       setError('Please enter Manual KM Divert between the unloading location and divert location (Round trip).');
       return;
     }
+    if (unloadingWeightTons === '' || !(Number(unloadingWeightTons) > 0)) {
+      setError('Please enter the unloading weight in tons.');
+      return;
+    }
     setError('');
     try {
       await api.setUnloading(tripId, {
         unloadingLocation,
-        unloadingWeightTons: unloadingWeightTons === '' ? null : Number(unloadingWeightTons),
+        unloadingWeightTons: Number(unloadingWeightTons),
         unloadingDate,
         manualKm: manualKm === '' ? undefined : Number(manualKm),
         manualKmDivert: manualKmDivert === '' ? undefined : Number(manualKmDivert),
@@ -103,14 +107,15 @@ export default function UnloadingForm({ tripId, meta, trip, routeUnloadingOption
           />
         </div>
         <div className="field" style={{ margin: 0 }}>
-          <label>Weight (tons)</label>
+          <label>Weight (tons) *</label>
           <input
             type="number"
-            min="0"
+            min="0.01"
             step="0.01"
             value={unloadingWeightTons}
             onChange={(e) => setWeightTons(e.target.value)}
-            placeholder="Optional"
+            placeholder="e.g. 17.8"
+            required
           />
         </div>
         {manualKmLoadVisible && (

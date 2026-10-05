@@ -4,6 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { useDashboardData } from '../features/dashboard/useDashboardData';
 import ReminderPopup from '../features/dashboard/ReminderPopup';
 import RouteKmTable from '../features/dashboard/RouteKmTable';
+import DieselPriceTable from '../features/dashboard/DieselPriceTable';
+import RateTables from '../features/dashboard/RateTables';
 import CustomerList from '../features/dashboard/CustomerList';
 import OpenTripsCard from '../features/dashboard/OpenTripsCard';
 import VehicleFilter from '../features/dashboard/VehicleFilter';
@@ -17,6 +19,7 @@ import AdminLeaveSection from '../features/dashboard/AdminLeaveSection';
 import DriverList from '../features/dashboard/DriverList';
 import MobileAppCard from '../features/dashboard/MobileAppCard';
 import VehicleExpensesSection from '../features/dashboard/VehicleExpensesSection';
+import MonthlyIncomeSection from '../features/dashboard/MonthlyIncomeSection';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -38,6 +41,8 @@ export default function Dashboard() {
         <>
           <MobileAppCard />
           <RouteKmTable user={user} />
+          <DieselPriceTable user={user} />
+          <RateTables user={user} />
           <CustomerList user={user} customers={customers} setCustomers={setCustomers} />
         </>
       )}
@@ -80,6 +85,9 @@ export default function Dashboard() {
       )}
       {user?.role === 'vehicle_user' && vehicles[0] && (
         <ClosedTripHistory selectedVehicleId={selectedVehicleId} />
+      )}
+      {user?.role === 'customer_admin' && (
+        <MonthlyIncomeSection customerId={user.customer} className="customer-admin-income-section" />
       )}
       {user?.role === 'customer_admin' && (
         <SalarySection

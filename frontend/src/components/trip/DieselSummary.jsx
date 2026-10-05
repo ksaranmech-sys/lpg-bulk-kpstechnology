@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { dieselEntryError } from '@kps/shared';
 import * as api from '../../api/api';
 import { getEntryMaxDate, getEntryMinDate, getOdometerMinKm } from './tripDates';
 
@@ -28,6 +29,11 @@ export default function DieselSummary({ trip, tripId, onSaved }) {
   }
 
   async function saveEdit(index) {
+    const limitError = dieselEntryError(volume, totalValue);
+    if (limitError) {
+      setError(limitError);
+      return;
+    }
     setError('');
     try {
       await api.updateDieselEntry(tripId, index, {

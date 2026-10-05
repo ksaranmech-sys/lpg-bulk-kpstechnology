@@ -10,6 +10,8 @@ const vehicleExpenseSchema = new mongoose.Schema(
     amount: { type: Number, required: true, min: 0 },
     date: { type: Date, required: true },
     note: { type: String, trim: true, maxlength: 500 },
+    // Optional receipt / bill photo (URL from the upload middleware - local disk or Cloudinary).
+    photo: { url: { type: String } },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }

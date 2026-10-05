@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
-import { formatDate } from '@kps/shared';
+import { formatDate, dieselEntryError } from '@kps/shared';
 import { api, assetToUploadFile, errorMessage, getCurrentPosition } from '../api';
 import { Button, Card, DateField, ErrorText, Field, Muted, NumberInput, PhotoPicker, Select, Toggle } from '../ui';
 import { spacing } from '../theme';
@@ -27,6 +27,11 @@ function DieselForm({ trip, onSaved }) {
   const minOdometerKm = getOdometerMinKm(trip);
 
   async function submit() {
+    const limitError = dieselEntryError(volumeLitres, totalValue);
+    if (limitError) {
+      setError(limitError);
+      return;
+    }
     setBusy(true);
     setError('');
     try {

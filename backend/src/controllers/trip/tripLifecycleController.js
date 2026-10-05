@@ -8,6 +8,7 @@ const { removeExpiredClosedTrips } = require('../../utils/tripRetention');
 const { findCurrentDriverForVehicle } = require('../../utils/driverAssignment');
 const metaRoutes = require('../../routes/metaRoutes');
 const { getCorporationKmDetails, findRouteKm } = require('../../utils/corporationKm');
+const { computeTripIncome } = require('../../utils/tripIncome');
 const {
   getTripCloseDate,
   getEntryFloorDate,
@@ -192,6 +193,10 @@ async function getTrip(req, res) {
     metaRoutes.loadRouteKmTable()
   ).value;
   result.driverName = driver?.getDisplayName() || null;
+  // Income figures are for admins only; drivers never see what the customer is billed.
+  if (req.user?.role !== ROLES.VEHICLE_USER) {
+    result.tripIncome = computeTripIncome(result, metaRoutes.loadRouteKmTable());
+  }
   // Used by the frontend to grey out dates before whichever is later: the driver's joining date,
   // or the previous trip's Load Turn date (that trip counts as closed once the driver pressed
   // Trip Close, even if its settlement is still finalizing in the background).
@@ -224,16 +229,16 @@ async function setUnloading(req, res) {
     divertDate,
   } = req.body;
   if (unloadingLocation) trip.unloadingLocation = unloadingLocation;
+  // Weight is compulsory: it drives Trip Income. Accept the saved value when the request omits it
+  // (e.g. a turn-only edit), but never allow saving unloading details without one.
   if (unloadingWeightTons !== undefined) {
-    if (unloadingWeightTons === null || unloadingWeightTons === '') {
-      trip.unloadingWeightTons = null;
-    } else {
-      const tons = Number(unloadingWeightTons);
-      if (!Number.isFinite(tons) || tons < 0) {
-        return res.status(400).json({ error: 'unloadingWeightTons must be a non-negative number' });
-      }
-      trip.unloadingWeightTons = tons;
+    const tons = unloadingWeightTons === null || unloadingWeightTons === '' ? NaN : Number(unloadingWeightTons);
+    if (!Number.isFinite(tons) || tons <= 0) {
+      return res.status(400).json({ error: 'Unloading weight (tons) is required and must be greater than 0' });
     }
+    trip.unloadingWeightTons = tons;
+  } else if (trip.unloadingWeightTons == null) {
+    return res.status(400).json({ error: 'Unloading weight (tons) is required and must be greater than 0' });
   }
   if (!unloadingDate) return res.status(400).json({ error: 'unloadingDate is required' });
   const date = new Date(unloadingDate);

@@ -8,6 +8,7 @@ import VehiclesTable from '../features/customer/VehiclesTable';
 import CustomerTripHistory from '../features/customer/CustomerTripHistory';
 import DriversTable from '../features/customer/DriversTable';
 import VehicleExpensesSummary from '../features/customer/VehicleExpensesSummary';
+import MonthlyIncomeSection from '../features/dashboard/MonthlyIncomeSection';
 
 export default function CustomerDetail() {
   const { user } = useAuth();
@@ -67,6 +68,8 @@ export default function CustomerDetail() {
       <VehiclesTable customerId={customerId} data={data} setData={setData} user={user} vehicleExpenses={vehicleExpenses} />
 
       <VehicleExpensesSummary expenses={vehicleExpenses} error={vehicleExpenseError} />
+
+      <MonthlyIncomeSection customerId={customerId} />
 
       <CustomerTripHistory vehicles={data?.vehicles} />
       {user?.role === 'customer_admin' && (

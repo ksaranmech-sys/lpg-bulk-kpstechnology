@@ -19,6 +19,7 @@ import OtherExpenseSummary from '../components/trip/OtherExpenseSummary';
 import UnloadingForm from '../components/trip/UnloadingForm';
 import UnloadingDetailsSummary from '../components/trip/UnloadingDetailsSummary';
 import EntriesSummary from '../components/trip/EntriesSummary';
+import TripIncomeSummary from '../components/trip/TripIncomeSummary';
 
 export default function TripDetail() {
   const { tripId } = useParams();
@@ -164,6 +165,7 @@ export default function TripDetail() {
         </>
 
       </fieldset>
+      {user?.role !== 'vehicle_user' && trip.tripIncome && <TripIncomeSummary income={trip.tripIncome} />}
       <EntriesSummary
         trip={trip}
         corporationKm={(meta.routeKmTable || []).find((row) => (

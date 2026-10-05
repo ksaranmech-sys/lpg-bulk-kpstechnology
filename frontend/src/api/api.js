@@ -53,10 +53,14 @@ export const setLoadingDetailsWithPhoto = withCompressedPhoto(client.setLoadingD
 export const addDieselEntry = withCompressedPhoto(client.addDieselEntry);
 export const addRtoEntry = withCompressedPhoto(client.addRtoEntry);
 export const addOtherExpense = withCompressedPhoto(client.addOtherExpense);
+export const createVehicleExpense = async (data, file) => client.createVehicleExpense(data, await compressPhoto(file));
+export const updateVehicleExpense = async (expenseId, data, file) => client.updateVehicleExpense(expenseId, data, await compressPhoto(file));
 
 export const {
   login, logout, getMe, changePassword, setRecoveryContact, forgotPassword, resetPasswordWithCode,
   getMeta, updateRouteKmTable, updateMobileAppUrl,
+  getDieselPriceTable, updateDieselPriceTable, syncDieselPriceTable,
+  listRateTables, getRateTable, updateRateTableBases,
   listVehicles, getVehicle, updateVehicle, deleteVehicle, updateVehicleReminderDates, sendVehicleReminder,
   listTripsForVehicle, createTrip, getTrip, deleteTrip,
   addAdvance, updateAdvance, deleteAdvance,
@@ -66,13 +70,13 @@ export const {
   updateDieselEntry, deleteDieselEntry,
   updateRtoEntry,
   updateOtherExpense, deleteOtherExpense,
-  createCustomer, listCustomers, getCustomer,
+  createCustomer, listCustomers, getCustomer, getCustomerMonthlyIncome,
   getDriverMonthlySalary, downloadDriverMonthlySummary, getDriverMonthlySummaryUrl,
   updateCustomer, setCustomerStatus, deleteCustomer,
   addVehicleToCustomer, createVehicleUser, updateVehicleUser, deleteVehicleUser,
   bulkUpdateVehicleUsers, bulkDeleteVehicleUsers,
   listLeaves, createLeave, updateLeave, deleteLeave,
-  listVehicleExpenses, createVehicleExpense, updateVehicleExpense, deleteVehicleExpense,
+  listVehicleExpenses, deleteVehicleExpense,
 } = client;
 
 // Helper: grab the browser's current GPS position (used before RTO/diesel/expense uploads)

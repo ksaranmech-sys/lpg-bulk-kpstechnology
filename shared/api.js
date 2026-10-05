@@ -90,6 +90,16 @@ export function createEndpoints(api) {
       api.put('/meta/route-km', rowId && row ? { rowId, row } : { routeKmTable }),
     updateMobileAppUrl: (mobileAppUrl) => api.put('/meta/mobile-app-url', { mobileAppUrl }),
 
+    // ---- Average diesel price table (super admin) ----
+    getDieselPriceTable: () => api.get('/diesel-prices'),
+    updateDieselPriceTable: (cells) => api.put('/diesel-prices', { cells }),
+    syncDieselPriceTable: () => api.post('/diesel-prices/sync'),
+
+    // ---- Rate/KM/Ton tables per state (super admin) ----
+    listRateTables: () => api.get('/rate-tables'),
+    getRateTable: (tableId) => api.get(`/rate-tables/${tableId}`),
+    updateRateTableBases: (tableId, bases) => api.put(`/rate-tables/${tableId}/bases`, { bases }),
+
     // ---- Vehicles ----
     listVehicles: (customerId) => api.get('/vehicles', { params: customerId ? { customerId } : {} }),
     getVehicle: (vehicleId) => api.get(`/vehicles/${vehicleId}`),
@@ -134,6 +144,9 @@ export function createEndpoints(api) {
     createCustomer: (data) => api.post('/customers', data),
     listCustomers: () => api.get('/customers'),
     getCustomer: (customerId) => api.get(`/customers/${customerId}`),
+    // Monthly Income (admins): trips loaded in `month` (YYYY-MM) grouped by corporation.
+    getCustomerMonthlyIncome: (customerId, month) =>
+      api.get(`/customers/${customerId}/income`, { params: month ? { month } : {} }),
     getDriverMonthlySalary: (customerId, driverId, month) =>
       api.get(`/customers/${customerId}/users/${driverId}/salary`, { params: { month } }),
     downloadDriverMonthlySummary: (customerId, driverId, month, which = 'regular') =>
@@ -163,8 +176,13 @@ export function createEndpoints(api) {
 
     // ---- Vehicle expenses ----
     listVehicleExpenses: (params = {}) => api.get('/vehicle-expenses', { params }),
-    createVehicleExpense: (data) => api.post('/vehicle-expenses', data),
-    updateVehicleExpense: (expenseId, data) => api.patch(`/vehicle-expenses/${expenseId}`, data),
+    // `file` (optional receipt photo) switches the request to multipart; JSON otherwise.
+    createVehicleExpense: (data, file) => (file
+      ? api.post('/vehicle-expenses', buildFormData(data, file), multipart)
+      : api.post('/vehicle-expenses', data)),
+    updateVehicleExpense: (expenseId, data, file) => (file
+      ? api.patch(`/vehicle-expenses/${expenseId}`, buildFormData(data, file), multipart)
+      : api.patch(`/vehicle-expenses/${expenseId}`, data)),
     deleteVehicleExpense: (expenseId) => api.delete(`/vehicle-expenses/${expenseId}`),
   };
 }
