@@ -31,6 +31,9 @@ const config = {
   isTest,
   port: Number(process.env.PORT || 5001),
   apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:5001',
+  // Public URL of the website, used in emailed links (e.g. password reset). Falls back to the
+  // first allowed browser origin, then the API URL (which serves the frontend build in production).
+  appBaseUrl: (process.env.APP_BASE_URL || parseList(process.env.ALLOWED_ORIGINS)[0] || process.env.API_BASE_URL || 'http://localhost:3000').replace(/\/+$/, ''),
   mongoUri: process.env.MONGO_URI || process.env.MONGO_URL || process.env.MONGODB_URI || '',
   jwt: {
     secret: requireSecret('JWT_SECRET'),
@@ -53,6 +56,15 @@ const config = {
 
 if (config.jwt.secret === config.jwt.refreshSecret) {
   throw new Error('[config] JWT_SECRET and JWT_REFRESH_SECRET must be different values.');
+}
+
+// Mail is needed for password-reset links and trip settlement reports. Placeholder values copied
+// from .env.example are rejected by the SMTP server with "535 Username and Password not accepted".
+const smtpLooksUnconfigured = !process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS
+  || /your_smtp|example\.com|change_me|change_this/i.test(`${process.env.SMTP_USER} ${process.env.SMTP_PASS}`);
+if (smtpLooksUnconfigured && !isTest) {
+  console.warn('[config] SMTP_USER / SMTP_PASS are missing or still placeholders - emails (password reset links, settlement reports) will fail. '
+    + 'Set real SMTP credentials in backend/.env and run "npm run mail:check".');
 }
 
 if (isProduction) {

@@ -1,4 +1,5 @@
 import React from 'react';
+import { driverNameInput, mobileNumberInput, USERNAME_HTML_PATTERN, USERNAME_RULE_HINT, usernameInput } from '@kps/shared';
 
 export default function DriverEditForm({ driverEditForm, setDriverEditForm, vehicles, driverEditError, driverEditSaving, onSubmit, onCancel }) {
   return (
@@ -7,11 +8,11 @@ export default function DriverEditForm({ driverEditForm, setDriverEditForm, vehi
       <div className="grid-2">
         <div className="field">
           <label>Driver Name</label>
-          <input value={driverEditForm.name} onChange={(e) => setDriverEditForm({ ...driverEditForm, name: e.target.value })} required />
+          <input pattern="[A-Za-z0-9 ]+" title="Use letters, numbers, and spaces only" value={driverEditForm.name} onChange={(e) => setDriverEditForm({ ...driverEditForm, name: driverNameInput(e.target.value) })} required />
         </div>
         <div className="field">
           <label>Mobile Number</label>
-          <input value={driverEditForm.mobileNumber} onChange={(e) => setDriverEditForm({ ...driverEditForm, mobileNumber: e.target.value })} required />
+          <input inputMode="numeric" pattern="\d{10}" maxLength={10} title="Enter exactly 10 digits" value={driverEditForm.mobileNumber} onChange={(e) => setDriverEditForm({ ...driverEditForm, mobileNumber: mobileNumberInput(e.target.value) })} required />
         </div>
       </div>
       <div className="grid-2">
@@ -27,7 +28,7 @@ export default function DriverEditForm({ driverEditForm, setDriverEditForm, vehi
       <div className="grid-2">
         <div className="field">
           <label>Login Username</label>
-          <input autoComplete="off" value={driverEditForm.username} onChange={(e) => setDriverEditForm({ ...driverEditForm, username: e.target.value })} required />
+          <input autoComplete="off" pattern={USERNAME_HTML_PATTERN} title={`Use ${USERNAME_RULE_HINT}`} value={driverEditForm.username} onChange={(e) => setDriverEditForm({ ...driverEditForm, username: usernameInput(e.target.value) })} required />
         </div>
         <div className="field">
           <label>Login Password</label>
@@ -70,7 +71,7 @@ export default function DriverEditForm({ driverEditForm, setDriverEditForm, vehi
         <div className="grid-2">
           <div className="field">
             <label>Temporary Driver Name</label>
-            <input value={driverEditForm.temporaryDriverName} onChange={(e) => setDriverEditForm({ ...driverEditForm, temporaryDriverName: e.target.value })} required />
+            <input pattern="[A-Za-z0-9 ]+" title="Use letters, numbers, and spaces only" value={driverEditForm.temporaryDriverName} onChange={(e) => setDriverEditForm({ ...driverEditForm, temporaryDriverName: driverNameInput(e.target.value) })} required />
           </div>
           <div className="field">
             <label>Joining Date</label>

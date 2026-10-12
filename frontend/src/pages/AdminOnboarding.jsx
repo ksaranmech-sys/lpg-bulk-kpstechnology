@@ -1,4 +1,7 @@
 import React, { useState } from 'react';
+import {
+  companyNameInput, emailInput, mobileNumberInput, USERNAME_HTML_PATTERN, USERNAME_RULE_HINT, usernameFromCompanyName, usernameInput,
+} from '@kps/shared';
 import * as api from '../api/api';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
@@ -10,11 +13,31 @@ export default function AdminOnboarding() {
   const [form, setForm] = useState({
     companyName: '', mobileNumber: '', email: '', address: '', adminUsername: '', adminPassword: '',
   });
+  // Admin username follows the company name until the operator types their own.
+  const [usernameEdited, setUsernameEdited] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
 
   if (user?.role !== 'super_admin') {
     return <Layout><p>You do not have access to this page.</p></Layout>;
+  }
+
+  function changeCompanyName(value) {
+    const companyName = companyNameInput(value);
+    setForm((current) => ({
+      ...current,
+      companyName,
+      adminUsername: usernameEdited ? current.adminUsername : usernameFromCompanyName(companyName),
+    }));
+  }
+
+  function changeAdminUsername(value) {
+    const adminUsername = usernameInput(value);
+    setUsernameEdited(adminUsername !== '');
+    setForm((current) => ({
+      ...current,
+      adminUsername: adminUsername || usernameFromCompanyName(current.companyName),
+    }));
   }
 
   async function submit(e) {
@@ -33,13 +56,13 @@ export default function AdminOnboarding() {
       <h2 className="section-title">Onboard New Customer</h2>
       <form className="card" onSubmit={submit}>
         <div className="grid-2">
-          <div className="field"><label>Company Name</label><input value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} required /></div>
-          <div className="field"><label>Mobile Number</label><input value={form.mobileNumber} onChange={(e) => setForm({ ...form, mobileNumber: e.target.value })} required /></div>
+          <div className="field"><label>Company Name</label><input pattern="[A-Za-z ]*[A-Za-z][A-Za-z ]*" title="Use letters and spaces only" value={form.companyName} onChange={(e) => changeCompanyName(e.target.value)} required /></div>
+          <div className="field"><label>Mobile Number</label><input inputMode="numeric" pattern="\d{10}" maxLength={10} title="Enter exactly 10 digits" value={form.mobileNumber} onChange={(e) => setForm({ ...form, mobileNumber: mobileNumberInput(e.target.value) })} required /></div>
         </div>
-        <div className="field"><label>Email Address</label><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required /></div>
+        <div className="field"><label>Email Address</label><input type="email" title="Enter a valid email address (must contain @, no spaces)" value={form.email} onChange={(e) => setForm({ ...form, email: emailInput(e.target.value) })} required /></div>
         <div className="field"><label>Address</label><input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div>
         <div className="grid-2">
-          <div className="field"><label>Admin Username</label><input autoComplete="off" value={form.adminUsername} onChange={(e) => setForm({ ...form, adminUsername: e.target.value })} required /></div>
+          <div className="field"><label>Admin Username</label><input autoComplete="off" pattern={USERNAME_HTML_PATTERN} title={`Use ${USERNAME_RULE_HINT}`} value={form.adminUsername} onChange={(e) => changeAdminUsername(e.target.value)} required /></div>
           <div className="field"><label>Admin Password</label><input type="password" autoComplete="new-password" value={form.adminPassword} onChange={(e) => setForm({ ...form, adminPassword: e.target.value })} required /></div>
         </div>
         {error && <div className="error-text">{error}</div>}

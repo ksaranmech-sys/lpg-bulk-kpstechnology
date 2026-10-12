@@ -13,9 +13,11 @@
 //
 // Precedence
 //   - per day:   city price (fuelpricetoday > v3cars) > state price (fuelpricetoday > v3cars)
-//   - per month: manual > daily-avg (from stored daily prices) > city monthly > state monthly
+//   - per month: manual > daily-avg (from stored daily prices) > city monthly > state monthly > base
 // Within a month only city days are averaged when the city has any; state days are used only
-// when the city has none. Cells built from state-level data carry `fallback: true`.
+// when the city has none. Cells built from state-level data carry `fallback: true`. The `base`
+// source is the configured Dec-24 price (DIESEL_PRICE_ROWS[].baseDieselPrice): it always comes from
+// config (never persisted as such) and fills the start month whenever nothing else does.
 const settings = require('./settings');
 const { DIESEL_PRICE_ROWS, DIESEL_PRICE_START_MONTH } = require('../config/constants');
 
@@ -33,8 +35,8 @@ const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 const LEVELS = { CITY: 'city', STATE: 'state' };
 const LEVEL_PRIORITY = { [LEVELS.CITY]: 2, [LEVELS.STATE]: 1 };
 
-const SOURCES = { MANUAL: 'manual', DAILY_AVG: 'daily-avg', CITY_MONTHLY: 'v3cars-monthly', STATE_MONTHLY: 'v3cars-state-monthly' };
-const SOURCE_PRIORITY = { [SOURCES.MANUAL]: 4, [SOURCES.DAILY_AVG]: 3, [SOURCES.CITY_MONTHLY]: 2, [SOURCES.STATE_MONTHLY]: 1 };
+const SOURCES = { MANUAL: 'manual', DAILY_AVG: 'daily-avg', CITY_MONTHLY: 'v3cars-monthly', STATE_MONTHLY: 'v3cars-state-monthly', BASE: 'base' };
+const SOURCE_PRIORITY = { [SOURCES.MANUAL]: 5, [SOURCES.DAILY_AVG]: 4, [SOURCES.CITY_MONTHLY]: 3, [SOURCES.STATE_MONTHLY]: 2, [SOURCES.BASE]: 1 };
 
 // ---------- date helpers ----------
 
@@ -127,7 +129,10 @@ function emptyTable() {
   return {
     startMonth: DIESEL_PRICE_START_MONTH,
     rows: DIESEL_PRICE_ROWS.map(({ state, city }) => ({ state, city })),
-    cells: Object.fromEntries(DIESEL_PRICE_ROWS.map(({ state }) => [state, {}])),
+    cells: Object.fromEntries(DIESEL_PRICE_ROWS.map(({ state, baseDieselPrice }) => {
+      const base = toPrice(baseDieselPrice);
+      return [state, base === null ? {} : { [DIESEL_PRICE_START_MONTH]: { value: round2(base), source: SOURCES.BASE } }];
+    })),
     daily: Object.fromEntries(DIESEL_PRICE_ROWS.map(({ state }) => [state, {}])),
     lastSyncedAt: null,
     lastSyncError: '',
@@ -142,11 +147,11 @@ function normalizeCell(cell) {
   return normalized;
 }
 
-// Rows and the start month always come from config so changing them is a code change (a start
-// month saved by an earlier version is ignored); stored cells for a state no longer configured or
-// months before the start are dropped, cells with an unknown (legacy) source are discarded so
-// they get recalculated, and manual edits are always kept. Daily entries saved as bare numbers by
-// earlier versions are treated as city-level prices.
+// Rows, the start month and the base (Dec-24) prices always come from config so changing them is a
+// code change (a start month or base cell saved by an earlier version is ignored); stored cells for
+// a state no longer configured or months before the start are dropped, cells with an unknown
+// (legacy) source are discarded so they get recalculated, and manual edits are always kept. Daily
+// entries saved as bare numbers by earlier versions are treated as city-level prices.
 function normalizeTable(raw) {
   const table = emptyTable();
   if (!raw || typeof raw !== 'object') return table;
@@ -158,7 +163,7 @@ function normalizeTable(raw) {
     const stateCells = cells[state] && typeof cells[state] === 'object' ? cells[state] : {};
     Object.entries(stateCells).forEach(([month, cell]) => {
       const normalized = normalizeCell(cell);
-      if (!isMonthKey(month) || month < table.startMonth || !normalized) return;
+      if (!isMonthKey(month) || month < table.startMonth || !normalized || normalized.source === SOURCES.BASE) return;
       table.cells[state][month] = normalized;
     });
     const stateDaily = daily[state] && typeof daily[state] === 'object' ? daily[state] : {};
@@ -253,7 +258,8 @@ function applyManualEdits(table, edits) {
       next.cells[state][month] = { value: round2(value), source: SOURCES.MANUAL };
     });
   });
-  return next;
+  // Re-normalizing restores the configured base price when a cleared cell is the start month.
+  return normalizeTable(next);
 }
 
 // What the API returns: the stored table (minus raw daily prices) plus the full month axis.

@@ -1,22 +1,29 @@
 // Monthly Income shown to admins: every unloading of a customer's trips that happened in a month,
-// grouped by the corporation the trip's income was priced with (IOC-KA, IOC-TN, ...). A trip's
+// split first by the vehicle's corporation (IOC, BPC, HPC, ...) and then by the route's state
+// (the suffix of the KM table corporation: IOC-TN -> TN, BPC-KA -> KA, ...). A trip's
 // Load leg belongs to the month of its Unloading date; a diverted trip's Divert leg belongs to
 // the month of its Divert (new unloading) date, so the two legs may be billed in different
 // months. Each row carries that leg's income:
 //   TDS    = Trip Income x 2%
 //   Diesel = (Trip Income - TDS) x 40%
 //   Amount = (Trip Income - TDS) x 60%
-// Legs whose income cannot be calculated yet (no weight / KM) are listed with null figures and
-// left out of the totals.
+// The month cut-off depends on the vehicle's corporation (Vehicle.corporation): IOC / HPC bill
+// the calendar month, while BPC's month runs to the 5th of the next month (an unloading on
+// 1-5 Oct belongs to September). Legs whose income cannot be calculated yet (no weight / KM) are
+// listed with null figures and left out of the totals.
 const Trip = require('../models/Trip');
-const { computeTripIncome } = require('./tripIncome');
+const { computeTripIncome, corporationStateCode } = require('./tripIncome');
 const dieselPrices = require('./dieselPrices');
+const { MONTHLY_INCOME_CUTOFF_DAY, MONTHLY_INCOME_HALF_MONTH_CORPORATIONS, MONTHLY_INCOME_HALF_MONTH_DAY } = require('../config/constants');
 
 const TDS_RATE = 0.02;
 const DIESEL_SHARE = 0.4;
 const AMOUNT_SHARE = 0.6;
 const IST_OFFSET = '+05:30';
-const UNKNOWN_CORPORATION = 'Unknown corporation';
+const UNKNOWN_VEHICLE_CORPORATION = 'No vehicle corporation';
+const UNKNOWN_STATE = 'Unknown route';
+// Widest cut-off any corporation uses, so the DB query covers every candidate unloading.
+const MAX_CUTOFF_DAY = Math.max(0, ...Object.values(MONTHLY_INCOME_CUTOFF_DAY));
 
 function round2(value) {
   return Math.round(value * 100) / 100;
@@ -71,23 +78,73 @@ function sumRows(rows) {
   };
 }
 
-// IST month ('YYYY-MM') of a date, or null.
-function monthOf(value) {
+// Cut-off day for a vehicle corporation: 0 = calendar month, N = the month runs to the Nth of the
+// next month (unloadings on days 1..N belong to the previous month).
+function cutoffDayFor(vehicleCorporation) {
+  return MONTHLY_INCOME_CUTOFF_DAY[vehicleCorporation] || 0;
+}
+
+// Billing month of an unloading for a vehicle corporation (IST).
+function billingMonthOf(value, vehicleCorporation) {
   if (!value) return null;
   const day = dieselPrices.istDayKey(value);
-  return day ? day.slice(0, 7) : null;
+  if (!day) return null;
+  const month = day.slice(0, 7);
+  const dayOfMonth = Number(day.slice(8, 10));
+  return dayOfMonth <= cutoffDayFor(vehicleCorporation) ? previousMonthKey(month) : month;
+}
+
+function isHalfMonthCorporation(vehicleCorporation) {
+  return MONTHLY_INCOME_HALF_MONTH_CORPORATIONS.includes(vehicleCorporation);
+}
+
+// Billing period within the month: IOC / HPC split into 'first-half' (1st-15th) and
+// 'second-half' (16th-month end); every other corporation has a single 'month' period.
+function billingPeriodOf(value, vehicleCorporation) {
+  if (!isHalfMonthCorporation(vehicleCorporation)) return 'month';
+  const day = dieselPrices.istDayKey(value);
+  if (!day) return null;
+  return Number(day.slice(8, 10)) <= MONTHLY_INCOME_HALF_MONTH_DAY ? 'first-half' : 'second-half';
+}
+
+function daysInMonth(month) {
+  const [year, m] = month.split('-').map(Number);
+  return new Date(Date.UTC(year, m, 0)).getUTCDate();
+}
+
+// Period descriptors for a vehicle corporation in `month`, in display order.
+function periodsFor(vehicleCorporation, month) {
+  const last = daysInMonth(month);
+  if (isHalfMonthCorporation(vehicleCorporation)) {
+    return [
+      { key: 'first-half', label: `1 - ${MONTHLY_INCOME_HALF_MONTH_DAY}`, from: `${month}-01`, to: `${month}-${String(MONTHLY_INCOME_HALF_MONTH_DAY).padStart(2, '0')}` },
+      { key: 'second-half', label: `${MONTHLY_INCOME_HALF_MONTH_DAY + 1} - ${last}`, from: `${month}-${String(MONTHLY_INCOME_HALF_MONTH_DAY + 1).padStart(2, '0')}`, to: `${month}-${String(last).padStart(2, '0')}` },
+    ];
+  }
+  const cutoff = cutoffDayFor(vehicleCorporation);
+  if (cutoff > 0) {
+    const [year, m] = month.split('-').map(Number);
+    const next = new Date(Date.UTC(year, m, 1));
+    const nextKey = `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`;
+    return [{ key: 'month', label: `${cutoff + 1} - ${cutoff} (next month)`, from: `${month}-${String(cutoff + 1).padStart(2, '0')}`, to: `${nextKey}-${String(cutoff).padStart(2, '0')}` }];
+  }
+  return [{ key: 'month', label: `1 - ${last}`, from: `${month}-01`, to: `${month}-${String(last).padStart(2, '0')}` }];
 }
 
 // One row per unloading of the trip: the Load leg (dated by Unloading date) and, for a diverted
 // trip, the Divert leg (dated by Divert date). Legs without their unloading date are not yet
 // billable and are skipped.
 function unloadingRows(trip, income) {
+  const vehicleCorporation = trip.vehicle?.corporation || null;
   const base = {
     tripId: String(trip._id),
     vehicleNumber: trip.vehicle?.vehicleNumber || '',
+    vehicleCorporation,
+    cutoffDay: cutoffDayFor(vehicleCorporation),
     loadingDate: trip.loadingDate || null,
     status: trip.status,
     corporation: income.corporation || null,
+    state: corporationStateCode(income.corporation) || null,
     notes: income.errors || [],
   };
   const legs = income.legs || [];
@@ -96,7 +153,8 @@ function unloadingRows(trip, income) {
     return {
       ...base,
       leg: leg?.leg || 'load',
-      month: monthOf(unloadingDate),
+      month: billingMonthOf(unloadingDate, vehicleCorporation),
+      period: billingPeriodOf(unloadingDate, vehicleCorporation),
       loadingLocation: from || '',
       unloadingLocation: to || '',
       unloadingDate,
@@ -130,36 +188,70 @@ function buildMonthlyIncome(trips, month, routeKmTable, { getRateTable, now } = 
       return byDate || a.vehicleNumber.localeCompare(b.vehicleNumber);
     });
 
-  const byCorporation = new Map();
-  rows.forEach((row) => {
-    const key = row.corporation || UNKNOWN_CORPORATION;
-    if (!byCorporation.has(key)) byCorporation.set(key, []);
-    byCorporation.get(key).push(row);
-  });
-  const groups = Array.from(byCorporation.entries())
-    .sort(([a], [b]) => (a === UNKNOWN_CORPORATION) - (b === UNKNOWN_CORPORATION) || a.localeCompare(b))
-    .map(([corporation, groupRows]) => ({
-      corporation,
-      known: corporation !== UNKNOWN_CORPORATION,
-      rows: groupRows.map((row, index) => ({ sNo: index + 1, ...row })),
-      totals: sumRows(groupRows),
+  // Main split: the vehicle's corporation (IOC, BPC, HPC, ...); then the billing period (IOC / HPC
+  // are billed per half month, others once); then the route's state from the KM table
+  // corporation (IOC-TN -> TN, BPC-KA -> KA, ...).
+  const groupBy = (list, keyOf) => {
+    const map = new Map();
+    list.forEach((row) => {
+      const key = keyOf(row);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(row);
+    });
+    return map;
+  };
+  const sortKeys = (unknownKey) => ([a], [b]) => (a === unknownKey) - (b === unknownKey) || a.localeCompare(b);
+
+  const stateGroups = (list) => Array.from(groupBy(list, (row) => row.state || UNKNOWN_STATE).entries())
+    .sort(sortKeys(UNKNOWN_STATE))
+    .map(([state, stateRows]) => ({
+      state,
+      known: state !== UNKNOWN_STATE,
+      // KM-table corporations behind this state (normally one, e.g. IOC-TN)
+      corporations: Array.from(new Set(stateRows.map((row) => row.corporation).filter(Boolean))).sort(),
+      rows: stateRows.map((row, index) => ({ sNo: index + 1, ...row })),
+      totals: sumRows(stateRows),
     }));
+
+  const groups = Array.from(groupBy(rows, (row) => row.vehicleCorporation || UNKNOWN_VEHICLE_CORPORATION).entries())
+    .sort(sortKeys(UNKNOWN_VEHICLE_CORPORATION))
+    .map(([vehicleCorporation, groupRows]) => {
+      const corporation = vehicleCorporation === UNKNOWN_VEHICLE_CORPORATION ? null : vehicleCorporation;
+      const byPeriod = groupBy(groupRows, (row) => row.period);
+      return {
+        vehicleCorporation,
+        known: vehicleCorporation !== UNKNOWN_VEHICLE_CORPORATION,
+        cutoffDay: cutoffDayFor(corporation),
+        halfMonth: isHalfMonthCorporation(corporation),
+        // Every configured period is listed (even when empty) so both halves always show for IOC / HPC.
+        periods: periodsFor(corporation, month).map((period) => {
+          const periodRows = byPeriod.get(period.key) || [];
+          return { ...period, states: stateGroups(periodRows), totals: sumRows(periodRows) };
+        }),
+        totals: sumRows(groupRows),
+      };
+    });
 
   return {
     month,
     rates: { tds: TDS_RATE, diesel: DIESEL_SHARE, amount: AMOUNT_SHARE },
+    cutoffDays: MONTHLY_INCOME_CUTOFF_DAY,
+    halfMonthCorporations: MONTHLY_INCOME_HALF_MONTH_CORPORATIONS,
+    halfMonthDay: MONTHLY_INCOME_HALF_MONTH_DAY,
     groups,
     totals: sumRows(rows),
   };
 }
 
 async function loadTripsForMonth(customerId, month) {
-  // Trips with an unloading (first or divert) inside the month (IST). buildMonthlyIncome re-checks
-  // each leg's IST month so an unloading late on the last day is never counted twice or dropped.
+  // Trips with an unloading (first or divert) inside the month (IST), extended by the widest
+  // corporation cut-off (BPC: up to the 5th of the next month). buildMonthlyIncome re-checks each
+  // leg's billing month per vehicle corporation, so nothing is counted twice or dropped.
   const { start, end } = monthBounds(month);
-  const inMonth = { $gte: start, $lt: end };
-  const trips = await Trip.find({ customer: customerId, $or: [{ unloadingDate: inMonth }, { divertDate: inMonth }] })
-    .populate('vehicle', 'vehicleNumber')
+  const windowEnd = new Date(end.getTime() + MAX_CUTOFF_DAY * 24 * 60 * 60 * 1000);
+  const inWindow = { $gte: start, $lt: windowEnd };
+  const trips = await Trip.find({ customer: customerId, $or: [{ unloadingDate: inWindow }, { divertDate: inWindow }] })
+    .populate('vehicle', 'vehicleNumber corporation')
     .lean();
   return trips;
 }
@@ -168,13 +260,18 @@ module.exports = {
   TDS_RATE,
   DIESEL_SHARE,
   AMOUNT_SHARE,
-  UNKNOWN_CORPORATION,
+  UNKNOWN_VEHICLE_CORPORATION,
+  UNKNOWN_STATE,
   isMonthKey,
   previousMonthKey,
   validateIncomeMonth,
   defaultIncomeMonth,
   monthBounds,
   splitIncome,
+  cutoffDayFor,
+  billingMonthOf,
+  billingPeriodOf,
+  periodsFor,
   unloadingRows,
   buildMonthlyIncome,
   loadTripsForMonth,

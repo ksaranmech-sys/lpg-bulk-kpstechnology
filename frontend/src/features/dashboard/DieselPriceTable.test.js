@@ -20,13 +20,14 @@ const rows = [
 ];
 const states = rows.map((row) => row.state);
 const months = [
+  '2024-12', '2025-01', '2025-02', '2025-03', '2025-04', '2025-05', '2025-06',
   '2025-07', '2025-08', '2025-09', '2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03', '2026-04',
   '2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10',
 ];
 
 function buildTable(overrides = {}) {
   return {
-    startMonth: '2025-07',
+    startMonth: '2024-12',
     rows,
     states,
     months,
@@ -36,6 +37,7 @@ function buildTable(overrides = {}) {
       Kerala: {},
       Pondicherry: {},
       'Tamil Nadu': {
+        '2024-12': { value: 92.41, source: 'base' },
         '2026-09': { value: 100.56, source: 'daily-avg' },
         '2026-08': { value: 100.2, source: 'v3cars-state-monthly', fallback: true },
         '2025-09': { value: 94.5, source: 'manual' },
@@ -91,15 +93,15 @@ test('renders nothing for non super admins and does not call the API', async () 
   await unmount();
 });
 
-test('renders every month from Jul 2025 in a horizontal scroller sized to show 12 months', async () => {
+test('renders every month from Dec 2024 in a horizontal scroller sized to show 12 months', async () => {
   api.getDieselPriceTable.mockResolvedValue({ data: { dieselPriceTable: buildTable() } });
   const { container, unmount } = await mount(<DieselPriceTable user={superAdmin} />);
 
   const headers = Array.from(container.querySelectorAll('thead tr:nth-child(2) th')).map((th) => th.textContent);
   expect(headers[0]).toBe('State (city)');
   expect(headers.slice(1)).toEqual(months.map(formatMonthLabel));
-  expect(headers).toContain('Jul-25');
-  expect(headers).not.toContain('Jun-25');
+  expect(headers).toContain('Dec-24');
+  expect(headers).not.toContain('Nov-24');
   expect(headers).toContain('Oct-26');
 
   const rowLabels = Array.from(container.querySelectorAll('tbody th')).map((th) => th.textContent);
@@ -122,6 +124,10 @@ test('renders every month from Jul 2025 in a horizontal scroller sized to show 1
   expect(tnCells[months.indexOf('2026-08')].className).toContain('diesel-price-fallback');
   expect(tnCells[months.indexOf('2026-08')].getAttribute('title')).toContain('state-level price used');
   expect(tnCells[months.indexOf('2026-07')].textContent).toBe('');
+  expect(tnCells[months.indexOf('2024-12')].textContent).toBe('92.41');
+  expect(tnCells[months.indexOf('2024-12')].className).toBe('');
+  expect(tnCells[months.indexOf('2024-12')].getAttribute('title')).toContain('Base diesel price for Tamil Nadu');
+  expect(container.textContent).toContain('The first column (Dec-24) holds each state\'s base diesel price');
 
   await unmount();
 });

@@ -4,23 +4,27 @@ const Customer = require('../models/Customer');
 const { ROLES } = require('../config/constants');
 const config = require('../config/env');
 const { signAccessToken, signRefreshToken, verifyRefreshToken } = require('../utils/tokens');
-const { sendPasswordResetCodeEmail } = require('../utils/mailer');
+const { sendPasswordResetLinkEmail } = require('../utils/mailer');
 
-const RESET_CODE_MINUTES = 10;
-const RESET_MAX_ATTEMPTS = 5;
-const FORGOT_RESPONSE = { message: 'If the details match an account with recovery contacts, a reset code has been emailed.' };
+const RESET_LINK_MINUTES = 30;
+const FORGOT_RESPONSE = { message: 'If the details match an account, a password reset link has been emailed to the recovery address.' };
 
 function issueTokens(user) {
   return { token: signAccessToken(user), refreshToken: signRefreshToken(user) };
 }
 
-// Compare phone numbers by their last 10 digits so "+91 98765 43210" matches "9876543210".
-function mobileKey(value) {
-  return String(value || '').replace(/\D/g, '').slice(-10);
+function emailKey(value) {
+  return String(value || '').trim().toLowerCase();
 }
 
-function hashResetCode(code) {
-  return crypto.createHmac('sha256', config.jwt.secret).update(String(code)).digest('hex');
+function hashResetToken(token) {
+  return crypto.createHmac('sha256', config.jwt.secret).update(String(token)).digest('hex');
+}
+
+// Self-service "forgot password" exists only for super admins (nobody above them can reset it).
+// Customer admins are reset by KPS, and drivers by their customer admin, via /auth/reset-password.
+function canSelfRecover(user) {
+  return user.role === ROLES.SUPER_ADMIN;
 }
 
 // POST /api/v1/auth/login  { username, password }
@@ -123,77 +127,68 @@ async function changePassword(req, res) {
   res.json({ message: 'Password changed successfully', ...issueTokens(user) });
 }
 
-// POST /api/v1/auth/recovery-contact  { currentPassword, recoveryEmail, recoveryMobile }
-// Sets where reset codes go. Requires the current password so a stolen session can't redirect them.
+// POST /api/v1/auth/recovery-contact  { currentPassword, recoveryEmail }
+// Sets where reset links go. Requires the current password so a stolen session can't redirect them.
 async function setRecoveryContact(req, res) {
-  const { currentPassword, recoveryEmail, recoveryMobile } = req.body;
+  const { currentPassword, recoveryEmail } = req.body;
 
   const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
+  if (!canSelfRecover(user)) {
+    return res.status(403).json({ error: 'Password recovery email is only available for KPS super admin accounts. Ask your administrator to reset your password.' });
+  }
   if (!(await user.checkPassword(currentPassword))) {
     return res.status(400).json({ error: 'Current password is incorrect' });
   }
 
-  user.recoveryEmail = recoveryEmail.toLowerCase();
-  user.recoveryMobile = recoveryMobile;
+  user.recoveryEmail = emailKey(recoveryEmail);
   await user.save();
 
-  res.json({ message: 'Recovery contacts saved', user: user.toSafeJSON() });
+  res.json({ message: 'Recovery email saved', user: user.toSafeJSON() });
 }
 
-// POST /api/v1/auth/forgot-password  { username, recoveryMobile }
-// Emails a one-time code if the username exists AND the mobile number matches the saved recovery
-// number. The response is identical either way so usernames can't be probed.
+// POST /api/v1/auth/forgot-password  { username, recoveryEmail }
+// Emails a one-time reset link if the username exists AND the email matches the recovery address.
+// The response is identical either way so usernames can't be probed.
 async function forgotPassword(req, res) {
-  const { username, recoveryMobile } = req.body;
+  const { username, recoveryEmail } = req.body;
 
   const user = await User.findOne({ username: username.toLowerCase(), isActive: true });
-  const matches = user
-    && user.recoveryEmail
-    && user.recoveryMobile
-    && mobileKey(user.recoveryMobile) === mobileKey(recoveryMobile);
-  if (!matches) return res.json(FORGOT_RESPONSE);
+  const email = user && canSelfRecover(user) ? user.recoveryEmail : null;
+  if (!email || emailKey(email) !== emailKey(recoveryEmail)) return res.json(FORGOT_RESPONSE);
 
-  const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+  const token = crypto.randomBytes(32).toString('hex');
   user.passwordReset = {
-    codeHash: hashResetCode(code),
-    expiresAt: new Date(Date.now() + RESET_CODE_MINUTES * 60 * 1000),
+    codeHash: hashResetToken(token),
+    expiresAt: new Date(Date.now() + RESET_LINK_MINUTES * 60 * 1000),
     attempts: 0,
   };
   await user.save();
 
+  const resetUrl = `${config.appBaseUrl}/reset-password?token=${token}`;
   try {
-    await sendPasswordResetCodeEmail({ to: user.recoveryEmail, name: user.name, code, minutesValid: RESET_CODE_MINUTES });
+    await sendPasswordResetLinkEmail({ to: email, name: user.name, resetUrl, minutesValid: RESET_LINK_MINUTES });
   } catch (err) {
-    console.error('[auth] Failed to send reset code email:', err.message);
+    console.error('[auth] Failed to send reset link email:', err.response || err.message);
+    console.error('[auth] Check SMTP_* in backend/.env with "npm run mail:check".');
     return res.status(502).json({ error: 'Could not send the reset email. Please try again later or contact KPS Technology.' });
   }
 
   res.json(FORGOT_RESPONSE);
 }
 
-// POST /api/v1/auth/reset-password-with-code  { username, code, newPassword }
-async function resetPasswordWithCode(req, res) {
-  const { username, code, newPassword } = req.body;
-  const invalid = () => res.status(400).json({ error: 'Invalid or expired reset code' });
+// POST /api/v1/auth/reset-password-with-token  { token, newPassword }
+// The token comes from the emailed link; it is single-use and expires after RESET_LINK_MINUTES.
+async function resetPasswordWithToken(req, res) {
+  const { token, newPassword } = req.body;
+  const invalid = () => res.status(400).json({ error: 'This reset link is invalid or has expired. Please request a new one.' });
 
-  const user = await User.findOne({ username: username.toLowerCase(), isActive: true });
-  const reset = user?.passwordReset;
-  if (!reset?.codeHash || !reset.expiresAt || reset.expiresAt < new Date()) return invalid();
-
-  if (reset.attempts >= RESET_MAX_ATTEMPTS) {
-    user.passwordReset = { codeHash: null, expiresAt: null, attempts: 0 };
-    await user.save();
-    return invalid();
-  }
-
-  const expected = Buffer.from(reset.codeHash, 'hex');
-  const actual = Buffer.from(hashResetCode(code), 'hex');
-  if (expected.length !== actual.length || !crypto.timingSafeEqual(expected, actual)) {
-    user.passwordReset.attempts = reset.attempts + 1;
-    await user.save();
-    return invalid();
-  }
+  const user = await User.findOne({
+    'passwordReset.codeHash': hashResetToken(token),
+    'passwordReset.expiresAt': { $gt: new Date() },
+    isActive: true,
+  });
+  if (!user || !canSelfRecover(user)) return invalid();
 
   await user.setPassword(newPassword);
   user.tokenVersion = (user.tokenVersion || 0) + 1;
@@ -205,5 +200,5 @@ async function resetPasswordWithCode(req, res) {
 
 module.exports = {
   login, refresh, logout, me, resetUserPassword, changePassword,
-  setRecoveryContact, forgotPassword, resetPasswordWithCode,
+  setRecoveryContact, forgotPassword, resetPasswordWithToken,
 };

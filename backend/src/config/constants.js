@@ -38,23 +38,27 @@ const TRIP_STATUS = {
 // `v3carsState` / `v3carsDistrict` the matching names on v3cars.com. When the city has no price
 // for a day/month the state-level price is used instead. Columns run from DIESEL_PRICE_START_MONTH
 // to the current month (a new column appears automatically on the 1st of every month).
+// `baseDieselPrice` is the agreed diesel price for DIESEL_PRICE_START_MONTH (Dec-24): it fills that
+// column unless a value is entered manually, and is the Price Escalation reference of the
+// Rate/KM/Ton tables.
 const DIESEL_PRICE_ROWS = [
-  { state: 'Andhra Pradesh', city: 'Amaravati', fuelPriceTodayCity: 'Amaravati', fuelPriceTodayState: 'Andhra Pradesh', v3carsState: 'Andhra Pradesh', v3carsDistrict: 'Amaravati' },
-  { state: 'Karnataka', city: 'Bengaluru', fuelPriceTodayCity: 'Bengaluru', fuelPriceTodayState: 'Karnataka', v3carsState: 'Karnataka', v3carsDistrict: 'Bangalore' },
-  { state: 'Kerala', city: 'Thiruvananthapuram', fuelPriceTodayCity: 'Thiruvananthapuram', fuelPriceTodayState: 'Kerala', v3carsState: 'Kerala', v3carsDistrict: 'Thiruvananthapuram' },
-  { state: 'Pondicherry', city: 'Puducherry', fuelPriceTodayCity: 'Puducherry', fuelPriceTodayState: 'Puducherry (UT)', v3carsState: 'Pondicherry', v3carsDistrict: 'Pondicherry' },
-  { state: 'Tamil Nadu', city: 'Chennai', fuelPriceTodayCity: 'Chennai', fuelPriceTodayState: 'Tamil Nadu', v3carsState: 'Tamil Nadu', v3carsDistrict: 'Chennai' },
-  { state: 'Telangana', city: 'Hyderabad', fuelPriceTodayCity: 'Hyderabad', fuelPriceTodayState: 'Telangana', v3carsState: 'Telangana', v3carsDistrict: 'Hyderabad' },
+  { state: 'Andhra Pradesh', city: 'Amaravati', baseDieselPrice: 95.69, fuelPriceTodayCity: 'Amaravati', fuelPriceTodayState: 'Andhra Pradesh', v3carsState: 'Andhra Pradesh', v3carsDistrict: 'Amaravati' },
+  { state: 'Karnataka', city: 'Bengaluru', baseDieselPrice: 91.14, fuelPriceTodayCity: 'Bengaluru', fuelPriceTodayState: 'Karnataka', v3carsState: 'Karnataka', v3carsDistrict: 'Bangalore' },
+  { state: 'Kerala', city: 'Thiruvananthapuram', baseDieselPrice: 96.16, fuelPriceTodayCity: 'Thiruvananthapuram', fuelPriceTodayState: 'Kerala', v3carsState: 'Kerala', v3carsDistrict: 'Thiruvananthapuram' },
+  { state: 'Pondicherry', city: 'Puducherry', baseDieselPrice: 84.48, fuelPriceTodayCity: 'Puducherry', fuelPriceTodayState: 'Puducherry (UT)', v3carsState: 'Pondicherry', v3carsDistrict: 'Pondicherry' },
+  { state: 'Tamil Nadu', city: 'Chennai', baseDieselPrice: 92.41, fuelPriceTodayCity: 'Chennai', fuelPriceTodayState: 'Tamil Nadu', v3carsState: 'Tamil Nadu', v3carsDistrict: 'Chennai' },
+  { state: 'Telangana', city: 'Hyderabad', baseDieselPrice: 92.44, fuelPriceTodayCity: 'Hyderabad', fuelPriceTodayState: 'Telangana', v3carsState: 'Telangana', v3carsDistrict: 'Hyderabad' },
 ];
-const DIESEL_PRICE_START_MONTH = '2025-07';
+const DIESEL_PRICE_START_MONTH = '2024-12';
 
 // Super admin "Rate/KM/Ton" tables (one per state), calculated from the Average Diesel Price table.
 //   Price 1 paise      = (diesel[m] - diesel[m-1]) / (kmPerLitre * tonnage)
-//   Price Escalation   = (diesel[m] - baseDieselPrice) / (kmPerLitre * tonnage)
-//   KM band            = base + escalation * multiplier   (multiplier = band midpoint / 2)
+//   Price Escalation   = (diesel[m] - diesel[baseDieselMonth]) / (kmPerLitre * tonnage)
+//   KM band            = base + escalation * multiplier   (multiplier = band midpoint, e.g. 0~50 -> 25)
 //   451 rows           = base + escalation
 // Band / 451 rows only recalculate when |Price 1 paise| >= 0.01 (rise or fall), otherwise the
-// previous month's value is carried forward. `base` values are defaults; super admin can edit them in the UI.
+// previous month's value is carried forward. Price rows are shown to 2 dp but used at full precision.
+// `base` values are defaults; super admin can edit them in the UI.
 const RATE_TABLE_ROW_DEFS = [
   { key: 'km-0-50', label: '0~50', low: 0, high: 50 },
   { key: 'km-51-100', label: '51~100', low: 51, high: 100 },
@@ -76,15 +80,18 @@ function rateTableRows(bases) {
 // Rate tables exist per state and tonnage class. `stateCode` is matched against the suffix of the
 // KM table's corporation column (IOC-TN, BPC-TN, ... -> TN), so every corporation in a state
 // shares that state's table; the tonnage class comes from the unloading weight (<= 18 t -> 18MT,
-// else 21MT). Each state's diesel column and reference price are shared by its 18MT and 21MT tables.
+// else 21MT). Each state's diesel column is shared by its 18MT and 21MT tables.
 const RATE_TABLE_STATES = [
-  { stateCode: 'TN', dieselState: 'Tamil Nadu', baseDieselPrice: 92.39 },
-  { stateCode: 'KA', dieselState: 'Karnataka', baseDieselPrice: 88.94 },
-  { stateCode: 'AP', dieselState: 'Andhra Pradesh', baseDieselPrice: 97.48 },
-  { stateCode: 'KL', dieselState: 'Kerala', baseDieselPrice: 96.37 },
-  { stateCode: 'PY', dieselState: 'Pondicherry', baseDieselPrice: 86.5 },
-  { stateCode: 'TS', dieselState: 'Telangana', baseDieselPrice: 95.7 },
+  { stateCode: 'TN', dieselState: 'Tamil Nadu' },
+  { stateCode: 'KA', dieselState: 'Karnataka' },
+  { stateCode: 'AP', dieselState: 'Andhra Pradesh' },
+  { stateCode: 'KL', dieselState: 'Kerala' },
+  { stateCode: 'PY', dieselState: 'Pondicherry' },
+  { stateCode: 'TS', dieselState: 'Telangana' },
 ];
+// Price Escalation is measured against the state's Average Diesel Price of this month (Dec-24, the
+// first column of the diesel table, pre-filled with DIESEL_PRICE_ROWS[].baseDieselPrice).
+const RATE_TABLE_BASE_DIESEL_MONTH = DIESEL_PRICE_START_MONTH;
 
 // Default Base column per state and tonnage, in RATE_TABLE_ROW_DEFS order
 // (0~50 ... 401~450, 451 Normal base, 451 Mangalore base).
@@ -107,15 +114,31 @@ const RATE_TABLE_BASES = {
   },
 };
 
+// Mileage used to spread a diesel change over the load: 18MT trucks run 3.2 km/litre, 21MT 3.0,
+// so Price 1 paise / Price Escalation divide by 3.2 x 18 = 57.6 and 3.0 x 21 = 63 respectively.
+const RATE_TABLE_KM_PER_LITRE = { 18: 3.2, 21: 3.0 };
+
+// Contract years 4 and 5: on 1 September the Base of every row is revised by `rate` of its
+// non-fuel component and the Price Escalation reference resets to the previous month's diesel.
+//   R  = row value of the previous month (August)
+//   F  = average KM x diesel[August] / (kmPerLitre x tonnage)   (average KM = band midpoint; 1 for 451 rows)
+//   Nr = (R - F) x rate
+//   new Base = R + Nr ; afterwards the usual Base + Price Escalation x multiplier calculation continues.
+const RATE_TABLE_BASE_REVISIONS = [
+  { month: '2028-09', rate: 0.035 },
+  { month: '2029-09', rate: 0.035 },
+];
+
 const RATE_TABLES = [18, 21].flatMap((tonnage) => RATE_TABLE_STATES.map((state) => ({
   id: `${state.stateCode.toLowerCase()}-${tonnage}mt`,
   title: `Rate/KM/Ton - ${state.stateCode} (${tonnage}MT)`,
   stateCode: state.stateCode,
   startMonth: '2025-09',
   dieselState: state.dieselState,
-  baseDieselPrice: state.baseDieselPrice,
-  kmPerLitre: 3.2,
+  baseDieselMonth: RATE_TABLE_BASE_DIESEL_MONTH,
+  kmPerLitre: RATE_TABLE_KM_PER_LITRE[tonnage],
   tonnage,
+  baseRevisions: RATE_TABLE_BASE_REVISIONS,
   rows: rateTableRows(RATE_TABLE_BASES[tonnage][state.stateCode]),
 })));
 
@@ -124,6 +147,16 @@ const MANGALORE_BASE_LOADING_LOCATIONS = ['Total, Mangalore', 'AEGIS, Mangalore'
 // Weight up to this uses the 18MT rate tables; heavier loads need a 21MT table for the corporation.
 const RATE_TABLE_WEIGHT_LIMIT_18MT = 18;
 const RATE_TABLE_BAND_MAX_KM = 450;
+
+// Oil / gas company a vehicle is contracted to (chosen when the vehicle is added).
+const VEHICLE_CORPORATIONS = ['IOC', 'BPC', 'HPC', 'Total Gas', 'Super Gas'];
+// Monthly Income cut-off per vehicle corporation: a month's income includes unloadings up to this
+// day of the NEXT month (BPC: 1-5 Oct still count in September). Corporations not listed (IOC,
+// HPC, ...) use the calendar month.
+const MONTHLY_INCOME_CUTOFF_DAY = { BPC: 5 };
+// Vehicle corporations whose month is billed in two halves: 1st-15th and 16th-month end.
+const MONTHLY_INCOME_HALF_MONTH_CORPORATIONS = ['IOC', 'HPC'];
+const MONTHLY_INCOME_HALF_MONTH_DAY = 15;
 
 // Diesel entry sanity limits (keep in sync with shared/constants.js DIESEL_ENTRY_LIMITS): a fill
 // must be more than 5 litres and the price must be more than Rs 50 per litre.
@@ -139,9 +172,14 @@ module.exports = {
   DIESEL_PRICE_ROWS,
   DIESEL_PRICE_START_MONTH,
   RATE_TABLES,
+  RATE_TABLE_BASE_REVISIONS,
   MANGALORE_BASE_LOADING_LOCATIONS,
   RATE_TABLE_WEIGHT_LIMIT_18MT,
   RATE_TABLE_BAND_MAX_KM,
+  VEHICLE_CORPORATIONS,
+  MONTHLY_INCOME_CUTOFF_DAY,
+  MONTHLY_INCOME_HALF_MONTH_CORPORATIONS,
+  MONTHLY_INCOME_HALF_MONTH_DAY,
   DIESEL_MIN_LITRES,
   DIESEL_MIN_RATE_PER_LITRE,
 };

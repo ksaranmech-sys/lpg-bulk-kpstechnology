@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { EMAIL_PATTERN, emailInput } from '@kps/shared';
 import { useAuth } from '../../src/AuthContext';
 import { api, errorMessage } from '../../src/api';
 import { saveSession } from '../../src/session';
@@ -49,7 +50,6 @@ function ChangePasswordCard() {
 function RecoveryContactsCard() {
   const { user, refreshUser } = useAuth();
   const [recoveryEmail, setRecoveryEmail] = useState(user?.recoveryEmail || '');
-  const [recoveryMobile, setRecoveryMobile] = useState(user?.recoveryMobile || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -60,29 +60,29 @@ function RecoveryContactsCard() {
     setMessage('');
     setBusy(true);
     try {
-      await api.setRecoveryContact({ currentPassword, recoveryEmail: recoveryEmail.trim(), recoveryMobile: recoveryMobile.trim() });
+      await api.setRecoveryContact({ currentPassword, recoveryEmail: recoveryEmail.trim() });
       setCurrentPassword('');
-      setMessage('Recovery contacts saved.');
+      setMessage('Recovery email saved.');
       await refreshUser();
     } catch (err) {
-      setError(errorMessage(err, 'Failed to save recovery contacts'));
+      setError(errorMessage(err, 'Failed to save recovery email'));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <Card title="Password Recovery Contacts">
+    <Card title="Password Recovery Email">
       <Muted style={{ marginBottom: 12 }}>
-        If you forget your password, a reset code is emailed to this address. You will also be asked for this mobile number.
-        {!user?.recoveryEmail ? ' Not set yet - please add them now.' : ''}
+        If you forget your password, a reset link is emailed to this address.
+        {!user?.recoveryEmail ? ' Not set yet - please add it now.' : ''}
       </Muted>
-      <Field label="Recovery Email"><Input value={recoveryEmail} onChangeText={setRecoveryEmail} keyboardType="email-address" autoCapitalize="none" /></Field>
-      <Field label="Recovery Mobile Number"><Input value={recoveryMobile} onChangeText={setRecoveryMobile} keyboardType="phone-pad" placeholder="e.g. 9876543210" /></Field>
+      <Field label="Recovery Email"><Input value={recoveryEmail} onChangeText={(value) => setRecoveryEmail(emailInput(value))} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} /></Field>
+
       <Field label="Current Password (to confirm)"><Input value={currentPassword} onChangeText={setCurrentPassword} secureTextEntry /></Field>
       <ErrorText>{error}</ErrorText>
       {message ? <Muted style={{ color: colors.green700, fontWeight: '700', marginBottom: 8 }}>{message}</Muted> : null}
-      <Button title="Save recovery contacts" onPress={submit} loading={busy} disabled={!recoveryEmail || !recoveryMobile || !currentPassword} />
+      <Button title="Save recovery email" onPress={submit} loading={busy} disabled={!EMAIL_PATTERN.test(recoveryEmail.trim()) || !currentPassword} />
     </Card>
   );
 }
@@ -95,7 +95,7 @@ export default function AccountScreen() {
         <Muted>{user?.displayName || user?.name || user?.username} ({user?.role})</Muted>
       </Card>
       <ChangePasswordCard />
-      <RecoveryContactsCard />
+      {user?.role === 'super_admin' && <RecoveryContactsCard />}
     </Screen>
   );
 }

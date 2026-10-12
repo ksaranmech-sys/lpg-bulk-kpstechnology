@@ -10,6 +10,7 @@ const KEYS = {
   MOBILE_APP_URL: 'mobileAppUrl',
   DIESEL_PRICE_TABLE: 'dieselPriceTable',
   RATE_TABLE_BASES: 'rateTableBases',
+  RATE_TABLE_CELLS: 'rateTableCells',
   LEGACY_IOC_RATE_BASES: 'iocRateBases',
 };
 const LEGACY_ROUTE_KM_FILE = path.join(__dirname, '../config/routeKmTable.json');
@@ -19,6 +20,7 @@ const cache = {
   [KEYS.MOBILE_APP_URL]: process.env.MOBILE_APP_URL || '',
   [KEYS.DIESEL_PRICE_TABLE]: null,
   [KEYS.RATE_TABLE_BASES]: null,
+  [KEYS.RATE_TABLE_CELLS]: null,
 };
 
 // Pre-DB seed: the JSON file earlier versions wrote to disk, else the built-in defaults.
@@ -55,6 +57,9 @@ async function initSettings() {
   } else if (byKey[KEYS.LEGACY_IOC_RATE_BASES] && typeof byKey[KEYS.LEGACY_IOC_RATE_BASES] === 'object') {
     // Earlier versions stored only the Tamil Nadu table's bases under a single key.
     cache[KEYS.RATE_TABLE_BASES] = { 'tn-18mt': byKey[KEYS.LEGACY_IOC_RATE_BASES] };
+  }
+  if (byKey[KEYS.RATE_TABLE_CELLS] && typeof byKey[KEYS.RATE_TABLE_CELLS] === 'object') {
+    cache[KEYS.RATE_TABLE_CELLS] = byKey[KEYS.RATE_TABLE_CELLS];
   }
 }
 
@@ -102,6 +107,27 @@ async function saveRateTableBases(tableId, bases) {
   return bases;
 }
 
+// Super admin overrides for individual month cells of the rate tables:
+// { [tableId]: { [rowKey]: { [month]: number } } }. An overridden cell replaces the calculated value.
+function getRateTableCells(tableId) {
+  const all = cache[KEYS.RATE_TABLE_CELLS] || {};
+  return all[tableId] || null;
+}
+
+async function saveRateTableCells(tableId, cells) {
+  const all = { ...(cache[KEYS.RATE_TABLE_CELLS] || {}), [tableId]: cells };
+  cache[KEYS.RATE_TABLE_CELLS] = all;
+  await Setting.updateOne({ key: KEYS.RATE_TABLE_CELLS }, { value: all }, { upsert: true });
+  return cells;
+}
+
+// Drops every manual month value of every rate table ("Recalculate all"); Base overrides are kept.
+async function clearRateTableCells() {
+  cache[KEYS.RATE_TABLE_CELLS] = {};
+  await Setting.updateOne({ key: KEYS.RATE_TABLE_CELLS }, { value: {} }, { upsert: true });
+  return {};
+}
+
 module.exports = {
   initSettings,
   getRouteKmTable,
@@ -112,4 +138,7 @@ module.exports = {
   saveDieselPriceTable,
   getRateTableBases,
   saveRateTableBases,
+  getRateTableCells,
+  saveRateTableCells,
+  clearRateTableCells,
 };

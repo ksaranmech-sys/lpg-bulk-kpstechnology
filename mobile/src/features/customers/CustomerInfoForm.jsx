@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react';
+import {
+  COMPANY_NAME_PATTERN, companyNameInput, EMAIL_PATTERN, emailInput, MOBILE_NUMBER_PATTERN, mobileNumberInput,
+  USERNAME_PATTERN, USERNAME_RULE_HINT, usernameInput,
+} from '@kps/shared';
 import { api, errorMessage } from '../../api';
 import { Button, Card, ErrorText, Field, Input } from '../../ui';
 
 const EMPTY = {
   companyName: '', email: '', mobileNumber: '', address: '',
-  adminUsername: '', adminPassword: '', adminName: '', adminMobileNumber: '',
+  adminUsername: '', adminPassword: '',
 };
 
 // Port of the web CustomerInfoForm (super_admin only): PATCH /customers/:id.
@@ -24,8 +28,6 @@ export default function CustomerInfoForm({ customerId, data, setData }) {
       address: data.customer?.address || '',
       adminUsername: adminUser?.username || '',
       adminPassword: '',
-      adminName: adminUser?.name || '',
-      adminMobileNumber: adminUser?.mobileNumber || '',
     });
     setChanged(false);
   }, [data]);
@@ -46,8 +48,6 @@ export default function CustomerInfoForm({ customerId, data, setData }) {
         address: form.address,
         adminUsername: form.adminUsername,
         adminPassword: form.adminPassword || undefined,
-        adminName: form.adminName,
-        adminMobileNumber: form.adminMobileNumber,
       });
       setData((current) => ({
         ...current,
@@ -62,20 +62,19 @@ export default function CustomerInfoForm({ customerId, data, setData }) {
     }
   }
 
-  const valid = form.companyName && form.email && form.mobileNumber && form.adminUsername;
+  const valid = COMPANY_NAME_PATTERN.test(form.companyName.trim()) && EMAIL_PATTERN.test(form.email.trim())
+    && MOBILE_NUMBER_PATTERN.test(form.mobileNumber) && USERNAME_PATTERN.test(form.adminUsername);
 
   return (
     <Card title="Edit Customer Details">
-      <Field label="Company Name"><Input value={form.companyName} onChangeText={update('companyName')} /></Field>
-      <Field label="Email Address"><Input value={form.email} onChangeText={update('email')} keyboardType="email-address" autoCapitalize="none" /></Field>
-      <Field label="Phone Number"><Input value={form.mobileNumber} onChangeText={update('mobileNumber')} keyboardType="phone-pad" /></Field>
+      <Field label="Company Name" hint="Letters and spaces only"><Input value={form.companyName} onChangeText={(value) => update('companyName')(companyNameInput(value))} autoCapitalize="words" maxLength={150} /></Field>
+      <Field label="Email Address" hint="Must be a valid email address with @ and no spaces"><Input value={form.email} onChangeText={(value) => update('email')(emailInput(value))} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} /></Field>
+      <Field label="Phone Number" hint="Exactly 10 digits"><Input value={form.mobileNumber} onChangeText={(value) => update('mobileNumber')(mobileNumberInput(value))} keyboardType="number-pad" maxLength={10} /></Field>
       <Field label="Address"><Input value={form.address} onChangeText={update('address')} /></Field>
-      <Field label="Admin Username"><Input value={form.adminUsername} onChangeText={update('adminUsername')} autoCapitalize="none" autoCorrect={false} /></Field>
+      <Field label="Admin Username" hint={USERNAME_RULE_HINT}><Input value={form.adminUsername} onChangeText={(value) => update('adminUsername')(usernameInput(value))} autoCapitalize="none" autoCorrect={false} maxLength={50} /></Field>
       <Field label="Admin Password">
         <Input value={form.adminPassword} onChangeText={update('adminPassword')} secureTextEntry autoCapitalize="none" placeholder="Leave blank to keep current password" />
       </Field>
-      <Field label="Admin Name"><Input value={form.adminName} onChangeText={update('adminName')} autoCapitalize="words" /></Field>
-      <Field label="Admin Mobile Number"><Input value={form.adminMobileNumber} onChangeText={update('adminMobileNumber')} keyboardType="phone-pad" /></Field>
       <ErrorText>{error}</ErrorText>
       {changed && <Button title="Save Changes" onPress={save} loading={saving} disabled={!valid} />}
     </Card>

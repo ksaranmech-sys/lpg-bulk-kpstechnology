@@ -1,4 +1,5 @@
 import React from 'react';
+import { driverNameInput, mobileNumberInput, USERNAME_HTML_PATTERN, USERNAME_RULE_HINT, usernameInput } from '@kps/shared';
 
 export default function AddDriverForm({ driverForm, setDriverForm, vehicles, driverError, driverSaving, onSubmit }) {
   return (
@@ -8,11 +9,11 @@ export default function AddDriverForm({ driverForm, setDriverForm, vehicles, dri
         <div className="grid-2">
           <div className="field">
             <label>Driver Name</label>
-            <input value={driverForm.name} onChange={(e) => setDriverForm({ ...driverForm, name: e.target.value })} required />
+            <input pattern="[A-Za-z0-9 ]+" title="Use letters, numbers, and spaces only" value={driverForm.name} onChange={(e) => setDriverForm({ ...driverForm, name: driverNameInput(e.target.value) })} required />
           </div>
           <div className="field">
             <label>Mobile Number</label>
-            <input value={driverForm.mobileNumber} onChange={(e) => setDriverForm({ ...driverForm, mobileNumber: e.target.value })} required />
+            <input inputMode="numeric" pattern="\d{10}" maxLength={10} title="Enter exactly 10 digits" value={driverForm.mobileNumber} onChange={(e) => setDriverForm({ ...driverForm, mobileNumber: mobileNumberInput(e.target.value) })} required />
           </div>
         </div>
         <div className="grid-2">
@@ -30,8 +31,10 @@ export default function AddDriverForm({ driverForm, setDriverForm, vehicles, dri
             <label>Login Username</label>
             <input
               autoComplete="off"
+              pattern={USERNAME_HTML_PATTERN}
+              title={`Use ${USERNAME_RULE_HINT}`}
               value={driverForm.username}
-              onChange={(e) => setDriverForm({ ...driverForm, username: e.target.value })}
+              onChange={(e) => setDriverForm({ ...driverForm, username: usernameInput(e.target.value) })}
               required
             />
           </div>
@@ -82,7 +85,7 @@ export default function AddDriverForm({ driverForm, setDriverForm, vehicles, dri
           <div className="grid-2">
             <div className="field">
               <label>Temporary Driver Name</label>
-              <input value={driverForm.temporaryDriverName} onChange={(e) => setDriverForm({ ...driverForm, temporaryDriverName: e.target.value })} required />
+              <input pattern="[A-Za-z0-9 ]+" title="Use letters, numbers, and spaces only" value={driverForm.temporaryDriverName} onChange={(e) => setDriverForm({ ...driverForm, temporaryDriverName: driverNameInput(e.target.value) })} required />
             </div>
             <div className="field">
               <label>Joining Date</label>

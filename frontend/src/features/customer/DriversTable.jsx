@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { EMPTY_DRIVER_FORM } from '@kps/shared';
+import { driverNameInput, EMPTY_DRIVER_FORM, mobileNumberInput } from '@kps/shared';
 import * as api from '../../api/api';
 import AddDriverModal from './AddDriverModal';
 import CustomerDriverEditForm from './CustomerDriverEditForm';
@@ -210,10 +210,12 @@ export default function DriversTable({ customerId, data, setData }) {
                       ...current,
                       [String(driver.id || driver._id)]: {
                         ...current[String(driver.id || driver._id)],
-                        name: event.target.value,
+                        name: driverNameInput(event.target.value),
                       },
                     }))}
                     aria-label="Driver name"
+                    pattern="[A-Za-z0-9 ]+"
+                    title="Use letters, numbers, and spaces only"
                   />
                   <input
                     value={driverDrafts[String(driver.id || driver._id)]?.mobileNumber || ''}
@@ -221,10 +223,13 @@ export default function DriversTable({ customerId, data, setData }) {
                       ...current,
                       [String(driver.id || driver._id)]: {
                         ...current[String(driver.id || driver._id)],
-                        mobileNumber: event.target.value,
+                        mobileNumber: mobileNumberInput(event.target.value),
                       },
                     }))}
                     aria-label="Driver mobile number"
+                    inputMode="numeric"
+                    pattern="\d{10}"
+                    maxLength={10}
                   />
                 </div>
               ) : (

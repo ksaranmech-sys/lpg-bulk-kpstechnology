@@ -120,6 +120,17 @@ input, select, textarea {
 
 input, select, textarea { border-color: var(--border); }
 
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
 input:focus, select:focus, textarea:focus { border-color: var(--green-500); box-shadow: 0 0 0 3px rgba(39, 155, 145, 0.14); }
 
 label { font-size: 12px; font-weight: 700; color: var(--green-900); display: block; margin-bottom: 5px; letter-spacing: 0.02em; }
@@ -251,7 +262,7 @@ tbody tr:hover { background: #f7fbfa; }
 .diesel-price-table td input { width: 100%; min-width: 0; padding: 4px 6px; font-size: 13px; text-align: right; }
 .diesel-price-note { font-size: 12px; color: #5b6b78; margin: 10px 0 0; line-height: 1.5; }
 
-/* Rate/KM/Ton - TN (18MT): second sticky column for Base; price rows separated from KM bands. */
+/* Rate/KM/Ton tables: second sticky column for "Tender base rate"; price rows separated from KM bands. */
 .ioc-rate-table .ioc-rate-base-col { left: 150px; text-align: right; }
 .ioc-rate-table tbody .ioc-rate-base-col { background: var(--surface); font-weight: 600; color: var(--green-900); }
 .ioc-rate-table tbody tr:hover .ioc-rate-base-col { background: #f7fbfa; }
@@ -260,7 +271,11 @@ tbody tr:hover { background: #f7fbfa; }
 .ioc-rate-table .ioc-rate-price-row th { background: #f3f7f9; }
 .ioc-rate-table .ioc-rate-price-row:last-of-type td { border-bottom: 2px solid var(--border); }
 .ioc-rate-table td.ioc-rate-carried { color: #7b8794; }
+.ioc-rate-table td.ioc-rate-overridden { color: #1d4ed8; font-weight: 600; }
+.ioc-rate-table td.ioc-rate-revised { background: #fff4de; color: #9a5b00; font-weight: 600; }
+.ioc-rate-table .ioc-rate-revised-base { font-size: 11px; font-weight: 500; color: #9a5b00; white-space: nowrap; }
 .ioc-rate-table td input { text-align: right; }
+.ioc-rate-table td.ioc-rate-overridden input { color: #1d4ed8; font-weight: 600; }
 
 .badge {
   display: inline-block;

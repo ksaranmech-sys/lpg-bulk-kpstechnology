@@ -1,4 +1,5 @@
 const { body, param, validationResult } = require('express-validator');
+const { VEHICLE_CORPORATIONS } = require('../config/constants');
 
 // Runs the given express-validator chains and turns the first failure into a 400 JSON error,
 // matching the { error: '...' } shape the rest of the API uses.
@@ -19,7 +20,38 @@ const optionalString = (field, max = 200) => body(field).optional({ values: 'fal
 const optionalNumber = (field) => body(field).optional({ values: 'null' }).isFloat({ min: 0 }).withMessage(`${field} must be a positive number`);
 const optionalDate = (field) => body(field).optional({ values: 'falsy' }).isISO8601().withMessage(`${field} must be a valid date`);
 const password = (field = 'password') => body(field).isString().isLength({ min: 6, max: 128 }).withMessage(`${field} must be 6-128 characters`);
-const username = (field = 'username') => body(field).isString().trim().toLowerCase().isLength({ min: 3, max: 50 }).matches(/^[a-z0-9._@-]+$/).withMessage(`${field} must be 3-50 characters (letters, numbers, . _ @ -)`);
+const username = (field = 'username', optional = false) => {
+  const chain = optional ? body(field).optional({ values: 'falsy' }) : body(field);
+  return chain.isString().trim().toLowerCase().matches(/^[a-z0-9-]{3,50}$/).withMessage(`${field} must be 3-50 letters, numbers and hyphens only`);
+};
+const driverName = (field = 'name', optional = false) => {
+  const chain = optional ? body(field).optional({ values: 'falsy' }) : body(field);
+  return chain.isString().trim().matches(/^[A-Za-z0-9 ]+$/).withMessage(`${field} must contain only letters, numbers, and spaces`).isLength({ max: 100 }).withMessage(`${field} is too long`);
+};
+const mobileNumber = (field, optional = false) => {
+  const chain = optional ? body(field).optional({ values: 'falsy' }) : body(field);
+  return chain.isString().trim().matches(/^\d{10}$/).withMessage(`${field} must contain exactly 10 digits`);
+};
+const companyName = (field = 'companyName', optional = false) => {
+  const chain = optional ? body(field).optional({ values: 'falsy' }) : body(field);
+  return chain.isString().trim().notEmpty().withMessage(`${field} is required`)
+    .matches(/^[A-Za-z ]+$/).withMessage(`${field} must contain only letters and spaces`)
+    .isLength({ max: 150 }).withMessage(`${field} is too long`);
+};
+const email = (field = 'email', optional = false) => {
+  const chain = optional ? body(field).optional({ values: 'falsy' }) : body(field);
+  return chain.isString().trim().not().matches(/\s/).withMessage(`${field} must not contain spaces`)
+    .isEmail().withMessage(`${field} must be a valid email address`);
+};
+const vehicleNumber = (field = 'vehicleNumber') => body(field)
+  .isString()
+  .trim()
+  .notEmpty()
+  .withMessage(`${field} is required`)
+  .matches(/^[A-Za-z]{2}/)
+  .withMessage(`${field} must start with 2 letters`)
+  .isLength({ max: 20 })
+  .withMessage(`${field} is too long`);
 
 const rules = {
   login: validate([
@@ -39,48 +71,45 @@ const rules = {
   ]),
   recoveryContact: validate([
     body('currentPassword').isString().notEmpty().withMessage('currentPassword is required'),
-    body('recoveryEmail').isEmail().withMessage('recoveryEmail must be a valid email address').trim(),
-    body('recoveryMobile').isString().trim().matches(/^\+?[\d\s-]{10,15}$/).withMessage('recoveryMobile must be a valid mobile number'),
+    email('recoveryEmail'),
   ]),
   forgotPassword: validate([
     body('username').isString().trim().notEmpty().withMessage('username is required').isLength({ max: 100 }),
-    body('recoveryMobile').isString().trim().notEmpty().withMessage('recoveryMobile is required').isLength({ max: 20 }),
+    email('recoveryEmail'),
   ]),
-  resetPasswordWithCode: validate([
-    body('username').isString().trim().notEmpty().withMessage('username is required').isLength({ max: 100 }),
-    body('code').isString().trim().matches(/^\d{6}$/).withMessage('code must be the 6-digit number from the email'),
+  resetPasswordWithToken: validate([
+    body('token').isString().trim().matches(/^[a-f0-9]{64}$/).withMessage('token is not a valid reset link'),
     password('newPassword'),
   ]),
   createCustomer: validate([
-    body('companyName').isString().trim().notEmpty().withMessage('companyName is required').isLength({ max: 150 }),
-    body('mobileNumber').isString().trim().notEmpty().withMessage('mobileNumber is required').isLength({ max: 20 }),
-    body('email').isEmail().withMessage('email must be a valid email address').trim(),
+    companyName('companyName'),
+    mobileNumber('mobileNumber'),
+    email('email'),
     optionalString('address', 500),
     username('adminUsername'),
     password('adminPassword'),
   ]),
   updateCustomer: validate([
     objectId('customerId'),
-    optionalString('companyName', 150),
-    optionalString('mobileNumber', 20),
-    body('email').optional({ values: 'falsy' }).isEmail().withMessage('email must be a valid email address'),
+    companyName('companyName', true),
+    mobileNumber('mobileNumber', true),
+    email('email', true),
     optionalString('address', 500),
-    body('adminUsername').optional({ values: 'falsy' }).isString().trim().isLength({ min: 3, max: 50 }),
+    username('adminUsername', true),
     body('adminPassword').optional({ values: 'falsy' }).isString().isLength({ min: 6, max: 128 }).withMessage('adminPassword must be 6-128 characters'),
-    optionalString('adminName', 100),
-    optionalString('adminMobileNumber', 20),
   ]),
   customerId: validate([objectId('customerId')]),
   addVehicle: validate([
     objectId('customerId'),
-    body('vehicleNumber').isString().trim().notEmpty().withMessage('vehicleNumber is required').isLength({ max: 20 }),
+    vehicleNumber(),
+    body('corporation').isIn(VEHICLE_CORPORATIONS).withMessage(`corporation must be one of ${VEHICLE_CORPORATIONS.join(', ')}`),
   ]),
   createVehicleUser: validate([
     objectId('customerId'),
     username(),
     password(),
-    optionalString('name', 100),
-    optionalString('mobileNumber', 20),
+    driverName('name', true),
+    mobileNumber('mobileNumber', true),
     optionalDate('joiningDate'),
     optionalDate('resigningDate'),
     body('vehicleId').optional({ values: 'falsy' }).isMongoId().withMessage('vehicleId is not a valid id'),
@@ -91,10 +120,10 @@ const rules = {
   updateVehicleUser: validate([
     objectId('customerId'),
     objectId('userId'),
-    body('username').optional({ values: 'falsy' }).isString().trim().isLength({ min: 3, max: 50 }),
+    username('username', true),
     body('password').optional({ values: 'falsy' }).isString().isLength({ min: 6, max: 128 }).withMessage('password must be 6-128 characters'),
-    optionalString('name', 100),
-    optionalString('mobileNumber', 20),
+    driverName('name', true),
+    mobileNumber('mobileNumber', true),
     optionalDate('joiningDate'),
     optionalDate('resigningDate'),
     body('vehicleId').optional({ values: 'falsy' }).isMongoId().withMessage('vehicleId is not a valid id'),
@@ -118,7 +147,7 @@ const rules = {
   createVehicleExpense: validate([
     body('vehicleId').isMongoId().withMessage('vehicleId is not a valid id'),
     body('category').isString().trim().isLength({ min: 1, max: 100 }).withMessage('category is required'),
-    body('amount').isFloat({ min: 0 }).withMessage('amount must be a positive number'),
+    body('amount').isInt({ min: 0 }).withMessage('amount must be a whole number (no decimals)'),
     body('date').isISO8601().withMessage('date must be a valid date'),
     optionalString('note', 500),
   ]),
@@ -126,7 +155,7 @@ const rules = {
     objectId('expenseId'),
     body('vehicleId').optional({ values: 'falsy' }).isMongoId().withMessage('vehicleId is not a valid id'),
     body('category').optional().isString().trim().isLength({ min: 1, max: 100 }).withMessage('category is required'),
-    optionalNumber('amount'),
+    body('amount').optional({ values: 'null' }).isInt({ min: 0 }).withMessage('amount must be a whole number (no decimals)'),
     optionalDate('date'),
     optionalString('note', 500),
   ]),

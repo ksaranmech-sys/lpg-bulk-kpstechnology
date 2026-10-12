@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
+import { emailInput } from '@kps/shared';
 import { Link } from 'react-router-dom';
 import * as api from '../api/api';
 import { saveSession } from '../api/session';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 
-// Where "Forgot password" codes are sent. Saving requires the current password.
+// Where "Forgot password" reset links are sent. Saving requires the current password.
+// Only super admins self-recover; customer admins and drivers are reset by their administrator.
 function RecoveryContactsForm() {
   const { user, refreshUser } = useAuth();
   const [recoveryEmail, setRecoveryEmail] = useState(user?.recoveryEmail || '');
-  const [recoveryMobile, setRecoveryMobile] = useState(user?.recoveryMobile || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
+
 
   async function submit(e) {
     e.preventDefault();
@@ -21,46 +23,45 @@ function RecoveryContactsForm() {
     setMessage('');
     setBusy(true);
     try {
-      await api.setRecoveryContact({ currentPassword, recoveryEmail: recoveryEmail.trim(), recoveryMobile: recoveryMobile.trim() });
+      await api.setRecoveryContact({ currentPassword, recoveryEmail: recoveryEmail.trim() });
       setCurrentPassword('');
-      setMessage('Recovery contacts saved.');
+      setMessage('Recovery email saved.');
       if (refreshUser) refreshUser();
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to save recovery contacts');
+      setError(err.response?.data?.error || 'Failed to save recovery email');
     } finally {
       setBusy(false);
     }
   }
 
+
   return (
     <>
-      <h2 className="section-title" style={{ marginTop: 24 }}>Password Recovery Contacts</h2>
+      <h2 className="section-title" style={{ marginTop: 24 }}>Password Recovery Email</h2>
       <p style={{ color: '#666', fontSize: 13, marginTop: -4 }}>
-        If you forget your password, a reset code is emailed to this address. You will also be asked for this mobile number.
-        {!user?.recoveryEmail && <strong style={{ color: 'var(--danger)' }}> Not set yet - please add them now.</strong>}
+        If you forget your password, a reset link is emailed to this address.
+        {!user?.recoveryEmail && <strong style={{ color: 'var(--danger)' }}> Not set yet - please add it now.</strong>}
       </p>
       <form className="card" onSubmit={submit} style={{ maxWidth: 420 }}>
         <div className="field">
           <label>Recovery Email</label>
-          <input type="email" value={recoveryEmail} onChange={(e) => setRecoveryEmail(e.target.value)} required />
+          <input type="email" autoComplete="email" value={recoveryEmail} onChange={(e) => setRecoveryEmail(emailInput(e.target.value))} required />
         </div>
-        <div className="field">
-          <label>Recovery Mobile Number</label>
-          <input inputMode="tel" value={recoveryMobile} onChange={(e) => setRecoveryMobile(e.target.value)} placeholder="e.g. 9876543210" required />
-        </div>
+
         <div className="field">
           <label>Current Password (to confirm)</label>
           <input type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
         </div>
         {error && <div className="error-text">{error}</div>}
         {message && <div style={{ color: 'var(--green-700)', fontWeight: 700, marginBottom: 8 }}>{message}</div>}
-        <button className="btn" disabled={busy}>{busy ? 'Saving...' : 'Save recovery contacts'}</button>
+        <button className="btn" disabled={busy}>{busy ? 'Saving...' : 'Save recovery email'}</button>
       </form>
     </>
   );
 }
 
 export default function ChangePassword() {
+  const { user } = useAuth();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -114,7 +115,7 @@ export default function ChangePassword() {
         {message && <div style={{ color: 'var(--green-700)', fontWeight: 700, marginBottom: 8 }}>{message}</div>}
         <button className="btn" disabled={busy}>{busy ? 'Saving...' : 'Change password'}</button>
       </form>
-      <RecoveryContactsForm />
+      {user?.role === 'super_admin' && <RecoveryContactsForm />}
     </Layout>
   );
 }

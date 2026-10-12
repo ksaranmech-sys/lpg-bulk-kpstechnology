@@ -61,7 +61,7 @@ export default function AdvanceSection({ trip, reload, locked, onAdded = reload 
       {advances.map((advance, index) => (
         editingIndex === index ? (
           <EditBox key={index}>
-            <Field label="Amount (Rs)"><NumberInput value={editAmount} onChangeText={setEditAmount} /></Field>
+            <Field label="Amount (Rs)"><NumberInput value={editAmount} onChangeText={setEditAmount} keyboardType="number-pad" /></Field>
             <DateField label="Date" value={editDate} onChange={setEditDate} min={minDate} max={maxDate} />
             <ButtonRow>
               <Button title="Save" onPress={() => saveEdit(index)} loading={busy} style={{ flex: 1 }} />
@@ -76,7 +76,7 @@ export default function AdvanceSection({ trip, reload, locked, onAdded = reload 
       ))}
       {!locked && (
         <View style={{ marginTop: advances.length ? spacing.md : 0 }}>
-          <Field label="Amount (Rs)"><NumberInput value={amount} onChangeText={setAmount} /></Field>
+          <Field label="Amount (Rs)"><NumberInput value={amount} onChangeText={setAmount} keyboardType="number-pad" /></Field>
           <DateField label="Date" value={date} onChange={setDate} min={minDate} max={maxDate} />
           <Button title="Add" onPress={submit} loading={busy} disabled={!amount} />
         </View>

@@ -8,6 +8,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "seed": "node src/utils/seed.js",
+    "mail:check": "node src/utils/mailCheck.js",
     "test": "node --test \"test/**/*.test.js\""
   },
   "dependencies": {

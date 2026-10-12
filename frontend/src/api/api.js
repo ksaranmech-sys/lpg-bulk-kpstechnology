@@ -57,10 +57,10 @@ export const createVehicleExpense = async (data, file) => client.createVehicleEx
 export const updateVehicleExpense = async (expenseId, data, file) => client.updateVehicleExpense(expenseId, data, await compressPhoto(file));
 
 export const {
-  login, logout, getMe, changePassword, setRecoveryContact, forgotPassword, resetPasswordWithCode,
+  login, logout, getMe, changePassword, setRecoveryContact, forgotPassword, resetPasswordWithToken,
   getMeta, updateRouteKmTable, updateMobileAppUrl,
   getDieselPriceTable, updateDieselPriceTable, syncDieselPriceTable,
-  listRateTables, getRateTable, updateRateTableBases,
+  listRateTables, getRateTable, updateRateTableBases, updateRateTableCells, recalculateRateTables,
   listVehicles, getVehicle, updateVehicle, deleteVehicle, updateVehicleReminderDates, sendVehicleReminder,
   listTripsForVehicle, createTrip, getTrip, deleteTrip,
   addAdvance, updateAdvance, deleteAdvance,

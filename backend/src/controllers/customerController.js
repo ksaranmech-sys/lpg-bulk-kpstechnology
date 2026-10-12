@@ -4,7 +4,7 @@ const User = require('../models/User');
 const Vehicle = require('../models/Vehicle');
 const Trip = require('../models/Trip');
 const VehicleExpense = require('../models/VehicleExpense');
-const { ROLES } = require('../config/constants');
+const { ROLES, VEHICLE_CORPORATIONS } = require('../config/constants');
 const { pickCurrentDriver } = require('../utils/driverAssignment');
 
 // POST /api/v1/customers   (super_admin only - onboards a new customer/subgroup)
@@ -20,6 +20,7 @@ async function createCustomer(req, res) {
   const adminUser = new User({
     username: adminUsername,
     name: `${companyName} Admin`,
+    mobileNumber,
     role: ROLES.CUSTOMER_ADMIN,
     customer: customer._id,
   });
@@ -69,6 +70,8 @@ async function getCustomer(req, res) {
 }
 
 // PATCH /api/v1/customers/:customerId (super_admin only)
+// The customer admin's name and mobile number are derived from the customer record,
+// so there are no separate adminName / adminMobileNumber fields.
 async function updateCustomer(req, res) {
   const { customerId } = req.params;
   const {
@@ -79,8 +82,6 @@ async function updateCustomer(req, res) {
     isActive,
     adminUsername,
     adminPassword,
-    adminName,
-    adminMobileNumber,
   } = req.body;
 
   const customer = await Customer.findById(customerId);
@@ -101,8 +102,8 @@ async function updateCustomer(req, res) {
       }
       adminUser.username = adminUsername.trim().toLowerCase();
     }
-    if (adminName) adminUser.name = adminName.trim();
-    if (adminMobileNumber) adminUser.mobileNumber = adminMobileNumber.trim();
+    if (companyName) adminUser.name = `${customer.companyName} Admin`;
+    if (mobileNumber) adminUser.mobileNumber = customer.mobileNumber;
     if (adminPassword) await adminUser.setPassword(adminPassword);
     await adminUser.save();
   }
@@ -147,15 +148,19 @@ async function deleteCustomer(req, res) {
 }
 
 // POST /api/v1/customers/:customerId/vehicles  (customer_admin, or super_admin)
-// body: { vehicleNumber }
+// body: { vehicleNumber, corporation }
 async function addVehicle(req, res) {
   const { customerId } = req.params;
-  const { vehicleNumber } = req.body;
+  const { vehicleNumber, corporation } = req.body;
   if (!vehicleNumber) return res.status(400).json({ error: 'vehicleNumber is required' });
+  if (!VEHICLE_CORPORATIONS.includes(corporation)) {
+    return res.status(400).json({ error: `corporation must be one of ${VEHICLE_CORPORATIONS.join(', ')}` });
+  }
 
   const vehicle = await Vehicle.create({
     customer: customerId,
     vehicleNumber: String(vehicleNumber).trim().toUpperCase(),
+    corporation,
   });
 
   res.status(201).json({ vehicle });

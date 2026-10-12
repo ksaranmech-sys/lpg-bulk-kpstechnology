@@ -227,9 +227,11 @@ export default function DieselPriceTable({ user }) {
                 {months.map((month) => {
                   const cell = cellFor(state, month);
                   const isManual = cell?.source === 'manual';
+                  const isBase = cell?.source === 'base';
                   const isFallback = !isManual && cell?.fallback === true;
                   let title = 'No data yet';
                   if (isManual) title = 'Entered manually - kept when prices refresh';
+                  else if (isBase) title = `Base diesel price for ${state} - the Price Escalation reference of the Rate/KM/Ton tables (edit to override)`;
                   else if (isFallback) title = `No ${city || 'city'} price available this month - ${state} state-level price used`;
                   else if (cell) title = `Average of ${city || state} daily diesel prices`;
                   const className = isManual ? 'diesel-price-manual' : isFallback ? 'diesel-price-fallback' : '';
@@ -274,7 +276,8 @@ export default function DieselPriceTable({ user }) {
         column is added automatically on the 1st of every month
         {lastSyncedAt ? ` (last refreshed ${lastSyncedAt})` : ''}. Scroll left for older months.
         Months with no published data can be entered manually; manual values are highlighted and kept on refresh -
-        clear a cell to let it auto-fill again.
+        clear a cell to let it auto-fill again. The first column ({months.length ? formatMonthLabel(months[0]) : 'Dec-24'}) holds
+        each state&apos;s base diesel price, the Price Escalation reference of the Rate/KM/Ton tables.
       </p>
     </div>
   );

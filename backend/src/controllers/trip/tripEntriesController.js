@@ -15,11 +15,15 @@ const {
 async function addAdvance(req, res) {
   const trip = await getOpenTripOr404(req, res);
   if (!trip) return;
+  const amount = Number(req.body.amount);
+  if (!Number.isInteger(amount) || amount < 0) {
+    return res.status(400).json({ error: 'amount must be a non-negative whole number' });
+  }
   const date = req.body.date ? new Date(req.body.date) : new Date();
   if (Number.isNaN(date.getTime())) return res.status(400).json({ error: 'date must be a valid date' });
   const dateError = await validateEntryDate(trip, date, 'Advance');
   if (dateError) return res.status(400).json({ error: dateError });
-  trip.driverAdvances.push({ amount: req.body.amount, date });
+  trip.driverAdvances.push({ amount, date });
   await trip.save();
   res.status(201).json({ trip });
 
@@ -37,8 +41,8 @@ async function updateAdvance(req, res) {
     return res.status(404).json({ error: 'Driver advance not found' });
   }
   const amount = Number(req.body.amount);
-  if (!Number.isFinite(amount) || amount < 0) {
-    return res.status(400).json({ error: 'amount must be a non-negative number' });
+  if (!Number.isInteger(amount) || amount < 0) {
+    return res.status(400).json({ error: 'amount must be a non-negative whole number' });
   }
   advance.amount = amount;
   if (req.body.date) {

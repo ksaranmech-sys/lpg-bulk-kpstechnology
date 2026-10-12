@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   login, refresh, logout, me, resetUserPassword, changePassword,
-  setRecoveryContact, forgotPassword, resetPasswordWithCode,
+  setRecoveryContact, forgotPassword, resetPasswordWithToken,
 } = require('../controllers/authController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { rules } = require('../middleware/validate');
@@ -17,7 +17,7 @@ router.post('/change-password', requireAuth, rules.changePassword, changePasswor
 router.post('/recovery-contact', requireAuth, rules.recoveryContact, setRecoveryContact);
 // Public, rate-limited like login: username + recovery mobile -> emailed code -> new password.
 router.post('/forgot-password', loginLimiter, rules.forgotPassword, forgotPassword);
-router.post('/reset-password-with-code', loginLimiter, rules.resetPasswordWithCode, resetPasswordWithCode);
+router.post('/reset-password-with-token', loginLimiter, rules.resetPasswordWithToken, resetPasswordWithToken);
 router.post('/reset-password', requireAuth, requireRole(ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN), rules.resetPassword, resetUserPassword);
 
 module.exports = router;

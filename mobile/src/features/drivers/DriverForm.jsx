@@ -1,5 +1,15 @@
 import React from 'react';
-import { EMPTY_DRIVER_FORM, toDateInputValue } from '@kps/shared';
+import {
+  DRIVER_NAME_PATTERN,
+  driverNameInput,
+  EMPTY_DRIVER_FORM,
+  MOBILE_NUMBER_PATTERN,
+  mobileNumberInput,
+  toDateInputValue,
+  USERNAME_PATTERN,
+  USERNAME_RULE_HINT,
+  usernameInput,
+} from '@kps/shared';
 import { Button, Checkbox, DateField, ErrorText, Field, Input, NumberInput, Select } from '../../ui';
 import { ButtonRow } from '../../trip/common';
 import { spacing } from '../../theme';
@@ -58,10 +68,10 @@ export function buildUpdatePayload(form) {
 
 // Mirrors the web `required` attributes so the submit button only enables on a valid form.
 export function isDriverFormValid(form, mode) {
-  if (!form.name || !form.mobileNumber || !form.username) return false;
+  if (!DRIVER_NAME_PATTERN.test(form.name.trim()) || !MOBILE_NUMBER_PATTERN.test(form.mobileNumber) || !USERNAME_PATTERN.test(form.username)) return false;
   if (mode === 'create' && !form.password) return false;
   if (mode === 'edit' && (form.basicSalary === '' || form.kmCharges === '')) return false;
-  if (form.temporaryDriverRequired && (!form.temporaryDriverName || !form.temporaryDriverJoiningDate)) return false;
+  if (form.temporaryDriverRequired && (!DRIVER_NAME_PATTERN.test(form.temporaryDriverName.trim()) || !form.temporaryDriverJoiningDate)) return false;
   return true;
 }
 
@@ -73,12 +83,12 @@ export default function DriverForm({ form, setForm, vehicles, mode, error, savin
 
   return (
     <>
-      <Field label="Driver Name"><Input value={form.name} onChangeText={set('name')} autoCapitalize="words" /></Field>
-      <Field label="Mobile Number"><Input value={form.mobileNumber} onChangeText={set('mobileNumber')} keyboardType="phone-pad" /></Field>
+      <Field label="Driver Name" hint="Letters, numbers, and spaces only"><Input value={form.name} onChangeText={(value) => set('name')(driverNameInput(value))} autoCapitalize="words" /></Field>
+      <Field label="Mobile Number" hint="Exactly 10 digits"><Input value={form.mobileNumber} onChangeText={(value) => set('mobileNumber')(mobileNumberInput(value))} keyboardType="number-pad" maxLength={10} /></Field>
       <DateField label="Joining Date" value={form.joiningDate} onChange={set('joiningDate')} />
       <DateField label="Resigning Date" value={form.resigningDate} onChange={set('resigningDate')} />
-      <Field label="Login Username">
-        <Input value={form.username} onChangeText={set('username')} autoCapitalize="none" autoCorrect={false} />
+      <Field label="Login Username" hint={USERNAME_RULE_HINT}>
+        <Input value={form.username} onChangeText={(value) => set('username')(usernameInput(value))} autoCapitalize="none" autoCorrect={false} maxLength={50} />
       </Field>
       <Field label="Login Password">
         <Input
@@ -102,8 +112,8 @@ export default function DriverForm({ form, setForm, vehicles, mode, error, savin
       <Checkbox label="Temporary Driver" checked={form.temporaryDriverRequired} onChange={set('temporaryDriverRequired')} />
       {form.temporaryDriverRequired && (
         <>
-          <Field label="Temporary Driver Name">
-            <Input value={form.temporaryDriverName} onChangeText={set('temporaryDriverName')} autoCapitalize="words" />
+          <Field label="Temporary Driver Name" hint="Letters, numbers, and spaces only">
+            <Input value={form.temporaryDriverName} onChangeText={(value) => set('temporaryDriverName')(driverNameInput(value))} autoCapitalize="words" />
           </Field>
           <DateField label="Joining Date" value={form.temporaryDriverJoiningDate} onChange={set('temporaryDriverJoiningDate')} />
           <DateField

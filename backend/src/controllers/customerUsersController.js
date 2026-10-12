@@ -17,6 +17,9 @@ function parseTemporaryDriver(temporaryDriver) {
 
   const name = String(temporaryDriver?.name || '').trim();
   if (!name) return { error: 'Temporary driver name is required' };
+  if (!/^[A-Za-z0-9 ]+$/.test(name)) {
+    return { error: 'Temporary driver name must contain only letters, numbers, and spaces' };
+  }
 
   const joiningDate = new Date(temporaryDriver?.joiningDate);
   if (!temporaryDriver?.joiningDate || Number.isNaN(joiningDate.getTime())) {
@@ -171,8 +174,20 @@ async function bulkUpdateVehicleUsers(req, res) {
     });
     if (!user) return res.status(404).json({ error: 'Driver user not found' });
 
-    if (update.name !== undefined) user.name = String(update.name).trim();
-    if (update.mobileNumber !== undefined) user.mobileNumber = String(update.mobileNumber).trim();
+    if (update.name !== undefined) {
+      const name = String(update.name).trim();
+      if (!/^[A-Za-z0-9 ]+$/.test(name)) {
+        return res.status(400).json({ error: 'name must contain only letters, numbers, and spaces' });
+      }
+      user.name = name;
+    }
+    if (update.mobileNumber !== undefined) {
+      const mobileNumber = String(update.mobileNumber).trim();
+      if (!/^\d{10}$/.test(mobileNumber)) {
+        return res.status(400).json({ error: 'mobileNumber must contain exactly 10 digits' });
+      }
+      user.mobileNumber = mobileNumber;
+    }
     await user.save();
     updatedUsers.push(user.toSafeJSON());
   }

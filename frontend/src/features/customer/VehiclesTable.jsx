@@ -1,8 +1,22 @@
 import React, { useState } from 'react';
+import { VEHICLE_CORPORATIONS } from '@kps/shared';
 import * as api from '../../api/api';
 
+const EMPTY_VEHICLE_FORM = { vehicleNumber: '', corporation: '' };
+
+function CorporationSelect({ value, onChange, required, ariaLabel }) {
+  return (
+    <select value={value || ''} onChange={(e) => onChange(e.target.value)} required={required} aria-label={ariaLabel}>
+      <option value="">Select corporation...</option>
+      {VEHICLE_CORPORATIONS.map((corporation) => (
+        <option key={corporation} value={corporation}>{corporation}</option>
+      ))}
+    </select>
+  );
+}
+
 export default function VehiclesTable({ customerId, data, setData, user, vehicleExpenses = [] }) {
-  const [vehicleForm, setVehicleForm] = useState({ vehicleNumber: '' });
+  const [vehicleForm, setVehicleForm] = useState(EMPTY_VEHICLE_FORM);
   const [vehicleError, setVehicleError] = useState('');
   const [vehicleSaving, setVehicleSaving] = useState(false);
   const [vehicleEditError, setVehicleEditError] = useState('');
@@ -16,9 +30,9 @@ export default function VehiclesTable({ customerId, data, setData, user, vehicle
     setVehicleError('');
     setVehicleSaving(true);
     try {
-      const res = await api.addVehicleToCustomer(customerId, { vehicleNumber: vehicleForm.vehicleNumber });
+      const res = await api.addVehicleToCustomer(customerId, { vehicleNumber: vehicleForm.vehicleNumber, corporation: vehicleForm.corporation });
       setData((current) => ({ ...current, vehicles: [...current.vehicles, res.data.vehicle].sort((a, b) => a.vehicleNumber.localeCompare(b.vehicleNumber)) }));
-      setVehicleForm({ vehicleNumber: '' });
+      setVehicleForm(EMPTY_VEHICLE_FORM);
     } catch (err) {
       setVehicleError(err.response?.data?.error || 'Failed to add vehicle');
     } finally {
@@ -31,18 +45,24 @@ export default function VehiclesTable({ customerId, data, setData, user, vehicle
     setVehicleDrafts(Object.fromEntries(
       data.vehicles
         .filter((vehicle) => selectedVehicles.includes(vehicle._id))
-        .map((vehicle) => [vehicle._id, vehicle.vehicleNumber || ''])
+        .map((vehicle) => [vehicle._id, { vehicleNumber: vehicle.vehicleNumber || '', corporation: vehicle.corporation || '' }])
     ));
     setVehicleBulkEditMode(true);
   }
 
   async function saveSelectedVehicles() {
     if (!selectedVehicles.length) return;
+    const missingCorporation = selectedVehicles.find((vehicleId) => !vehicleDrafts[vehicleId]?.corporation);
+    if (missingCorporation) {
+      setVehicleEditError('Select a corporation for every selected vehicle.');
+      return;
+    }
     setVehicleBulkSaving(true);
     setVehicleEditError('');
     try {
       const updatedVehicles = await Promise.all(selectedVehicles.map(async (vehicleId) => {
-        const res = await api.updateVehicle(vehicleId, { vehicleNumber: vehicleDrafts[vehicleId] });
+        const draft = vehicleDrafts[vehicleId];
+        const res = await api.updateVehicle(vehicleId, { vehicleNumber: draft.vehicleNumber, corporation: draft.corporation });
         return res.data.vehicle;
       }));
       const updatedById = Object.fromEntries(updatedVehicles.map((vehicle) => [vehicle._id, vehicle]));
@@ -101,8 +121,19 @@ export default function VehiclesTable({ customerId, data, setData, user, vehicle
               <label>Vehicle Number</label>
               <input
                 value={vehicleForm.vehicleNumber}
-                onChange={(e) => setVehicleForm({ ...vehicleForm, vehicleNumber: e.target.value })}
+                onChange={(e) => setVehicleForm({ ...vehicleForm, vehicleNumber: e.target.value.toUpperCase() })}
+                pattern="[A-Za-z]{2}.*"
+                title="Vehicle number must start with 2 letters"
                 required
+              />
+            </div>
+            <div className="field" style={{ flex: 1, minWidth: 180, marginBottom: 0 }}>
+              <label>Corporation</label>
+              <CorporationSelect
+                value={vehicleForm.corporation}
+                onChange={(corporation) => setVehicleForm({ ...vehicleForm, corporation })}
+                required
+                ariaLabel="Corporation"
               />
             </div>
             <button className="btn" disabled={vehicleSaving} style={{ marginBottom: 0 }}>
@@ -113,7 +144,7 @@ export default function VehiclesTable({ customerId, data, setData, user, vehicle
         </div>
       )}
 
-      <h3 className="section-title" style={{ marginTop: 24 }}>Vehicle Number | Driver Name</h3>
+      <h3 className="section-title" style={{ marginTop: 24 }}>Vehicle Number | Corporation | Driver Name</h3>
       {!data && <p>Loading customer details...</p>}
       {data?.vehicles.length === 0 && <p>No vehicles found.</p>}
       <div style={{ maxHeight: 300, overflowY: 'auto' }}>
@@ -131,17 +162,27 @@ export default function VehiclesTable({ customerId, data, setData, user, vehicle
               style={{ width: 'auto' }}
             />
             {vehicleBulkEditMode && selectedVehicles.includes(vehicle._id) ? (
-              <div style={{ display: 'flex', flex: 1 }}>
+              <div style={{ display: 'flex', flex: 1, gap: 8, flexWrap: 'wrap' }}>
                   <input
-                    value={vehicleDrafts[vehicle._id] || ''}
-                    onChange={(e) => setVehicleDrafts((current) => ({ ...current, [vehicle._id]: e.target.value }))}
+                    value={vehicleDrafts[vehicle._id]?.vehicleNumber || ''}
+                    onChange={(e) => setVehicleDrafts((current) => ({ ...current, [vehicle._id]: { ...current[vehicle._id], vehicleNumber: e.target.value.toUpperCase() } }))}
                     placeholder="Vehicle number"
+                    pattern="[A-Za-z]{2}.*"
+                    title="Vehicle number must start with 2 letters"
                     required
+                    style={{ flex: 2, minWidth: 160 }}
                   />
+                  <div style={{ flex: 1, minWidth: 160 }}>
+                    <CorporationSelect
+                      value={vehicleDrafts[vehicle._id]?.corporation}
+                      onChange={(corporation) => setVehicleDrafts((current) => ({ ...current, [vehicle._id]: { ...current[vehicle._id], corporation } }))}
+                      ariaLabel={`Corporation for ${vehicle.vehicleNumber}`}
+                    />
+                  </div>
               </div>
             ) : (
               <div style={{ flex: 1, color: 'inherit' }}>
-                <strong>{vehicle.vehicleNumber} | {vehicle.driverName || 'Not assigned'}</strong>
+                <strong>{vehicle.vehicleNumber} | {vehicle.corporation || 'No corporation'} | {vehicle.driverName || 'Not assigned'}</strong>
                 <div style={{ fontSize: 12, color: '#666' }}>
                   Expenses {currentYear}: Rs {Math.round(yearExpenseByVehicle[String(vehicle._id)] || 0).toLocaleString('en-IN')}
                 </div>

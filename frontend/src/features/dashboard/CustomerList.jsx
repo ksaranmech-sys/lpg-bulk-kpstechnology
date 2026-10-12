@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { companyNameInput, emailInput, mobileNumberInput } from '@kps/shared';
 import * as api from '../../api/api';
 
 export default function CustomerList({ user, customers, setCustomers }) {
@@ -121,23 +122,28 @@ export default function CustomerList({ user, customers, setCustomers }) {
                 value={customerDrafts[customer._id]?.companyName || ''}
                 onChange={(event) => setCustomerDrafts((current) => ({
                   ...current,
-                  [customer._id]: { ...current[customer._id], companyName: event.target.value },
+                  [customer._id]: { ...current[customer._id], companyName: companyNameInput(event.target.value) },
                 }))}
                 aria-label="Company name"
+                title="Use letters and spaces only"
               />
               <input
+                type="email"
                 value={customerDrafts[customer._id]?.email || ''}
                 onChange={(event) => setCustomerDrafts((current) => ({
                   ...current,
-                  [customer._id]: { ...current[customer._id], email: event.target.value },
+                  [customer._id]: { ...current[customer._id], email: emailInput(event.target.value) },
                 }))}
                 aria-label="Customer email"
+                title="Enter a valid email address (must contain @, no spaces)"
               />
               <input
+                inputMode="numeric"
+                maxLength={10}
                 value={customerDrafts[customer._id]?.mobileNumber || ''}
                 onChange={(event) => setCustomerDrafts((current) => ({
                   ...current,
-                  [customer._id]: { ...current[customer._id], mobileNumber: event.target.value },
+                  [customer._id]: { ...current[customer._id], mobileNumber: mobileNumberInput(event.target.value) },
                 }))}
                 aria-label="Customer mobile number"
               />

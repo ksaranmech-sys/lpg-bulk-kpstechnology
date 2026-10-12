@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { companyNameInput, emailInput, mobileNumberInput, USERNAME_HTML_PATTERN, USERNAME_RULE_HINT, usernameInput } from '@kps/shared';
 import * as api from '../../api/api';
 
 export default function CustomerInfoForm({ customerId, data, setData }) {
@@ -9,8 +10,6 @@ export default function CustomerInfoForm({ customerId, data, setData }) {
     address: '',
     adminUsername: '',
     adminPassword: '',
-    adminName: '',
-    adminMobileNumber: '',
   });
   const [customerEditError, setCustomerEditError] = useState('');
   const [customerEditSaving, setCustomerEditSaving] = useState(false);
@@ -26,8 +25,6 @@ export default function CustomerInfoForm({ customerId, data, setData }) {
       address: data.customer?.address || '',
       adminUsername: adminUser?.username || '',
       adminPassword: '',
-      adminName: adminUser?.name || '',
-      adminMobileNumber: adminUser?.mobileNumber || '',
     });
     setCustomerEditChanged(false);
   }, [data]);
@@ -49,8 +46,6 @@ export default function CustomerInfoForm({ customerId, data, setData }) {
         address: customerEditForm.address,
         adminUsername: customerEditForm.adminUsername,
         adminPassword: customerEditForm.adminPassword || undefined,
-        adminName: customerEditForm.adminName,
-        adminMobileNumber: customerEditForm.adminMobileNumber,
       };
       const res = await api.updateCustomer(customerId, payload);
       setData((current) => ({
@@ -73,17 +68,17 @@ export default function CustomerInfoForm({ customerId, data, setData }) {
         <div className="grid-2">
           <div className="field">
             <label>Company Name</label>
-            <input value={customerEditForm.companyName} onChange={(e) => updateCustomerEditField('companyName', e.target.value)} required />
+            <input pattern="[A-Za-z ]*[A-Za-z][A-Za-z ]*" title="Use letters and spaces only" value={customerEditForm.companyName} onChange={(e) => updateCustomerEditField('companyName', companyNameInput(e.target.value))} required />
           </div>
           <div className="field">
             <label>Email Address</label>
-            <input type="email" value={customerEditForm.email} onChange={(e) => updateCustomerEditField('email', e.target.value)} required />
+            <input type="email" title="Enter a valid email address (must contain @, no spaces)" value={customerEditForm.email} onChange={(e) => updateCustomerEditField('email', emailInput(e.target.value))} required />
           </div>
         </div>
         <div className="grid-2">
           <div className="field">
             <label>Phone Number</label>
-            <input value={customerEditForm.mobileNumber} onChange={(e) => updateCustomerEditField('mobileNumber', e.target.value)} required />
+            <input inputMode="numeric" pattern="\d{10}" maxLength={10} title="Enter exactly 10 digits" value={customerEditForm.mobileNumber} onChange={(e) => updateCustomerEditField('mobileNumber', mobileNumberInput(e.target.value))} required />
           </div>
           <div className="field">
             <label>Address</label>
@@ -93,21 +88,11 @@ export default function CustomerInfoForm({ customerId, data, setData }) {
         <div className="grid-2">
           <div className="field">
             <label>Admin Username</label>
-            <input autoComplete="off" value={customerEditForm.adminUsername} onChange={(e) => updateCustomerEditField('adminUsername', e.target.value)} required />
+            <input autoComplete="off" pattern={USERNAME_HTML_PATTERN} title={`Use ${USERNAME_RULE_HINT}`} value={customerEditForm.adminUsername} onChange={(e) => updateCustomerEditField('adminUsername', usernameInput(e.target.value))} required />
           </div>
           <div className="field">
             <label>Admin Password</label>
             <input type="password" autoComplete="new-password" value={customerEditForm.adminPassword} onChange={(e) => updateCustomerEditField('adminPassword', e.target.value)} placeholder="Leave blank to keep current password" />
-          </div>
-        </div>
-        <div className="grid-2">
-          <div className="field">
-            <label>Admin Name</label>
-            <input value={customerEditForm.adminName} onChange={(e) => updateCustomerEditField('adminName', e.target.value)} />
-          </div>
-          <div className="field">
-            <label>Admin Mobile Number</label>
-            <input value={customerEditForm.adminMobileNumber} onChange={(e) => updateCustomerEditField('adminMobileNumber', e.target.value)} />
           </div>
         </div>
         {customerEditError && <div className="error-text">{customerEditError}</div>}

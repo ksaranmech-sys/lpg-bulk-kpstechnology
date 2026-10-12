@@ -81,8 +81,8 @@ export function createEndpoints(api) {
     getMe: () => api.get('/auth/me'),
     changePassword: (currentPassword, newPassword) => api.post('/auth/change-password', { currentPassword, newPassword }),
     setRecoveryContact: (data) => api.post('/auth/recovery-contact', data),
-    forgotPassword: (username, recoveryMobile) => api.post('/auth/forgot-password', { username, recoveryMobile }),
-    resetPasswordWithCode: (username, code, newPassword) => api.post('/auth/reset-password-with-code', { username, code, newPassword }),
+    forgotPassword: (username, recoveryEmail) => api.post('/auth/forgot-password', { username, recoveryEmail }),
+    resetPasswordWithToken: (token, newPassword) => api.post('/auth/reset-password-with-token', { token, newPassword }),
 
     // ---- Meta ----
     getMeta: () => api.get('/meta'),
@@ -99,6 +99,10 @@ export function createEndpoints(api) {
     listRateTables: () => api.get('/rate-tables'),
     getRateTable: (tableId) => api.get(`/rate-tables/${tableId}`),
     updateRateTableBases: (tableId, bases) => api.put(`/rate-tables/${tableId}/bases`, { bases }),
+    // cells: { [rowKey]: { [month]: number | null } } - null clears a manual month value.
+    updateRateTableCells: (tableId, cells) => api.put(`/rate-tables/${tableId}/cells`, { cells }),
+    // Clears every manual month value in every table (Base edits kept); returns the recalculated list.
+    recalculateRateTables: () => api.post('/rate-tables/recalculate'),
 
     // ---- Vehicles ----
     listVehicles: (customerId) => api.get('/vehicles', { params: customerId ? { customerId } : {} }),

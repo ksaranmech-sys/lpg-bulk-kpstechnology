@@ -3,7 +3,7 @@ const User = require('../models/User');
 const Customer = require('../models/Customer');
 const Trip = require('../models/Trip');
 const VehicleExpense = require('../models/VehicleExpense');
-const { ROLES } = require('../config/constants');
+const { ROLES, VEHICLE_CORPORATIONS } = require('../config/constants');
 const { sendVehicleReminderEmail } = require('../utils/mailer');
 const { pickCurrentDriver } = require('../utils/driverAssignment');
 
@@ -97,14 +97,24 @@ async function getVehicle(req, res) {
 
 async function updateVehicle(req, res) {
   const { vehicleId } = req.params;
-  const { vehicleNumber, customerId, isActive } = req.body || {};
+  const { vehicleNumber, customerId, isActive, corporation } = req.body || {};
 
   const vehicle = await Vehicle.findById(vehicleId);
   if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
 
+  if (corporation !== undefined) {
+    if (!VEHICLE_CORPORATIONS.includes(corporation)) {
+      return res.status(400).json({ error: `corporation must be one of ${VEHICLE_CORPORATIONS.join(', ')}` });
+    }
+    vehicle.corporation = corporation;
+  }
+
   if (vehicleNumber !== undefined) {
     const trimmed = String(vehicleNumber).trim();
     if (!trimmed) return res.status(400).json({ error: 'vehicleNumber is required' });
+    if (!/^[A-Za-z]{2}/.test(trimmed)) {
+      return res.status(400).json({ error: 'vehicleNumber must start with 2 letters' });
+    }
 
     const normalized = trimmed.toUpperCase();
     const existing = await Vehicle.findOne({ _id: { $ne: vehicleId }, customer: vehicle.customer, vehicleNumber: normalized });

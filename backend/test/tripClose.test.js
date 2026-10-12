@@ -78,7 +78,7 @@ test('authController exposes login, refresh, logout and password reset', () => {
   assert.equal(typeof authController.changePassword, 'function');
   assert.equal(typeof authController.setRecoveryContact, 'function');
   assert.equal(typeof authController.forgotPassword, 'function');
-  assert.equal(typeof authController.resetPasswordWithCode, 'function');
+  assert.equal(typeof authController.resetPasswordWithToken, 'function');
   assert.equal(authController.resetAllAdminPasswords, undefined);
 });
 

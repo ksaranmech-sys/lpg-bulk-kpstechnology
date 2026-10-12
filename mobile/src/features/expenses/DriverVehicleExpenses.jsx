@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { VEHICLE_EXPENSE_CATEGORIES, currentMonth, formatDate, formatMonthLabel, monthKey, toDateInputValue } from '@kps/shared';
+import { VEHICLE_EXPENSE_CATEGORIES, currentMonth, formatDate, formatMonthLabel, monthKey, toDateInputValue, wholeNumberInput } from '@kps/shared';
 import { api, errorMessage } from '../../api';
 import { confirm } from '../../confirm';
 import { Button, Card, DateField, Field, Input, Loading, Muted, NumberInput, Row, Select } from '../../ui';
@@ -20,8 +20,8 @@ function ExpenseFields({ form, setForm }) {
         options={VEHICLE_EXPENSE_CATEGORIES}
         placeholder="Select or enter expense type"
       />
-      <Field label="Amount (Rs)">
-        <NumberInput value={form.amount} onChangeText={(amount) => setForm({ ...form, amount })} />
+      <Field label="Amount (Rs)" hint="Whole number, no decimals">
+        <NumberInput value={form.amount} onChangeText={(amount) => setForm({ ...form, amount: wholeNumberInput(amount) })} keyboardType="number-pad" />
       </Field>
       <DateField label="Date" value={form.date} onChange={(date) => setForm({ ...form, date })} />
       <Field label="Note (optional)">
@@ -94,7 +94,7 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
     setEditId(expense._id);
     setEditForm({
       category: expense.category || '',
-      amount: String(expense.amount ?? ''),
+      amount: expense.amount == null ? '' : String(Math.round(Number(expense.amount))),
       date: toDateInputValue(expense.date) || '',
       note: expense.note || '',
     });

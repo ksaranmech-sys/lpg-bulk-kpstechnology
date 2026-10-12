@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { VEHICLE_EXPENSE_CATEGORIES, currentMonth, formatMonthLabel, monthKey } from '@kps/shared';
+import { VEHICLE_EXPENSE_CATEGORIES, currentMonth, formatMonthLabel, monthKey, wholeNumberInput } from '@kps/shared';
 import * as api from '../../api/api';
 import ComboBoxInput from '../../components/ComboBoxInput';
 
@@ -89,7 +89,7 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
     setEditId(expense._id);
     setEditForm({
       category: expense.category || '',
-      amount: String(expense.amount ?? ''),
+      amount: expense.amount == null ? '' : String(Math.round(Number(expense.amount))),
       date: toInputDate(expense.date),
       note: expense.note || '',
       photo: null,
@@ -151,7 +151,7 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
           </div>
           <div className="field">
             <label>Amount (Rs)</label>
-            <input type="number" min="0" step="0.01" value={state.amount} onChange={(e) => setState({ ...state, amount: e.target.value })} required />
+            <input type="text" inputMode="numeric" pattern="\d+" title="Enter a whole number (no decimals)" value={state.amount} onChange={(e) => setState({ ...state, amount: wholeNumberInput(e.target.value) })} required />
           </div>
         </div>
         <div className="grid-2">

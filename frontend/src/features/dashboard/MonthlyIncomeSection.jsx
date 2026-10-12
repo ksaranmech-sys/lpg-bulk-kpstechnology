@@ -7,6 +7,14 @@ const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR
 const formatMoney = (value) => (Number.isFinite(value) ? money.format(value) : 'NA');
 const percent = (rate) => `${Math.round(rate * 100)}%`;
 
+// "BPC up to the 5th of the next month; others the calendar month"
+function cutoffText(cutoffDays) {
+  const entries = Object.entries(cutoffDays || {}).filter(([, day]) => day > 0);
+  if (!entries.length) return 'all corporations use the calendar month';
+  const ordinal = (n) => { const s = ['th', 'st', 'nd', 'rd']; const v = n % 100; return `${n}${s[(v - 20) % 10] || s[v] || s[0]}`; };
+  return `${entries.map(([corp, day]) => `${corp} vehicles up to the ${ordinal(day)} of the next month`).join(', ')}; other corporations (IOC, HPC, ...) the calendar month`;
+}
+
 // The two months admins see without opening the archive: last month and the month before it.
 function recentMonths(today = new Date()) {
   const last = previousMonth(today);
@@ -18,14 +26,16 @@ const cell = { padding: '8px 10px', border: '1px solid #1f4d2b', verticalAlign: 
 const right = { ...cell, textAlign: 'right' };
 const head = { ...cell, textAlign: 'left', fontSize: 12 };
 
-function IncomeTable({ group, rates }) {
+// One state's table inside a vehicle-corporation block (e.g. IOC > TN routes).
+function IncomeTable({ vehicleCorporation, group, rates }) {
   const { rows, totals } = group;
+  const routeNote = group.corporations?.length ? ` (${group.corporations.join(', ')} routes)` : '';
   return (
-    <div className="income-group" style={{ marginTop: 16 }} data-testid={`income-group-${group.corporation}`}>
-      <h4 style={{ margin: '0 0 8px', fontSize: 14 }}>
-        {group.corporation}
+    <div className="income-group" style={{ marginTop: 12 }} data-testid={`income-group-${vehicleCorporation}-${group.state}`}>
+      <h6 style={{ margin: '0 0 6px', fontSize: 13 }}>
+        {group.state}{routeNote}
         <span style={{ fontWeight: 400, color: '#4b5f52', fontSize: 12 }}> - {totals.trips} unloading{totals.trips === 1 ? '' : 's'}</span>
-      </h4>
+      </h6>
       <div style={{ overflowX: 'auto' }}>
         <table className="trip-km-table" style={{ width: '100%', minWidth: 1000, borderCollapse: 'collapse', tableLayout: 'auto' }}>
           <thead>
@@ -57,7 +67,10 @@ function IncomeTable({ group, rates }) {
                 <td className="num" style={right}>{row.sNo}</td>
                 <td style={{ ...cell, fontWeight: 600 }}>
                   <Link to={`/trips/${row.tripId}`}>{row.vehicleNumber || '-'}</Link>
-                  {row.status !== 'closed' && <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>{row.status === 'open' ? 'Open' : 'Closing'}</div>}
+                  <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>
+                    {row.vehicleCorporation || 'No corporation'}
+                    {row.status !== 'closed' && ` - ${row.status === 'open' ? 'Open' : 'Closing'}`}
+                  </div>
                 </td>
                 <td style={cell}>{row.loadingLocation || '-'}</td>
                 <td style={cell}>
@@ -79,7 +92,7 @@ function IncomeTable({ group, rates }) {
             ))}
             <tr>
               <td style={{ ...right, fontWeight: 700 }} colSpan={6}>
-                Total
+                Total {group.state}
                 {totals.pricedTrips < totals.trips && (
                   <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>{totals.trips - totals.pricedTrips} unloading(s) without income not included</div>
                 )}
@@ -92,6 +105,79 @@ function IncomeTable({ group, rates }) {
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+function TotalsRow({ label, sub, totals, strong = false }) {
+  return (
+    <tr>
+      <td style={{ ...cell, fontWeight: 700 }}>
+        {label}
+        {sub && <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>{sub}</div>}
+      </td>
+      <td className="num" style={{ ...right, fontWeight: 700 }}>Trip Income {formatMoney(totals.tripIncome)}</td>
+      <td className="num" style={{ ...right, fontWeight: 700 }}>TDS {formatMoney(totals.tds)}</td>
+      <td className="num" style={{ ...right, fontWeight: 700 }}>Diesel {formatMoney(totals.diesel)}</td>
+      <td className="num" style={{ ...right, fontWeight: strong ? 800 : 700 }}>Amount {formatMoney(totals.amount)}</td>
+    </tr>
+  );
+}
+
+function TotalsTable({ label, sub, totals, strong }) {
+  return (
+    <div style={{ marginTop: 10, overflowX: 'auto' }}>
+      <table className="trip-km-table" style={{ width: '100%', minWidth: 600, borderCollapse: 'collapse', tableLayout: 'auto' }}>
+        <tbody>
+          <TotalsRow label={label} sub={sub} totals={totals} strong={strong} />
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// One billing period of a vehicle corporation: IOC / HPC have "1 - 15" and "16 - 30" blocks,
+// everyone else a single block covering the whole (cut-off adjusted) month.
+function PeriodBlock({ group, period, rates, monthLabel }) {
+  const title = `${group.vehicleCorporation} - ${period.label} ${monthLabel}`;
+  return (
+    <div
+      className="income-period"
+      style={{ marginTop: 12, padding: '10px 12px', border: '1px solid #c9d8cc', borderRadius: 8, background: '#fbfdfb' }}
+      data-testid={`income-period-${group.vehicleCorporation}-${period.key}`}
+    >
+      <h5 style={{ margin: 0, fontSize: 14 }}>
+        {title}
+        <span style={{ fontWeight: 400, color: '#4b5f52', fontSize: 12 }}> - {period.totals.trips} unloading{period.totals.trips === 1 ? '' : 's'}</span>
+      </h5>
+      {period.states.length === 0 && <p style={{ margin: '8px 0 0', fontSize: 13, color: '#4b5f52' }}>No unloadings in this period.</p>}
+      {period.states.map((state) => (
+        <IncomeTable key={state.state} vehicleCorporation={`${group.vehicleCorporation}-${period.key}`} group={state} rates={rates} />
+      ))}
+      {period.states.length > 1 && (
+        <TotalsTable label={`Total ${title}`} sub={`${period.totals.pricedTrips} of ${period.totals.trips} unloadings priced`} totals={period.totals} />
+      )}
+    </div>
+  );
+}
+
+// Main split: one block per vehicle corporation (IOC, BPC, HPC, ...), then per billing period,
+// then a table per route state.
+function CorporationBlock({ group, rates, monthLabel }) {
+  const cutoff = group.cutoffDay > 0 ? `cut-off: up to the ${group.cutoffDay}th of the next month` : 'cut-off: calendar month';
+  const billing = group.halfMonth ? 'billed per half month' : 'billed once a month';
+  return (
+    <div className="income-corporation" style={{ marginTop: 20 }} data-testid={`income-corporation-${group.vehicleCorporation}`}>
+      <h4 style={{ margin: '0 0 4px', fontSize: 15, paddingBottom: 4, borderBottom: '2px solid #1f4d2b' }}>
+        {group.vehicleCorporation}
+        <span style={{ fontWeight: 400, color: '#4b5f52', fontSize: 12 }}> - {group.totals.trips} unloading{group.totals.trips === 1 ? '' : 's'} - {billing} - {cutoff}</span>
+      </h4>
+      {group.periods.map((period) => (
+        <PeriodBlock key={period.key} group={group} period={period} rates={rates} monthLabel={monthLabel} />
+      ))}
+      {group.periods.length > 1 && (
+        <TotalsTable label={`Total ${group.vehicleCorporation} - ${monthLabel}`} sub={`${group.totals.pricedTrips} of ${group.totals.trips} unloadings priced`} totals={group.totals} />
+      )}
     </div>
   );
 }
@@ -188,10 +274,18 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
             print-color-adjust: exact;
           }
           .monthly-income-print-area h4 {
-            font-size: 10pt !important;
+            font-size: 10.5pt !important;
             margin: 8pt 0 3pt !important;
             page-break-after: avoid;
           }
+          .monthly-income-print-area h5 {
+            font-size: 9.5pt !important;
+            margin: 6pt 0 2pt !important;
+            page-break-after: avoid;
+          }
+          .monthly-income-print-area .income-corporation { page-break-inside: auto; }
+          .monthly-income-print-area .income-period { page-break-inside: avoid; border-color: #1f4d2b !important; background: #fff !important; }
+          .monthly-income-print-area h6 { font-size: 9pt !important; margin: 4pt 0 2pt !important; page-break-after: avoid; }
           .monthly-income-print-area div { overflow: visible !important; }
           .monthly-income-print-area .income-group { margin-top: 6pt !important; page-break-inside: avoid; }
           .monthly-income-print-area table {
@@ -238,8 +332,11 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
         Diesel = (Trip Income - TDS) x {percent(income?.rates?.diesel ?? 0.4)}, Amount = (Trip Income - TDS) x {percent(income?.rates?.amount ?? 0.6)}
       </p>
       <p className="no-print" style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
-        Income for all vehicles unloaded in {formatMonthLabel(month)}, grouped by corporation - a trip counts in the
+        Income for all vehicles unloaded in {formatMonthLabel(month)}, split by the vehicle&apos;s corporation (IOC, BPC, HPC, ...)
+        - IOC and HPC in two periods (1-15 and 16-month end), the rest once - and then by the route&apos;s state from the
+        KM table (TN, KA, TS, PY, ...) - a trip counts in the
         month of its Unloading date; a diverted trip&apos;s new unloading counts in the month of its Divert date.
+        {' '}Cut-off follows the vehicle&apos;s corporation: {cutoffText(income?.cutoffDays)}.
         Last month&apos;s income is shown in the current month; older months are available under archived income.
       </p>
 
@@ -249,22 +346,13 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
         <p>No unloadings in {formatMonthLabel(month)}.</p>
       )}
       {!loading && !error && income && income.groups.map((group) => (
-        <IncomeTable key={group.corporation} group={group} rates={income.rates} />
+        <CorporationBlock key={group.vehicleCorporation} group={group} rates={income.rates} monthLabel={formatMonthLabel(month)} />
       ))}
       {!loading && !error && income && income.groups.length > 1 && (
-        <div style={{ marginTop: 16, overflowX: 'auto' }}>
+        <div style={{ marginTop: 20, overflowX: 'auto' }}>
           <table className="trip-km-table" style={{ width: '100%', minWidth: 600, borderCollapse: 'collapse', tableLayout: 'auto' }}>
             <tbody>
-              <tr>
-                <td style={{ ...cell, fontWeight: 700 }}>
-                  Total - all corporations
-                  <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>{income.totals.pricedTrips} of {income.totals.trips} unloadings priced</div>
-                </td>
-                <td className="num" style={{ ...right, fontWeight: 700 }}>Trip Income {formatMoney(income.totals.tripIncome)}</td>
-                <td className="num" style={{ ...right, fontWeight: 700 }}>TDS {formatMoney(income.totals.tds)}</td>
-                <td className="num" style={{ ...right, fontWeight: 700 }}>Diesel {formatMoney(income.totals.diesel)}</td>
-                <td className="num" style={{ ...right, fontWeight: 700 }}>Amount {formatMoney(income.totals.amount)}</td>
-              </tr>
+              <TotalsRow label="Total - all corporations" sub={`${income.totals.pricedTrips} of ${income.totals.trips} unloadings priced`} totals={income.totals} strong />
             </tbody>
           </table>
         </div>

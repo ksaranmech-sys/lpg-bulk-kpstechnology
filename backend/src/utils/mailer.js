@@ -54,15 +54,18 @@ async function sendVehicleReminderEmail({ vehicleNumber, documentLabel, expiryDa
   return sendEmail({ to, cc, subject, html });
 }
 
-async function sendPasswordResetCodeEmail({ to, name, code, minutesValid }) {
-  const subject = 'KPS Fleet password reset code';
+async function sendPasswordResetLinkEmail({ to, name, resetUrl, minutesValid }) {
+  const subject = 'KPS Fleet password reset link';
   const html = `
     <p>Hello ${name || ''},</p>
-    <p>Your password reset code is:</p>
-    <p style="font-size:28px;font-weight:bold;letter-spacing:6px">${code}</p>
-    <p>It is valid for ${minutesValid} minutes. If you did not request a reset, ignore this email - your password has not changed.</p>
+    <p>We received a request to reset your KPS Fleet password. Click the button below to choose a new password:</p>
+    <p style="margin:24px 0">
+      <a href="${resetUrl}" style="background:#0f766e;color:#fff;padding:12px 20px;border-radius:6px;text-decoration:none;font-weight:bold">Reset password</a>
+    </p>
+    <p>If the button does not work, copy this link into your browser:<br><a href="${resetUrl}">${resetUrl}</a></p>
+    <p>The link is valid for ${minutesValid} minutes and can be used once. If you did not request a reset, ignore this email - your password has not changed.</p>
   `;
   return sendEmail({ to, subject, html });
 }
 
-module.exports = { sendTripSettlementEmail, sendVehicleReminderEmail, sendPasswordResetCodeEmail };
+module.exports = { sendTripSettlementEmail, sendVehicleReminderEmail, sendPasswordResetLinkEmail };

@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { VEHICLE_CORPORATIONS } = require('../config/constants');
 
 const reminderDocumentSchema = new mongoose.Schema(
   {
@@ -12,6 +13,8 @@ const vehicleSchema = new mongoose.Schema(
   {
     customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true, index: true },
     vehicleNumber: { type: String, required: true, trim: true, uppercase: true },
+    // Contracting corporation; null for vehicles added before the field existed.
+    corporation: { type: String, enum: [...VEHICLE_CORPORATIONS, null], default: null },
     isActive: { type: Boolean, default: true },
     // Running odometer cache, updated whenever a new diesel entry is recorded,
     // so the UI can show "last known KM" without recomputing from trip history.
