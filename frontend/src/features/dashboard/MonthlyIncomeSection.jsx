@@ -15,11 +15,13 @@ function cutoffText(cutoffDays) {
   return `${entries.map(([corp, day]) => `${corp} vehicles up to the ${ordinal(day)} of the next month`).join(', ')}; other corporations (IOC, HPC, ...) the calendar month`;
 }
 
-// The two months admins see without opening the archive: last month and the month before it.
+// The three most recent completed months admins can open directly without the archive.
 function recentMonths(today = new Date()) {
   const last = previousMonth(today);
   const [year, month] = last.split('-').map(Number);
-  return [last, previousMonth(new Date(year, month - 1, 1))];
+  const beforeLast = previousMonth(new Date(year, month - 1, 1));
+  const [beforeYear, beforeMonth] = beforeLast.split('-').map(Number);
+  return [last, beforeLast, previousMonth(new Date(beforeYear, beforeMonth - 1, 1))];
 }
 
 const cell = { padding: '8px 10px', border: '1px solid #1f4d2b', verticalAlign: 'top' };
@@ -48,6 +50,14 @@ function IncomeTable({ vehicleCorporation, group, rates }) {
               <th style={head}>Unloading date</th>
               <th style={{ ...right, fontSize: 12 }}>Trip Income</th>
               <th style={{ ...right, fontSize: 12 }}>
+                Shortage
+                {Number.isFinite(rates.shortagePerKg) && (
+                  <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>
+                    Loss above 40 Kg x {formatMoney(rates.shortagePerKg)}/Kg
+                  </div>
+                )}
+              </th>
+              <th style={{ ...right, fontSize: 12 }}>
                 TDS
                 <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>Trip Income x {percent(rates.tds)}</div>
               </th>
@@ -57,7 +67,9 @@ function IncomeTable({ vehicleCorporation, group, rates }) {
               </th>
               <th style={{ ...right, fontSize: 12 }}>
                 Amount
-                <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>(Trip Income - TDS) x {percent(rates.amount)}</div>
+                <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>
+                  ((Trip Income - TDS) x {percent(rates.amount)}) - Shortage
+                </div>
               </th>
             </tr>
           </thead>
@@ -85,6 +97,7 @@ function IncomeTable({ vehicleCorporation, group, rates }) {
                     <div style={{ fontWeight: 400, fontSize: 11, color: '#8a5a00', textAlign: 'left', whiteSpace: 'normal' }}>{row.notes[0]}</div>
                   )}
                 </td>
+                <td className="num" style={right}>{formatMoney(row.shortage)}</td>
                 <td className="num" style={right}>{formatMoney(row.tds)}</td>
                 <td className="num" style={right}>{formatMoney(row.diesel)}</td>
                 <td className="num" style={right}>{formatMoney(row.amount)}</td>
@@ -98,6 +111,7 @@ function IncomeTable({ vehicleCorporation, group, rates }) {
                 )}
               </td>
               <td className="num" style={{ ...right, fontWeight: 700 }}>{formatMoney(totals.tripIncome)}</td>
+              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatMoney(totals.shortage)}</td>
               <td className="num" style={{ ...right, fontWeight: 700 }}>{formatMoney(totals.tds)}</td>
               <td className="num" style={{ ...right, fontWeight: 700 }}>{formatMoney(totals.diesel)}</td>
               <td className="num" style={{ ...right, fontWeight: 700 }}>{formatMoney(totals.amount)}</td>
@@ -117,6 +131,7 @@ function TotalsRow({ label, sub, totals, strong = false }) {
         {sub && <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>{sub}</div>}
       </td>
       <td className="num" style={{ ...right, fontWeight: 700 }}>Trip Income {formatMoney(totals.tripIncome)}</td>
+      <td className="num" style={{ ...right, fontWeight: 700 }}>Shortage {formatMoney(totals.shortage)}</td>
       <td className="num" style={{ ...right, fontWeight: 700 }}>TDS {formatMoney(totals.tds)}</td>
       <td className="num" style={{ ...right, fontWeight: 700 }}>Diesel {formatMoney(totals.diesel)}</td>
       <td className="num" style={{ ...right, fontWeight: strong ? 800 : 700 }}>Amount {formatMoney(totals.amount)}</td>
@@ -127,7 +142,7 @@ function TotalsRow({ label, sub, totals, strong = false }) {
 function TotalsTable({ label, sub, totals, strong }) {
   return (
     <div style={{ marginTop: 10, overflowX: 'auto' }}>
-      <table className="trip-km-table" style={{ width: '100%', minWidth: 600, borderCollapse: 'collapse', tableLayout: 'auto' }}>
+      <table className="trip-km-table" style={{ width: '100%', minWidth: 720, borderCollapse: 'collapse', tableLayout: 'auto' }}>
         <tbody>
           <TotalsRow label={label} sub={sub} totals={totals} strong={strong} />
         </tbody>
@@ -185,9 +200,10 @@ function CorporationBlock({ group, rates, monthLabel }) {
 // Admin-only: every unloading in a month (a trip's Load leg by its Unloading date, a diverted
 // trip's Divert leg by its Divert date) with that leg's Trip Income -> TDS / Diesel / Amount
 // split, one table per corporation. Shows last month by default; the month before it is one
-// click away and older months are "archived" behind a month picker.
+// two clicks away and older months are "archived" behind a month picker.
 export default function MonthlyIncomeSection({ customerId, className = '' }) {
-  const [recentLast, recentBefore] = recentMonths();
+  const recentMonthKeys = recentMonths();
+  const [recentLast] = recentMonthKeys;
   const [month, setMonth] = useState(recentLast);
   const [showArchive, setShowArchive] = useState(false);
   const [income, setIncome] = useState(null);
@@ -206,7 +222,7 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
     return () => { cancelled = true; };
   }, [customerId, month]);
 
-  const isArchivedMonth = month !== recentLast && month !== recentBefore;
+  const isArchivedMonth = !recentMonthKeys.includes(month);
   const monthButton = (key) => (
     <button
       key={key}
@@ -314,7 +330,7 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
       <div className="monthly-income-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <h3 className="section-title" style={{ marginTop: 0 }}>Monthly Income ({formatMonthLabel(month)}){isArchivedMonth ? ' - Archived' : ''}</h3>
         <div className="no-print" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {[recentLast, recentBefore].map(monthButton)}
+          {recentMonthKeys.map(monthButton)}
           <button
             type="button"
             className="btn secondary"
@@ -329,7 +345,7 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
       </div>
       <p className="print-only" style={{ margin: '0 0 8pt', fontSize: 9, color: '#4b5f52' }}>
         Printed on {formatDateLong(new Date())} - TDS = Trip Income x {percent(income?.rates?.tds ?? 0.02)},
-        Diesel = (Trip Income - TDS) x {percent(income?.rates?.diesel ?? 0.4)}, Amount = (Trip Income - TDS) x {percent(income?.rates?.amount ?? 0.6)}
+        Diesel = (Trip Income - TDS) x {percent(income?.rates?.diesel ?? 0.4)}, Amount = ((Trip Income - TDS) x {percent(income?.rates?.amount ?? 0.6)}) - Shortage
       </p>
       <p className="no-print" style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
         Income for all vehicles unloaded in {formatMonthLabel(month)}, split by the vehicle&apos;s corporation (IOC, BPC, HPC, ...)
@@ -337,7 +353,7 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
         KM table (TN, KA, TS, PY, ...) - a trip counts in the
         month of its Unloading date; a diverted trip&apos;s new unloading counts in the month of its Divert date.
         {' '}Cut-off follows the vehicle&apos;s corporation: {cutoffText(income?.cutoffDays)}.
-        Last month&apos;s income is shown in the current month; older months are available under archived income.
+        The three most recent completed months are available above; older months are under archived income.
       </p>
 
       {error && <p className="error-text">{error}</p>}
@@ -376,7 +392,7 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
               id="income-month"
               type="month"
               value={month}
-              max={recentBefore}
+              max={recentMonthKeys[recentMonthKeys.length - 1]}
               onChange={(event) => event.target.value && setMonth(event.target.value)}
             />
           </div>

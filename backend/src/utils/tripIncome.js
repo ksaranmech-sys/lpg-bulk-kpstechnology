@@ -7,7 +7,7 @@
 //
 // Trip Income (per leg) uses the Rate/KM/Ton table for the route's corporation state (the suffix
 // of the KM table's corporation column: IOC-TN / BPC-TN -> TN table, IOC-KA / BPC-KA -> KA table)
-// and tonnage class (<= 18 t -> 18MT, else 21MT), in the trip's loading month. When the route
+// and tonnage class (based on loading weight: <= 18 t -> 18MT, else 21MT), in the trip's loading month. When the route
 // itself is not in the KM table (manual KM), the corporation is the one with the most KM-table
 // routes from the loading location:
 //   km <= 450                 : weight x KM-band rate
@@ -161,9 +161,14 @@ function computeTripIncome(trip, routeKmTable, { getRateTable = (id) => rateTabl
   });
   const totalKm = legs.length && legs.every((leg) => leg.km != null) ? legs.reduce((sum, leg) => sum + leg.km, 0) : null;
 
-  const weightRaw = trip?.unloadingWeightTons;
-  const weightTons = weightRaw == null || weightRaw === '' || !Number.isFinite(Number(weightRaw)) ? null : Number(weightRaw);
-  if (weightTons == null) errors.push('Unloading weight (tons) is required to calculate Trip Income.');
+  const parseWeight = (value) => {
+    if (value == null || value === '' || !Number.isFinite(Number(value)) || Number(value) <= 0) return null;
+    return Number(value);
+  };
+  const weightTons = parseWeight(trip?.loadingWeightTons);
+  const unloadingWeightTons = parseWeight(trip?.unloadingWeightTons);
+  if (weightTons == null) errors.push('Loading weight (tons) is required to calculate Trip Income.');
+  if (unloadingWeightTons == null) errors.push('Unloading weight (tons) is required to complete trip details.');
   const tonnageClass = weightTons == null ? null : tonnageClassFor(weightTons);
 
   const { corporation, source: corporationSource, candidates } = resolveCorporation(routeKmTable, loadingLocation, unloadingLocation);
@@ -188,7 +193,7 @@ function computeTripIncome(trip, routeKmTable, { getRateTable = (id) => rateTabl
     leg,
     rateTable,
     month,
-    weightTons,
+    weightTons: weightTons != null && unloadingWeightTons != null ? weightTons : null,
     mangaloreBase: leg.leg === 'load' && mangaloreBase,
   }));
   const totalIncome = pricedLegs.length && pricedLegs.every((leg) => leg.income != null)

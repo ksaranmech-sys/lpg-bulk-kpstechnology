@@ -65,6 +65,21 @@ function buildLocationOptions(rows = loadRouteKmTable()) {
   };
 }
 
+function normalizeShortageRates(rows) {
+  if (!Array.isArray(rows)) throw new Error('shortageRates must be an array');
+  return rows.map((row, index) => {
+    const source = (row && typeof row === 'object') ? row : { amountPerKg: row };
+    const name = String(source?.name || 'Shortage').trim() || 'Shortage';
+    const amountPerKg = Number(source?.amountPerKg);
+    if (!Number.isFinite(amountPerKg) || amountPerKg < 0) return null;
+    return {
+      id: source?.id || `shortage-${index}`,
+      name,
+      amountPerKg,
+    };
+  }).filter(Boolean);
+}
+
 router.normalizeRouteKmTable = normalizeRouteKmTable;
 router.updateRouteKmRowById = updateRouteKmRowById;
 router.loadRouteKmTable = loadRouteKmTable;
@@ -81,6 +96,7 @@ router.get('/', (req, res) => {
     unloadingLocations,
     routeKmTable,
     mobileAppUrl: settings.getMobileAppUrl(),
+    shortageRates: settings.getShortageRates(),
   });
 });
 
@@ -103,6 +119,15 @@ router.put('/route-km', requireRole(ROLES.SUPER_ADMIN), async (req, res) => {
 router.put('/mobile-app-url', requireRole(ROLES.SUPER_ADMIN), rules.mobileAppUrl, async (req, res) => {
   const mobileAppUrl = await settings.saveMobileAppUrl(req.body.mobileAppUrl || '');
   res.json({ mobileAppUrl });
+});
+
+router.put('/shortage-rates', requireRole(ROLES.SUPER_ADMIN), async (req, res) => {
+  try {
+    const shortageRates = await settings.saveShortageRates(normalizeShortageRates(req.body?.shortageRates || []));
+    res.json({ shortageRates });
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'Failed to update shortage rates' });
+  }
 });
 
 module.exports = router;

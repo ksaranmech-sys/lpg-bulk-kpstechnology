@@ -54,7 +54,7 @@ export default function UnloadingForm({ tripId, meta, trip, routeUnloadingOption
       setError('Please enter Manual KM Divert between the unloading location and divert location (Round trip).');
       return;
     }
-    if (unloadingWeightTons === '' || !(Number(unloadingWeightTons) > 0)) {
+    if (unloadingWeightTons === '' || !Number.isFinite(Number(unloadingWeightTons)) || !(Number(unloadingWeightTons) > 0)) {
       setError('Please enter the unloading weight in tons.');
       return;
     }
@@ -107,7 +107,7 @@ export default function UnloadingForm({ tripId, meta, trip, routeUnloadingOption
           />
         </div>
         <div className="field" style={{ margin: 0 }}>
-          <label>Weight (tons) *</label>
+          <label>Unloading weight *</label>
           <input
             type="number"
             min="0.01"

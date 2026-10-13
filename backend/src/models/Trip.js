@@ -72,6 +72,7 @@ const tripSchema = new mongoose.Schema(
 
     loadingLocation: { type: String, trim: true },
     loadingDate: { type: Date },
+    loadingWeightTons: { type: Number, default: null, min: 0.01 },
     loadingExpense: { type: Number, default: 0, min: 0 },
     parkingExpense: { type: Number, default: 0, min: 0 },
     parkingPhoto: photoSchema,
@@ -82,7 +83,7 @@ const tripSchema = new mongoose.Schema(
     rtoEntries: { type: [rtoEntrySchema], default: [] },
 
     unloadingLocation: { type: String, trim: true },
-    unloadingWeightTons: { type: Number, default: null, min: 0 },
+    unloadingWeightTons: { type: Number, default: null, min: 0.01 },
     unloadingDate: { type: Date },
     unloadingExpense: { type: Number, default: 0, min: 0 },
     // Manual fallback KM for the loading->unloading leg, used only when the route KM table

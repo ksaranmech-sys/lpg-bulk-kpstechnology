@@ -58,7 +58,7 @@ export const updateVehicleExpense = async (expenseId, data, file) => client.upda
 
 export const {
   login, logout, getMe, changePassword, setRecoveryContact, forgotPassword, resetPasswordWithToken,
-  getMeta, updateRouteKmTable, updateMobileAppUrl,
+  getMeta, updateRouteKmTable, updateMobileAppUrl, updateShortageRates,
   getDieselPriceTable, updateDieselPriceTable, syncDieselPriceTable,
   listRateTables, getRateTable, updateRateTableBases, updateRateTableCells, recalculateRateTables,
   listVehicles, getVehicle, updateVehicle, deleteVehicle, updateVehicleReminderDates, sendVehicleReminder,

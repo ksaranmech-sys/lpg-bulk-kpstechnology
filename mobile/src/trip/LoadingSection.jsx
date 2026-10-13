@@ -9,6 +9,7 @@ import { ButtonRow, LocationPicker, SummaryChips } from './common';
 function LoadingForm({ trip, meta, onSaved, onCancel }) {
   const [loadingLocation, setLocation] = useState(trip.loadingLocation || '');
   const [loadingDate, setDate] = useState(toDateInputValue(trip.loadingDate) || '');
+  const [loadingWeightTons, setLoadingWeightTons] = useState(trip.loadingWeightTons != null ? String(trip.loadingWeightTons) : '');
   const [cleanerExpense, setCleanerExpense] = useState(trip.loadingExpense ? String(trip.loadingExpense) : '');
   const [turn, setTurn] = useState(trip.turnExpense ? String(trip.turnExpense) : '');
   const [parking, setParking] = useState(trip.parkingExpense ? String(trip.parkingExpense) : '');
@@ -20,12 +21,18 @@ function LoadingForm({ trip, meta, onSaved, onCancel }) {
   async function submit() {
     setBusy(true);
     setError('');
+    if (loadingWeightTons === '' || !Number.isFinite(Number(loadingWeightTons)) || Number(loadingWeightTons) <= 0) {
+      setError('Loading weight is required and must be greater than 0.');
+      setBusy(false);
+      return;
+    }
     try {
       await api.setLoadingDetailsWithPhoto(
         trip._id,
         {
           loadingLocation,
           loadingDate,
+          loadingWeightTons: loadingWeightTons === '' ? null : Number(loadingWeightTons),
           loadingExpense: Number(cleanerExpense || 0),
           turnExpense: Number(turn || 0),
           parkingExpense: Number(parking || 0),
@@ -52,6 +59,7 @@ function LoadingForm({ trip, meta, onSaved, onCancel }) {
         placeholder="Select or enter loading location"
       />
       <DateField label="Date of Loading" value={loadingDate} onChange={setDate} min={toDateInputValue(trip.entryMinDate)} />
+      <Field label="Loading Weight (tons) *"><NumberInput value={loadingWeightTons} onChangeText={setLoadingWeightTons} placeholder="e.g. 17.8" /></Field>
       <Field label="Loading Cleaner Expense (Rs)"><NumberInput value={cleanerExpense} onChangeText={setCleanerExpense} /></Field>
       <Field label="Turn (Rs)"><NumberInput value={turn} onChangeText={setTurn} /></Field>
       <Field label="Parking (Rs)"><NumberInput value={parking} onChangeText={setParking} /></Field>

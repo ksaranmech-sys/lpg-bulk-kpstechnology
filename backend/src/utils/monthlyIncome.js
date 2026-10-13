@@ -6,7 +6,9 @@
 // months. Each row carries that leg's income:
 //   TDS    = Trip Income x 2%
 //   Diesel = (Trip Income - TDS) x 40%
-//   Amount = (Trip Income - TDS) x 60%
+//   Amount = (Trip Income - TDS) x 60% - Shortage
+// Shortage is weight loss above 40 kg times the configured Rs/Kg rate, reported only on the Load
+// leg to avoid double-counting diverted trips.
 // The month cut-off depends on the vehicle's corporation (Vehicle.corporation): IOC / HPC bill
 // the calendar month, while BPC's month runs to the 5th of the next month (an unloading on
 // 1-5 Oct belongs to September). Legs whose income cannot be calculated yet (no weight / KM) are
@@ -58,20 +60,25 @@ function monthBounds(month) {
   return { start: new Date(`${month}-01T00:00:00${IST_OFFSET}`), end: new Date(`${next}-01T00:00:00${IST_OFFSET}`) };
 }
 
-function splitIncome(income) {
+function splitIncome(income, shortage = 0) {
   if (!Number.isFinite(income)) return { tds: null, diesel: null, amount: null };
   const tds = round2(income * TDS_RATE);
   const net = income - tds;
-  return { tds, diesel: round2(net * DIESEL_SHARE), amount: round2(net * AMOUNT_SHARE) };
+  const shortageAmount = Number.isFinite(shortage) ? shortage : 0;
+  return { tds, diesel: round2(net * DIESEL_SHARE), amount: round2(net * AMOUNT_SHARE - shortageAmount) };
 }
 
 function sumRows(rows) {
   const priced = rows.filter((row) => Number.isFinite(row.tripIncome));
   const total = (key) => round2(priced.reduce((sum, row) => sum + row[key], 0));
+  const shortageRows = rows.filter((row) => Number.isFinite(row.shortage));
   return {
     trips: rows.length,
     pricedTrips: priced.length,
     tripIncome: total('tripIncome'),
+    shortage: shortageRows.length
+      ? round2(shortageRows.reduce((sum, row) => sum + row.shortage, 0))
+      : null,
     tds: total('tds'),
     diesel: total('diesel'),
     amount: total('amount'),
@@ -134,7 +141,7 @@ function periodsFor(vehicleCorporation, month) {
 // One row per unloading of the trip: the Load leg (dated by Unloading date) and, for a diverted
 // trip, the Divert leg (dated by Divert date). Legs without their unloading date are not yet
 // billable and are skipped.
-function unloadingRows(trip, income) {
+function unloadingRows(trip, income, shortageRatePerKg) {
   const vehicleCorporation = trip.vehicle?.corporation || null;
   const base = {
     tripId: String(trip._id),
@@ -150,6 +157,14 @@ function unloadingRows(trip, income) {
   const legs = income.legs || [];
   const legRow = (leg, from, to, unloadingDate) => {
     const legIncome = Number.isFinite(leg?.income) ? leg.income : null;
+    const hasShortageWeights = leg?.leg === 'load' &&
+      Number.isFinite(trip.loadingWeightTons) &&
+      Number.isFinite(trip.unloadingWeightTons) &&
+      Number.isFinite(shortageRatePerKg) &&
+      shortageRatePerKg >= 0;
+    const shortage = hasShortageWeights
+      ? round2(Math.max(0, (trip.loadingWeightTons - trip.unloadingWeightTons) * 1000 - 40) * shortageRatePerKg)
+      : null;
     return {
       ...base,
       leg: leg?.leg || 'load',
@@ -160,7 +175,8 @@ function unloadingRows(trip, income) {
       unloadingDate,
       incomeKm: Number.isFinite(leg?.km) ? leg.km : null,
       tripIncome: legIncome,
-      ...splitIncome(legIncome),
+      shortage,
+      ...splitIncome(legIncome, shortage ?? 0),
     };
   };
 
@@ -175,13 +191,13 @@ function unloadingRows(trip, income) {
 }
 
 // trips: plain trip objects with `vehicle` populated ({ vehicleNumber }); routeKmTable: KM table rows.
-function buildMonthlyIncome(trips, month, routeKmTable, { getRateTable, now } = {}) {
+function buildMonthlyIncome(trips, month, routeKmTable, { getRateTable, now, shortageRatePerKg } = {}) {
   const options = {};
   if (getRateTable) options.getRateTable = getRateTable;
   if (now) options.now = now;
 
   const rows = trips
-    .flatMap((trip) => unloadingRows(trip, computeTripIncome(trip, routeKmTable, options)))
+    .flatMap((trip) => unloadingRows(trip, computeTripIncome(trip, routeKmTable, options), shortageRatePerKg))
     .filter((row) => row.month === month)
     .sort((a, b) => {
       const byDate = new Date(a.unloadingDate) - new Date(b.unloadingDate);
@@ -234,7 +250,7 @@ function buildMonthlyIncome(trips, month, routeKmTable, { getRateTable, now } = 
 
   return {
     month,
-    rates: { tds: TDS_RATE, diesel: DIESEL_SHARE, amount: AMOUNT_SHARE },
+    rates: { tds: TDS_RATE, diesel: DIESEL_SHARE, amount: AMOUNT_SHARE, shortagePerKg: shortageRatePerKg ?? null },
     cutoffDays: MONTHLY_INCOME_CUTOFF_DAY,
     halfMonthCorporations: MONTHLY_INCOME_HALF_MONTH_CORPORATIONS,
     halfMonthDay: MONTHLY_INCOME_HALF_MONTH_DAY,

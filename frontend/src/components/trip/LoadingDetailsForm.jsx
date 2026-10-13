@@ -6,6 +6,7 @@ import ComboBoxInput from '../ComboBoxInput';
 export default function LoadingDetailsForm({ tripId, trip, meta, onSaved }) {
   const [loadingLocation, setLocation] = useState(trip.loadingLocation || '');
   const [loadingDate, setDate] = useState(trip.loadingDate ? new Date(trip.loadingDate).toISOString().slice(0, 10) : '');
+  const [loadingWeightTons, setLoadingWeightTons] = useState(trip.loadingWeightTons != null ? String(trip.loadingWeightTons) : '');
   const [cleanerExpense, setCleanerExpense] = useState(trip.loadingExpense || '');
   const [turn, setTurn] = useState(trip.turnExpense || '');
   const [parking, setParking] = useState(trip.parkingExpense || '');
@@ -16,12 +17,17 @@ export default function LoadingDetailsForm({ tripId, trip, meta, onSaved }) {
   async function submit(e) {
     e.preventDefault();
     setError('');
+    if (loadingWeightTons === '' || !Number.isFinite(Number(loadingWeightTons)) || Number(loadingWeightTons) <= 0) {
+      setError('Loading weight is required and must be greater than 0.');
+      return;
+    }
     try {
       await api.setLoadingDetailsWithPhoto(
         tripId,
         {
           loadingLocation,
           loadingDate,
+          loadingWeightTons: loadingWeightTons === '' ? null : Number(loadingWeightTons),
           loadingExpense: Number(cleanerExpense || 0),
           turnExpense: Number(turn || 0),
           parkingExpense: Number(parking || 0),
@@ -38,7 +44,7 @@ export default function LoadingDetailsForm({ tripId, trip, meta, onSaved }) {
   return (
     <form onSubmit={submit}>
       {error && <div className="error-text">{error}</div>}
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(140px, auto)', gap: 14, alignItems: 'end' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr)', gap: 14, alignItems: 'end' }}>
         <div className="field" style={{ margin: 0 }}>
           <label>Loading Location</label>
           <ComboBoxInput
@@ -53,11 +59,15 @@ export default function LoadingDetailsForm({ tripId, trip, meta, onSaved }) {
           <input type="date" value={loadingDate} onChange={(e) => setDate(e.target.value)} min={toDateInputValue(trip.entryMinDate)} required />
         </div>
         <div className="field" style={{ margin: 0 }}>
+          <label>Loading Weight (tons) *</label>
+          <input type="number" min="0.01" step="0.01" value={loadingWeightTons} onChange={(e) => setLoadingWeightTons(e.target.value)} placeholder="e.g. 17.8" required />
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(140px, auto)', gap: 14, alignItems: 'end', marginTop: 14 }}>
+        <div className="field" style={{ margin: 0 }}>
           <label>Loading Cleaner Expense (Rs)</label>
           <input type="number" min="0" value={cleanerExpense} onChange={(e) => setCleanerExpense(e.target.value)} />
         </div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) minmax(140px, auto)', gap: 14, alignItems: 'end', marginTop: 14 }}>
         <div className="field" style={{ margin: 0 }}>
           <label>Turn (Rs)</label>
           <input type="number" min="0" value={turn} onChange={(e) => setTurn(e.target.value)} />

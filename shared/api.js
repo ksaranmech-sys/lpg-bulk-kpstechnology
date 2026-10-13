@@ -89,6 +89,7 @@ export function createEndpoints(api) {
     updateRouteKmTable: (routeKmTable, rowId, row) =>
       api.put('/meta/route-km', rowId && row ? { rowId, row } : { routeKmTable }),
     updateMobileAppUrl: (mobileAppUrl) => api.put('/meta/mobile-app-url', { mobileAppUrl }),
+    updateShortageRates: (shortageRates) => api.put('/meta/shortage-rates', { shortageRates }),
 
     // ---- Average diesel price table (super admin) ----
     getDieselPriceTable: () => api.get('/diesel-prices'),

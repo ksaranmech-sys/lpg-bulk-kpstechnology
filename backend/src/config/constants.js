@@ -79,7 +79,7 @@ function rateTableRows(bases) {
 
 // Rate tables exist per state and tonnage class. `stateCode` is matched against the suffix of the
 // KM table's corporation column (IOC-TN, BPC-TN, ... -> TN), so every corporation in a state
-// shares that state's table; the tonnage class comes from the unloading weight (<= 18 t -> 18MT,
+// shares that state's table; the tonnage class comes from the loading weight (<= 18 t -> 18MT,
 // else 21MT). Each state's diesel column is shared by its 18MT and 21MT tables.
 const RATE_TABLE_STATES = [
   { stateCode: 'TN', dieselState: 'Tamil Nadu' },

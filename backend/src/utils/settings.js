@@ -11,6 +11,7 @@ const KEYS = {
   DIESEL_PRICE_TABLE: 'dieselPriceTable',
   RATE_TABLE_BASES: 'rateTableBases',
   RATE_TABLE_CELLS: 'rateTableCells',
+  SHORTAGE_RATES: 'shortageRates',
   LEGACY_IOC_RATE_BASES: 'iocRateBases',
 };
 const LEGACY_ROUTE_KM_FILE = path.join(__dirname, '../config/routeKmTable.json');
@@ -21,6 +22,7 @@ const cache = {
   [KEYS.DIESEL_PRICE_TABLE]: null,
   [KEYS.RATE_TABLE_BASES]: null,
   [KEYS.RATE_TABLE_CELLS]: null,
+  [KEYS.SHORTAGE_RATES]: [],
 };
 
 // Pre-DB seed: the JSON file earlier versions wrote to disk, else the built-in defaults.
@@ -60,6 +62,9 @@ async function initSettings() {
   }
   if (byKey[KEYS.RATE_TABLE_CELLS] && typeof byKey[KEYS.RATE_TABLE_CELLS] === 'object') {
     cache[KEYS.RATE_TABLE_CELLS] = byKey[KEYS.RATE_TABLE_CELLS];
+  }
+  if (Array.isArray(byKey[KEYS.SHORTAGE_RATES])) {
+    cache[KEYS.SHORTAGE_RATES] = byKey[KEYS.SHORTAGE_RATES];
   }
 }
 
@@ -128,6 +133,17 @@ async function clearRateTableCells() {
   return {};
 }
 
+function getShortageRates() {
+  return Array.isArray(cache[KEYS.SHORTAGE_RATES]) ? cache[KEYS.SHORTAGE_RATES] : [];
+}
+
+async function saveShortageRates(rates) {
+  const normalized = Array.isArray(rates) ? rates : [];
+  cache[KEYS.SHORTAGE_RATES] = normalized;
+  await Setting.updateOne({ key: KEYS.SHORTAGE_RATES }, { value: normalized }, { upsert: true });
+  return normalized;
+}
+
 module.exports = {
   initSettings,
   getRouteKmTable,
@@ -141,4 +157,6 @@ module.exports = {
   getRateTableCells,
   saveRateTableCells,
   clearRateTableCells,
+  getShortageRates,
+  saveShortageRates,
 };

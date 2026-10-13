@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useDashboardData } from '../features/dashboard/useDashboardData';
 import ReminderPopup from '../features/dashboard/ReminderPopup';
 import RouteKmTable from '../features/dashboard/RouteKmTable';
+import ShortageRateForm from '../features/dashboard/ShortageRateForm';
 import DieselPriceTable from '../features/dashboard/DieselPriceTable';
 import RateTables from '../features/dashboard/RateTables';
 import CustomerList from '../features/dashboard/CustomerList';
@@ -41,6 +42,7 @@ export default function Dashboard() {
         <>
           <MobileAppCard />
           <RouteKmTable user={user} />
+          <ShortageRateForm user={user} />
           <DieselPriceTable user={user} />
           <RateTables user={user} />
           <CustomerList user={user} customers={customers} setCustomers={setCustomers} />

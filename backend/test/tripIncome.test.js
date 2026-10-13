@@ -65,7 +65,7 @@ test('tonnage class and rate table selection follow weight and KM-table corporat
   // a loading point serving two corporations uses the one with the most routes from there
   const twoCorps = [...routeKmTable, { loadingLocation: 'IPPL, Chennai', corporation: 'IOC-KA', unloadingLocation: 'Devangonthi', km: 682 }];
   assert.deepEqual(tripIncome.resolveCorporation(twoCorps, 'IPPL, Chennai', 'Nowhere'), { corporation: 'IOC-TN', source: 'loading-location-majority', candidates: ['IOC-TN', 'IOC-KA'] });
-  const majority = tripIncome.computeTripIncome({ loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Nowhere', manualKm: 100, unloadingWeightTons: 18, loadingDate: '2026-10-02T03:00:00Z' }, twoCorps, opts);
+  const majority = tripIncome.computeTripIncome({ loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Nowhere', manualKm: 100, loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: '2026-10-02T03:00:00Z' }, twoCorps, opts);
   assert.equal(majority.totalKm, 200);
   assert.equal(majority.corporation, 'IOC-TN');
   assert.equal(majority.rateTable?.id, 'tn-18mt');
@@ -74,7 +74,7 @@ test('tonnage class and rate table selection follow weight and KM-table corporat
   // an even split cannot be guessed
   const tied = [...twoCorps, { loadingLocation: 'IPPL, Chennai', corporation: 'IOC-KA', unloadingLocation: 'Hassan', km: 900 }];
   assert.deepEqual(tripIncome.resolveCorporation(tied, 'IPPL, Chennai', 'Nowhere'), { corporation: null, source: 'ambiguous', candidates: ['IOC-TN', 'IOC-KA'] });
-  const ambiguous = tripIncome.computeTripIncome({ loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Nowhere', manualKm: 100, unloadingWeightTons: 18, loadingDate: '2026-10-02T03:00:00Z' }, tied, opts);
+  const ambiguous = tripIncome.computeTripIncome({ loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Nowhere', manualKm: 100, loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: '2026-10-02T03:00:00Z' }, tied, opts);
   assert.equal(ambiguous.totalKm, 200);
   assert.equal(ambiguous.totalIncome, null);
   assert.ok(ambiguous.errors.some((e) => /serves IOC-TN and IOC-KA equally/.test(e)));
@@ -87,8 +87,8 @@ test('leg KM comes from the KM table, else manual one-way KM x 2', () => {
   assert.deepEqual(tripIncome.legKm(routeKmTable, 'IPPL, Chennai', 'Namakkal', ''), { km: null, kmSource: null });
 });
 
-test('type 1: trip KM up to 450 -> weight x KM band rate for the loading month', () => {
-  const trip = { loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', unloadingWeightTons: 17.2, loadingDate: '2026-10-02T03:00:00Z' };
+test('type 1: trip KM up to 450 -> loading weight x KM band rate for the loading month', () => {
+  const trip = { loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', loadingWeightTons: 17.2, unloadingWeightTons: 16.9, loadingDate: '2026-10-02T03:00:00Z' };
   const result = tripIncome.computeTripIncome(trip, routeKmTable, opts);
   assert.deepEqual(result.errors, []);
   assert.equal(result.tonnageClass, 18);
@@ -110,7 +110,7 @@ test('type 1: trip KM up to 450 -> weight x KM band rate for the loading month',
 });
 
 test('type 2: trip KM over 450 from a non-Mangalore load -> weight x KM x 451 Normal base', () => {
-  const trip = { loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Salem', unloadingWeightTons: 18, loadingDate: '2026-10-02T03:00:00Z' };
+  const trip = { loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Salem', loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: '2026-10-02T03:00:00Z' };
   const result = tripIncome.computeTripIncome(trip, routeKmTable, opts);
   assert.deepEqual(result.errors, []);
   const [leg] = result.legs;
@@ -124,7 +124,7 @@ test('type 2: trip KM over 450 from a non-Mangalore load -> weight x KM x 451 No
 });
 
 test('type 3: trip KM over 450 from a Mangalore load -> weight x KM x 451 Mangalore base (KA table)', () => {
-  const trip = { loadingLocation: 'Total, Mangalore', unloadingLocation: 'Shimoga', unloadingWeightTons: 16.8, loadingDate: '2026-10-02T03:00:00Z' };
+  const trip = { loadingLocation: 'Total, Mangalore', unloadingLocation: 'Shimoga', loadingWeightTons: 16.8, unloadingWeightTons: 16.8, loadingDate: '2026-10-02T03:00:00Z' };
   const result = tripIncome.computeTripIncome(trip, routeKmTable, opts);
   assert.deepEqual(result.errors, []);
   assert.equal(result.rateTable.id, 'ka-18mt');
@@ -140,7 +140,7 @@ test('type 3: trip KM over 450 from a Mangalore load -> weight x KM x 451 Mangal
 test('diverted trip shows two KMs and sums both legs; the divert leg never uses the Mangalore rate', () => {
   const trip = {
     loadingLocation: 'Total, Mangalore', unloadingLocation: 'Shimoga', isDiverted: true, divertUnloadingLocation: 'Davangere',
-    manualKmDivert: 100, unloadingWeightTons: 18, loadingDate: '2026-10-02T03:00:00Z',
+    manualKmDivert: 100, loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: '2026-10-02T03:00:00Z',
   };
   const result = tripIncome.computeTripIncome(trip, routeKmTable, opts);
   assert.deepEqual(result.errors, []);
@@ -153,7 +153,7 @@ test('diverted trip shows two KMs and sums both legs; the divert leg never uses 
 });
 
 test('manual KM load x 2 is used when the route is missing, with the corporation taken from the loading location', () => {
-  const trip = { loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Namakkal', manualKm: 180, unloadingWeightTons: 18, loadingDate: '2026-10-02T03:00:00Z' };
+  const trip = { loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Namakkal', manualKm: 180, loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: '2026-10-02T03:00:00Z' };
   const result = tripIncome.computeTripIncome(trip, routeKmTable, opts);
   assert.deepEqual(result.errors, []);
   assert.equal(result.corporationSource, 'loading-location');
@@ -162,7 +162,7 @@ test('manual KM load x 2 is used when the route is missing, with the corporation
 });
 
 test('months before the rate table starts use Base values', () => {
-  const trip = { loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', unloadingWeightTons: 10, loadingDate: '2025-06-10T03:00:00Z' };
+  const trip = { loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', loadingWeightTons: 10, unloadingWeightTons: 10, loadingDate: '2025-06-10T03:00:00Z' };
   const result = tripIncome.computeTripIncome(trip, routeKmTable, opts);
   assert.equal(result.month, '2025-06');
   assert.equal(result.legs[0].rateMonth, 'base');
@@ -176,13 +176,21 @@ test('missing weight, missing manual KM and unknown states report what is needed
   assert.equal(noWeight.totalIncome, null);
   assert.ok(noWeight.errors.some((e) => /weight/i.test(e)));
 
-  const noKm = tripIncome.computeTripIncome({ loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Namakkal', unloadingWeightTons: 18, loadingDate: '2026-10-02T03:00:00Z' }, routeKmTable, opts);
+  const unloadingWeightOnly = tripIncome.computeTripIncome({ loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Salem', unloadingWeightTons: 20, loadingDate: '2026-10-02T03:00:00Z' }, routeKmTable, opts);
+  assert.equal(unloadingWeightOnly.totalIncome, null);
+  assert.ok(unloadingWeightOnly.errors.some((e) => /Loading weight/i.test(e)));
+
+  const noUnloadingWeight = tripIncome.computeTripIncome({ loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Salem', loadingWeightTons: 18, loadingDate: '2026-10-02T03:00:00Z' }, routeKmTable, opts);
+  assert.equal(noUnloadingWeight.totalIncome, null);
+  assert.ok(noUnloadingWeight.errors.some((e) => /Unloading weight/i.test(e)));
+
+  const noKm = tripIncome.computeTripIncome({ loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Namakkal', loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: '2026-10-02T03:00:00Z' }, routeKmTable, opts);
   assert.equal(noKm.totalKm, null);
   assert.equal(noKm.totalIncome, null);
   assert.ok(noKm.errors.some((e) => /Manual KM Load/.test(e)));
 
   // 20 t on a 720 km TN route -> TN 21MT table, 451 Normal base
-  const heavy = tripIncome.computeTripIncome({ loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Salem', unloadingWeightTons: 20, loadingDate: '2026-10-02T03:00:00Z' }, routeKmTable, opts);
+  const heavy = tripIncome.computeTripIncome({ loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Salem', loadingWeightTons: 20, unloadingWeightTons: 19.95, loadingDate: '2026-10-02T03:00:00Z' }, routeKmTable, opts);
   assert.equal(heavy.tonnageClass, 21);
   assert.equal(heavy.rateTable.id, 'tn-21mt');
   assert.equal(heavy.legs[0].rateLabel, '451 Normal base');
@@ -190,7 +198,7 @@ test('missing weight, missing manual KM and unknown states report what is needed
   assert.deepEqual(heavy.errors, []);
 
   // a state with no table at all
-  const noState = tripIncome.computeTripIncome({ loadingLocation: 'Goa Plant', unloadingLocation: 'Margao', unloadingWeightTons: 20, loadingDate: '2026-10-02T03:00:00Z' }, [
+  const noState = tripIncome.computeTripIncome({ loadingLocation: 'Goa Plant', unloadingLocation: 'Margao', loadingWeightTons: 20, unloadingWeightTons: 20, loadingDate: '2026-10-02T03:00:00Z' }, [
     { loadingLocation: 'Goa Plant', corporation: 'IOC-GA', unloadingLocation: 'Margao', km: 60 },
   ], opts);
   assert.equal(noState.rateTable, null);

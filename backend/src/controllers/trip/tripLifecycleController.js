@@ -98,7 +98,7 @@ async function setLoadingDetails(req, res) {
   const trip = await getOpenTripOr404(req, res);
   if (!trip) return;
 
-  const { loadingLocation, loadingDate, loadingExpense, parkingExpense, turnExpense } = req.body;
+  const { loadingLocation, loadingDate, loadingWeightTons, loadingExpense, parkingExpense, turnExpense } = req.body;
   if (loadingLocation != null) {
     const value = String(loadingLocation).trim();
     if (!value) return res.status(400).json({ error: 'loadingLocation cannot be empty' });
@@ -112,6 +112,15 @@ async function setLoadingDetails(req, res) {
       return res.status(400).json({ error: "Loading date cannot be before the driver's joining date or the previous trip's close date." });
     }
     trip.loadingDate = date;
+  }
+  if (loadingWeightTons !== undefined) {
+    const weight = loadingWeightTons === null || loadingWeightTons === '' ? NaN : Number(loadingWeightTons);
+    if (!Number.isFinite(weight) || weight <= 0) {
+      return res.status(400).json({ error: 'loadingWeightTons is required and must be greater than 0' });
+    }
+    trip.loadingWeightTons = weight;
+  } else if (trip.loadingWeightTons == null) {
+    return res.status(400).json({ error: 'loadingWeightTons is required and must be greater than 0' });
   }
   if (loadingExpense != null) {
     const expense = Number(loadingExpense);

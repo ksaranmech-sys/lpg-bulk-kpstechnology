@@ -24,20 +24,20 @@ function rate(id, rowKey) {
 
 const trips = [
   // loaded in August, unloaded in September -> September
-  { _id: 'a', vehicle: { vehicleNumber: 'KA01AA0001' }, status: 'closed', loadingLocation: 'Mysore, TOP', unloadingLocation: 'Mysore', unloadingWeightTons: 18, loadingDate: new Date('2026-08-30T03:00:00Z'), unloadingDate: new Date('2026-09-10T03:00:00Z') },
-  { _id: 'b', vehicle: { vehicleNumber: 'KA01AA0002' }, status: 'closed', loadingLocation: 'Total, Mangalore', unloadingLocation: 'Shimoga', unloadingWeightTons: 17.5, loadingDate: new Date('2026-09-04T03:00:00Z'), unloadingDate: new Date('2026-09-05T03:00:00Z') },
-  { _id: 'c', vehicle: { vehicleNumber: 'TN01BB0001' }, status: 'closed', loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', unloadingWeightTons: 18, loadingDate: new Date('2026-09-20T03:00:00Z'), unloadingDate: new Date('2026-09-20T09:00:00Z') },
+  { _id: 'a', vehicle: { vehicleNumber: 'KA01AA0001' }, status: 'closed', loadingLocation: 'Mysore, TOP', unloadingLocation: 'Mysore', loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: new Date('2026-08-30T03:00:00Z'), unloadingDate: new Date('2026-09-10T03:00:00Z') },
+  { _id: 'b', vehicle: { vehicleNumber: 'KA01AA0002' }, status: 'closed', loadingLocation: 'Total, Mangalore', unloadingLocation: 'Shimoga', loadingWeightTons: 17.5, unloadingWeightTons: 17.5, loadingDate: new Date('2026-09-04T03:00:00Z'), unloadingDate: new Date('2026-09-05T03:00:00Z') },
+  { _id: 'c', vehicle: { vehicleNumber: 'TN01BB0001' }, status: 'closed', loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: new Date('2026-09-20T03:00:00Z'), unloadingDate: new Date('2026-09-20T09:00:00Z') },
   // unloaded without weight: listed, but not priced
   { _id: 'd', vehicle: { vehicleNumber: 'TN01BB0002' }, status: 'open', loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', loadingDate: new Date('2026-09-25T03:00:00Z'), unloadingDate: new Date('2026-09-25T09:00:00Z') },
   // route with no corporation in the KM table
-  { _id: 'e', vehicle: { vehicleNumber: 'TN01BB0003' }, status: 'closed', loadingLocation: 'Nowhere', unloadingLocation: 'Elsewhere', manualKm: 50, unloadingWeightTons: 18, loadingDate: new Date('2026-09-26T03:00:00Z'), unloadingDate: new Date('2026-09-26T09:00:00Z') },
+  { _id: 'e', vehicle: { vehicleNumber: 'TN01BB0003' }, status: 'closed', loadingLocation: 'Nowhere', unloadingLocation: 'Elsewhere', manualKm: 50, loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: new Date('2026-09-26T03:00:00Z'), unloadingDate: new Date('2026-09-26T09:00:00Z') },
   // loaded in September, but 30 Sep 23:00 UTC unloading is already 1 Oct in IST -> October
-  { _id: 'f', vehicle: { vehicleNumber: 'KA01AA0003' }, status: 'closed', loadingLocation: 'Mysore, TOP', unloadingLocation: 'Mysore', unloadingWeightTons: 18, loadingDate: new Date('2026-09-30T03:00:00Z'), unloadingDate: new Date('2026-09-30T23:00:00Z') },
+  { _id: 'f', vehicle: { vehicleNumber: 'KA01AA0003' }, status: 'closed', loadingLocation: 'Mysore, TOP', unloadingLocation: 'Mysore', loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: new Date('2026-09-30T03:00:00Z'), unloadingDate: new Date('2026-09-30T23:00:00Z') },
   // loaded in September but not unloaded yet -> not billable
   { _id: 'g', vehicle: { vehicleNumber: 'KA01AA0004' }, status: 'open', loadingLocation: 'Mysore, TOP', unloadingLocation: 'Mysore', loadingDate: new Date('2026-09-28T03:00:00Z') },
   // diverted: first unloading in September (Load leg), new unloading in October (Divert leg)
   {
-    _id: 'h', vehicle: { vehicleNumber: 'TN01BB0004' }, status: 'closed', loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', unloadingWeightTons: 18,
+    _id: 'h', vehicle: { vehicleNumber: 'TN01BB0004' }, status: 'closed', loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', loadingWeightTons: 18, unloadingWeightTons: 18,
     isDiverted: true, divertUnloadingLocation: 'Salem', manualKmDivert: 100,
     loadingDate: new Date('2026-09-29T03:00:00Z'), unloadingDate: new Date('2026-09-30T09:00:00Z'), divertDate: new Date('2026-10-01T09:00:00Z'),
   },
@@ -61,13 +61,13 @@ test('billing month follows the vehicle corporation cut-off: IOC / HPC calendar 
 
   const bpcTrips = [
     // BPC vehicle unloaded 3 Oct -> September; the same date on an IOC vehicle -> October
-    { _id: 'p', vehicle: { vehicleNumber: 'TN02CC0001', corporation: 'BPC' }, status: 'closed', loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', unloadingWeightTons: 18, loadingDate: new Date('2026-10-02T03:00:00Z'), unloadingDate: oct3 },
-    { _id: 'q', vehicle: { vehicleNumber: 'TN02CC0002', corporation: 'IOC' }, status: 'closed', loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', unloadingWeightTons: 18, loadingDate: new Date('2026-10-02T03:00:00Z'), unloadingDate: oct3 },
+    { _id: 'p', vehicle: { vehicleNumber: 'TN02CC0001', corporation: 'BPC' }, status: 'closed', loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: new Date('2026-10-02T03:00:00Z'), unloadingDate: oct3 },
+    { _id: 'q', vehicle: { vehicleNumber: 'TN02CC0002', corporation: 'IOC' }, status: 'closed', loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: new Date('2026-10-02T03:00:00Z'), unloadingDate: oct3 },
     // BPC vehicle unloaded 3 Sep -> belongs to August, not September
-    { _id: 'r', vehicle: { vehicleNumber: 'TN02CC0001', corporation: 'BPC' }, status: 'closed', loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', unloadingWeightTons: 18, loadingDate: new Date('2026-09-02T03:00:00Z'), unloadingDate: new Date('2026-09-03T09:00:00Z') },
+    { _id: 'r', vehicle: { vehicleNumber: 'TN02CC0001', corporation: 'BPC' }, status: 'closed', loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: new Date('2026-09-02T03:00:00Z'), unloadingDate: new Date('2026-09-03T09:00:00Z') },
     // BPC diverted: first unloading 30 Sep (September), divert 4 Oct (still September for BPC)
     {
-      _id: 's', vehicle: { vehicleNumber: 'TN02CC0003', corporation: 'BPC' }, status: 'closed', loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', unloadingWeightTons: 18,
+      _id: 's', vehicle: { vehicleNumber: 'TN02CC0003', corporation: 'BPC' }, status: 'closed', loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', loadingWeightTons: 18, unloadingWeightTons: 18,
       isDiverted: true, divertUnloadingLocation: 'Salem', manualKmDivert: 100,
       loadingDate: new Date('2026-09-29T03:00:00Z'), unloadingDate: new Date('2026-09-30T09:00:00Z'), divertDate: new Date('2026-10-04T09:00:00Z'),
     },
@@ -85,9 +85,9 @@ test('billing month follows the vehicle corporation cut-off: IOC / HPC calendar 
 
   // two vehicle corporations running the same TN / KA routes -> BPC and IOC main groups, each sub-split by state
   const mixed = [
-    { _id: 'm1', vehicle: { vehicleNumber: 'V1', corporation: 'IOC' }, status: 'closed', loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', unloadingWeightTons: 18, loadingDate: new Date('2026-09-02T03:00:00Z'), unloadingDate: new Date('2026-09-03T09:00:00Z') },
-    { _id: 'm2', vehicle: { vehicleNumber: 'V1', corporation: 'IOC' }, status: 'closed', loadingLocation: 'Mysore, TOP', unloadingLocation: 'Mysore', unloadingWeightTons: 18, loadingDate: new Date('2026-09-04T03:00:00Z'), unloadingDate: new Date('2026-09-05T09:00:00Z') },
-    { _id: 'm3', vehicle: { vehicleNumber: 'V2', corporation: 'BPC' }, status: 'closed', loadingLocation: 'Mysore, TOP', unloadingLocation: 'Mysore', unloadingWeightTons: 18, loadingDate: new Date('2026-09-06T03:00:00Z'), unloadingDate: new Date('2026-09-07T09:00:00Z') },
+    { _id: 'm1', vehicle: { vehicleNumber: 'V1', corporation: 'IOC' }, status: 'closed', loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: new Date('2026-09-02T03:00:00Z'), unloadingDate: new Date('2026-09-03T09:00:00Z') },
+    { _id: 'm2', vehicle: { vehicleNumber: 'V1', corporation: 'IOC' }, status: 'closed', loadingLocation: 'Mysore, TOP', unloadingLocation: 'Mysore', loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: new Date('2026-09-04T03:00:00Z'), unloadingDate: new Date('2026-09-05T09:00:00Z') },
+    { _id: 'm3', vehicle: { vehicleNumber: 'V2', corporation: 'BPC' }, status: 'closed', loadingLocation: 'Mysore, TOP', unloadingLocation: 'Mysore', loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: new Date('2026-09-06T03:00:00Z'), unloadingDate: new Date('2026-09-07T09:00:00Z') },
   ];
   const split = monthlyIncome.buildMonthlyIncome(mixed, '2026-09', routeKmTable, opts);
   assert.deepEqual(split.groups.map((g) => [g.vehicleCorporation, g.periods.map((p) => [p.key, p.states.map((s) => [s.state, s.rows.map((r) => r.tripId)])])]), [
@@ -108,7 +108,7 @@ test('IOC and HPC months are billed in two halves (1-15, 16-end); BPC and others
   assert.deepEqual(monthlyIncome.periodsFor('BPC', '2026-12').map((p) => [p.label, p.from, p.to]), [['6 - 5 (next month)', '2026-12-06', '2027-01-05']]);
   assert.deepEqual(monthlyIncome.periodsFor('Total Gas', '2026-09').map((p) => [p.key, p.label]), [['month', '1 - 30']]);
 
-  const trip = (id, corporation, unloadingDate) => ({ _id: id, vehicle: { vehicleNumber: 'V-' + id, corporation }, status: 'closed', loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', unloadingWeightTons: 18, loadingDate: new Date('2026-09-01T03:00:00Z'), unloadingDate: new Date(unloadingDate) });
+  const trip = (id, corporation, unloadingDate) => ({ _id: id, vehicle: { vehicleNumber: 'V-' + id, corporation }, status: 'closed', loadingLocation: 'IPPL, Chennai', unloadingLocation: 'Chengalpattu', loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: new Date('2026-09-01T03:00:00Z'), unloadingDate: new Date(unloadingDate) });
   const result = monthlyIncome.buildMonthlyIncome([
     trip('a1', 'IOC', '2026-09-03T09:00:00Z'), trip('a2', 'IOC', '2026-09-15T09:00:00Z'), trip('a3', 'IOC', '2026-09-16T09:00:00Z'), trip('a4', 'IOC', '2026-09-30T09:00:00Z'),
     trip('h1', 'HPC', '2026-09-20T09:00:00Z'),
@@ -125,9 +125,52 @@ test('IOC and HPC months are billed in two halves (1-15, 16-end); BPC and others
   assert.equal(result.halfMonthDay, 15);
 });
 
-test('TDS is 2% of income, diesel/amount split the rest 40/60', () => {
+test('TDS is 2% of income, and diesel/amount shares apply to the remaining 98%', () => {
   assert.deepEqual(monthlyIncome.splitIncome(10000), { tds: 200, diesel: 3920, amount: 5880 });
+  assert.deepEqual(monthlyIncome.splitIncome(10000, 800), { tds: 200, diesel: 3920, amount: 5080 });
   assert.deepEqual(monthlyIncome.splitIncome(null), { tds: null, diesel: null, amount: null });
+});
+
+test('calculates shortage only above 40 kg and subtracts it from 60% of gross trip income', () => {
+  const trip = {
+    _id: 'shortage',
+    vehicle: { vehicleNumber: 'TN01BB0005', corporation: 'IOC' },
+    status: 'closed',
+    loadingLocation: 'IPPL, Chennai',
+    unloadingLocation: 'Chengalpattu',
+    loadingWeightTons: 18.2,
+    unloadingWeightTons: 18,
+    loadingDate: new Date('2026-09-01T03:00:00Z'),
+    unloadingDate: new Date('2026-09-03T09:00:00Z'),
+    isDiverted: true,
+    divertUnloadingLocation: 'Salem',
+    manualKmDivert: 100,
+    divertDate: new Date('2026-09-04T09:00:00Z'),
+  };
+  const result = monthlyIncome.buildMonthlyIncome([trip], '2026-09', routeKmTable, {
+    ...opts,
+    shortageRatePerKg: 5,
+  });
+  const rows = result.groups[0].periods[0].states[0].rows;
+
+  const loadRow = rows.find((row) => row.leg === 'load');
+  assert.equal(loadRow.shortage, 800);
+  assert.equal(loadRow.amount, Math.round((loadRow.tripIncome * 0.98 * 0.6 - 800) * 100) / 100);
+  assert.equal(rows.find((row) => row.leg === 'divert').shortage, null);
+  assert.equal(result.totals.shortage, 800);
+  assert.equal(result.rates.shortagePerKg, 5);
+
+  const withinTolerance = monthlyIncome.buildMonthlyIncome([{
+    ...trip,
+    _id: 'within-tolerance',
+    loadingWeightTons: 18.04,
+    isDiverted: false,
+    divertUnloadingLocation: null,
+    divertDate: null,
+  }], '2026-09', routeKmTable, { ...opts, shortageRatePerKg: 5 });
+  const toleranceRow = withinTolerance.groups[0].periods[0].states[0].rows[0];
+  assert.equal(toleranceRow.shortage, 0);
+  assert.equal(toleranceRow.amount, Math.round(toleranceRow.tripIncome * 0.98 * 0.6 * 100) / 100);
 });
 
 test('month helpers: default is the previous month; future months are rejected', () => {
@@ -163,6 +206,7 @@ test('unloadings are split by vehicle corporation, then by route state, with tot
     trips: 2,
     pricedTrips: 2,
     tripIncome: Math.round((incomeA + incomeB) * 100) / 100,
+    shortage: null,
     tds: Math.round((ka.rows[0].tds + ka.rows[1].tds) * 100) / 100,
     diesel: Math.round((ka.rows[0].diesel + ka.rows[1].diesel) * 100) / 100,
     amount: Math.round((ka.rows[0].amount + ka.rows[1].amount) * 100) / 100,
@@ -210,5 +254,5 @@ test('a diverted trip\'s Divert leg is billed in the month of the new unloading,
 test('a month with no unloadings returns empty groups and zero totals', () => {
   const result = monthlyIncome.buildMonthlyIncome(trips, '2026-07', routeKmTable, opts);
   assert.deepEqual(result.groups, []);
-  assert.deepEqual(result.totals, { trips: 0, pricedTrips: 0, tripIncome: 0, tds: 0, diesel: 0, amount: 0 });
+  assert.deepEqual(result.totals, { trips: 0, pricedTrips: 0, tripIncome: 0, shortage: null, tds: 0, diesel: 0, amount: 0 });
 });

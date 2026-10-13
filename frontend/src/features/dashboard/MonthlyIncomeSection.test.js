@@ -8,7 +8,7 @@ jest.mock('../../api/api', () => ({
   getCustomerMonthlyIncome: jest.fn(),
 }));
 
-const rates = { tds: 0.02, diesel: 0.4, amount: 0.6 };
+const rates = { tds: 0.02, diesel: 0.4, amount: 0.6, shortagePerKg: 5 };
 const row = (overrides) => ({
   sNo: 1,
   tripId: 't1',
@@ -24,6 +24,7 @@ const row = (overrides) => ({
   status: 'closed',
   corporation: 'IOC-KA',
   tripIncome: 10000,
+  shortage: null,
   tds: 200,
   diesel: 3920,
   amount: 5880,
@@ -40,7 +41,7 @@ function response(month, groups) {
       rates,
       cutoffDays: { BPC: 5 },
       groups,
-      totals: { trips: all.length, pricedTrips: all.filter((r) => r.tripIncome != null).length, tripIncome: sum('tripIncome'), tds: sum('tds'), diesel: sum('diesel'), amount: sum('amount') },
+      totals: { trips: all.length, pricedTrips: all.filter((r) => r.tripIncome != null).length, tripIncome: sum('tripIncome'), shortage: sum('shortage'), tds: sum('tds'), diesel: sum('diesel'), amount: sum('amount') },
     },
   };
 }
@@ -90,13 +91,13 @@ afterEach(() => {
 });
 
 test('shows last month by default, split by vehicle corporation then route state, with the TDS / Diesel / Amount split', async () => {
-  const kaState = { state: 'KA', known: true, corporations: ['IOC-KA'], rows: [row()], totals: { trips: 1, pricedTrips: 1, tripIncome: 10000, tds: 200, diesel: 3920, amount: 5880 } };
+  const kaState = { state: 'KA', known: true, corporations: ['IOC-KA'], rows: [row({ shortage: 100, amount: 5780 })], totals: { trips: 1, pricedTrips: 1, tripIncome: 10000, shortage: 100, tds: 200, diesel: 3920, amount: 5780 } };
   const tnState = { state: 'TN', known: true, corporations: ['IOC-TN'], rows: [
-    row({ tripId: 't2', vehicleNumber: 'TN01BB0001', corporation: 'IOC-TN', state: 'TN', tripIncome: null, tds: null, diesel: null, amount: null, status: 'open', notes: ['Unloading weight (tons) is required to calculate Trip Income.'] }),
+    row({ tripId: 't2', vehicleNumber: 'TN01BB0001', corporation: 'IOC-TN', state: 'TN', tripIncome: null, tds: null, diesel: null, amount: null, status: 'open', notes: ['Loading weight (tons) is required to calculate Trip Income.'] }),
     row({ sNo: 2, tripId: 't3', leg: 'divert', vehicleNumber: 'TN01BB0002', corporation: 'IOC-TN', state: 'TN', loadingLocation: 'Chengalpattu', unloadingLocation: 'Salem', unloadingDate: '2026-09-12T03:00:00Z', tripIncome: 5000, tds: 100, diesel: 1960, amount: 2940 }),
   ], totals: { trips: 2, pricedTrips: 1, tripIncome: 5000, tds: 100, diesel: 1960, amount: 2940 } };
   const bpcState = { state: 'TN', known: true, corporations: ['BPC-TN'], rows: [row({ tripId: 't4', vehicleNumber: 'TN02CC0001', vehicleCorporation: 'BPC', cutoffDay: 5, corporation: 'BPC-TN', state: 'TN', unloadingDate: '2026-10-03T03:00:00Z', tripIncome: 7000, tds: 140, diesel: 2744, amount: 4116 })], totals: { trips: 1, pricedTrips: 1, tripIncome: 7000, tds: 140, diesel: 2744, amount: 4116 } };
-  const iocTotals = { trips: 3, pricedTrips: 2, tripIncome: 15000, tds: 300, diesel: 5880, amount: 8820 };
+  const iocTotals = { trips: 3, pricedTrips: 2, tripIncome: 15000, tds: 300, diesel: 5880, amount: 8720 };
   const empty = { trips: 0, pricedTrips: 0, tripIncome: 0, tds: 0, diesel: 0, amount: 0 };
   api.getCustomerMonthlyIncome.mockResolvedValue(response('2026-09', [
     { vehicleCorporation: 'BPC', known: true, cutoffDay: 5, halfMonth: false, periods: [{ key: 'month', label: '6 - 5 (next month)', from: '2026-09-06', to: '2026-10-05', states: [bpcState], totals: bpcState.totals }], totals: bpcState.totals },
@@ -142,15 +143,15 @@ test('shows last month by default, split by vehicle corporation then route state
   const headers = Array.from(ka.querySelectorAll('thead th')).map((th) => th.textContent);
   expect(headers).toEqual([
     'S.No', 'Vehicle Number', 'Loading location', 'Unloading location', 'Loading date', 'Unloading date', 'Trip Income',
-    'TDSTrip Income x 2%', 'Diesel(Trip Income - TDS) x 40%', 'Amount(Trip Income - TDS) x 60%',
+    'ShortageLoss above 40 Kg x ₹5.00/Kg', 'TDSTrip Income x 2%', 'Diesel(Trip Income - TDS) x 40%', 'Amount((Trip Income - TDS) x 60%) - Shortage',
   ]);
   const kaRows = Array.from(ka.querySelectorAll('tbody tr')).map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.textContent));
-  expect(kaRows[0]).toEqual(['1', 'KA01AA0001IOC', 'AEGIS, Mangalore', 'Belgaum', '05 Sept 2026', '07 Sept 2026', '₹10,000.00', '₹200.00', '₹3,920.00', '₹5,880.00']);
-  expect(kaRows[1]).toEqual(['Total KA', '₹10,000.00', '₹200.00', '₹3,920.00', '₹5,880.00']);
+  expect(kaRows[0]).toEqual(['1', 'KA01AA0001IOC', 'AEGIS, Mangalore', 'Belgaum', '05 Sept 2026', '07 Sept 2026', '₹10,000.00', '₹100.00', '₹200.00', '₹3,920.00', '₹5,780.00']);
+  expect(kaRows[1]).toEqual(['Total KA', '₹10,000.00', '₹100.00', '₹200.00', '₹3,920.00', '₹5,780.00']);
   expect(ka.querySelector('tbody tr td a').getAttribute('href')).toBe('/trips/t1');
 
   expect(tn.textContent).toContain('NA');
-  expect(tn.textContent).toContain('Unloading weight (tons) is required');
+  expect(tn.textContent).toContain('Loading weight (tons) is required');
   expect(tn.textContent).toContain('1 unloading(s) without income not included');
   const divertRow = Array.from(tn.querySelectorAll('tbody tr'))[1];
   const divertCells = Array.from(divertRow.querySelectorAll('td')).map((td) => td.textContent);
@@ -162,7 +163,7 @@ test('shows last month by default, split by vehicle corporation then route state
   await unmount();
 });
 
-test('the month before last is one click away; older months are archived behind a month picker', async () => {
+test('the three most recent completed months are one click away; older months are archived behind a month picker', async () => {
   api.getCustomerMonthlyIncome.mockImplementation((_, month) => Promise.resolve(response(month, [])));
 
   const { container, unmount } = await mount(<MemoryRouter><MonthlyIncomeSection customerId="c1" /></MemoryRouter>);
@@ -174,9 +175,14 @@ test('the month before last is one click away; older months are archived behind 
   expect(container.querySelector('h3').textContent).toBe('Monthly Income (August 2026)');
   expect(container.textContent).toContain('No unloadings in August 2026');
 
+  await click(buttonByText(container, 'July 2026'));
+  expect(api.getCustomerMonthlyIncome).toHaveBeenLastCalledWith('c1', '2026-07');
+  expect(container.querySelector('h3').textContent).toBe('Monthly Income (July 2026)');
+  expect(container.textContent).toContain('No unloadings in July 2026');
+
   await click(buttonByText(container, 'View archived income'));
   const picker = container.querySelector('#income-month');
-  expect(picker.getAttribute('max')).toBe('2026-08');
+  expect(picker.getAttribute('max')).toBe('2026-07');
   await setInputValue(picker, '2026-06');
   expect(api.getCustomerMonthlyIncome).toHaveBeenLastCalledWith('c1', '2026-06');
   expect(container.querySelector('h3').textContent).toBe('Monthly Income (June 2026) - Archived');
