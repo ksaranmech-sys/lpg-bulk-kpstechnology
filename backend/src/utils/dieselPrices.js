@@ -19,7 +19,12 @@
 // source is the configured Dec-24 price (DIESEL_PRICE_ROWS[].baseDieselPrice): it always comes from
 // config (never persisted as such) and fills the start month whenever nothing else does.
 const settings = require('./settings');
-const { DIESEL_PRICE_ROWS, DIESEL_PRICE_START_MONTH } = require('../config/constants');
+const {
+  DIESEL_PRICE_ROWS,
+  DIESEL_PRICE_START_MONTH,
+  DIESEL_PRICE_MONTHLY_DEFAULTS,
+  DIESEL_PRICE_MONTHLY_MANUAL_DEFAULTS,
+} = require('../config/constants');
 
 const FUEL_PRICE_TODAY_BASE = process.env.FUEL_PRICE_TODAY_BASE || 'https://www.fuelpricetoday.in';
 const V3CARS_API_BASE = process.env.V3CARS_API_BASE || 'https://www.v3cars.com/v1';
@@ -35,8 +40,8 @@ const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 const LEVELS = { CITY: 'city', STATE: 'state' };
 const LEVEL_PRIORITY = { [LEVELS.CITY]: 2, [LEVELS.STATE]: 1 };
 
-const SOURCES = { MANUAL: 'manual', DAILY_AVG: 'daily-avg', CITY_MONTHLY: 'v3cars-monthly', STATE_MONTHLY: 'v3cars-state-monthly', BASE: 'base' };
-const SOURCE_PRIORITY = { [SOURCES.MANUAL]: 5, [SOURCES.DAILY_AVG]: 4, [SOURCES.CITY_MONTHLY]: 3, [SOURCES.STATE_MONTHLY]: 2, [SOURCES.BASE]: 1 };
+const SOURCES = { MANUAL: 'manual', DAILY_AVG: 'daily-avg', CITY_MONTHLY: 'v3cars-monthly', STATE_MONTHLY: 'v3cars-state-monthly', LOCAL_DEFAULT: 'local-default', BASE: 'base' };
+const SOURCE_PRIORITY = { [SOURCES.MANUAL]: 5, [SOURCES.DAILY_AVG]: 4, [SOURCES.CITY_MONTHLY]: 3, [SOURCES.STATE_MONTHLY]: 2, [SOURCES.LOCAL_DEFAULT]: 1, [SOURCES.BASE]: 1 };
 
 // ---------- date helpers ----------
 
@@ -131,7 +136,15 @@ function emptyTable() {
     rows: DIESEL_PRICE_ROWS.map(({ state, city }) => ({ state, city })),
     cells: Object.fromEntries(DIESEL_PRICE_ROWS.map(({ state, baseDieselPrice }) => {
       const base = toPrice(baseDieselPrice);
-      return [state, base === null ? {} : { [DIESEL_PRICE_START_MONTH]: { value: round2(base), source: SOURCES.BASE } }];
+      const monthlyDefaults = Object.fromEntries(Object.entries(DIESEL_PRICE_MONTHLY_DEFAULTS[state] || {})
+        .map(([month, value]) => [month, { value: round2(value), source: SOURCES.LOCAL_DEFAULT }]));
+      const manualDefaults = Object.fromEntries(Object.entries(DIESEL_PRICE_MONTHLY_MANUAL_DEFAULTS[state] || {})
+        .map(([month, value]) => [month, { value: round2(value), source: SOURCES.MANUAL }]));
+      return [state, {
+        ...(base === null ? {} : { [DIESEL_PRICE_START_MONTH]: { value: round2(base), source: SOURCES.BASE } }),
+        ...monthlyDefaults,
+        ...manualDefaults,
+      }];
     })),
     daily: Object.fromEntries(DIESEL_PRICE_ROWS.map(({ state }) => [state, {}])),
     lastSyncedAt: null,

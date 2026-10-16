@@ -50,6 +50,18 @@ const DIESEL_PRICE_ROWS = [
   { state: 'Telangana', city: 'Hyderabad', baseDieselPrice: 92.44, fuelPriceTodayCity: 'Hyderabad', fuelPriceTodayState: 'Telangana', v3carsState: 'Telangana', v3carsDistrict: 'Hyderabad' },
 ];
 const DIESEL_PRICE_START_MONTH = '2024-12';
+const DIESEL_PRICE_MONTHLY_DEFAULTS = {
+  'Andhra Pradesh': { '2025-11': 97.44, '2025-12': 97.47, '2026-01': 97.45, '2026-02': 97.48, '2026-03': 97.43, '2026-04': 97.50, '2026-05': 100.56, '2026-06': 105.28, '2026-07': 105.20, '2026-08': 105.20, '2026-09': 105.06 },
+  Karnataka: { '2025-11': 91.46, '2025-12': 91.47, '2026-01': 91.46, '2026-02': 90.99, '2026-03': 91.00, '2026-04': 90.97, '2026-05': 94.00, '2026-06': 99.10, '2026-07': 99.27, '2026-08': 99.76, '2026-09': 99.35 },
+  Kerala: { '2025-11': 96.42, '2025-12': 96.39, '2026-01': 96.42, '2026-02': 96.18, '2026-03': 96.32, '2026-04': 96.43, '2026-05': 99.55, '2026-06': 104.39, '2026-07': 104.14, '2026-08': 104.09, '2026-09': 104.29 },
+  Pondicherry: { '2025-11': 86.50, '2025-12': 86.50, '2026-01': 86.49, '2026-02': 86.47, '2026-03': 86.48, '2026-04': 86.50, '2026-05': 89.33, '2026-06': 93.80, '2026-07': 94.96, '2026-08': 95.19, '2026-09': 94.00 },
+  'Tamil Nadu': { '2025-11': 92.48, '2025-12': 92.53, '2026-01': 92.48, '2026-02': 92.48, '2026-03': 92.51, '2026-04': 92.54, '2026-05': 95.22, '2026-06': 99.57, '2026-07': 99.72, '2026-08': 100.04, '2026-09': 99.56 },
+  Telangana: { '2025-11': 95.70, '2025-12': 95.70, '2026-01': 95.70, '2026-02': 95.70, '2026-03': 95.70, '2026-04': 95.70, '2026-05': 98.84, '2026-06': 103.84, '2026-07': 104.10, '2026-08': 103.95, '2026-09': 104.08 },
+};
+const DIESEL_PRICE_MONTHLY_MANUAL_DEFAULTS = {
+  'Tamil Nadu': { '2026-02': 92.48 },
+  Telangana: { '2026-02': 95.70 },
+};
 
 // Super admin "Rate/KM/Ton" tables (one per state), calculated from the Average Diesel Price table.
 //   Price 1 paise      = (diesel[m] - diesel[m-1]) / (kmPerLitre * tonnage)
@@ -171,6 +183,8 @@ module.exports = {
   TRIP_STATUS,
   DIESEL_PRICE_ROWS,
   DIESEL_PRICE_START_MONTH,
+  DIESEL_PRICE_MONTHLY_DEFAULTS,
+  DIESEL_PRICE_MONTHLY_MANUAL_DEFAULTS,
   RATE_TABLES,
   RATE_TABLE_BASE_REVISIONS,
   MANGALORE_BASE_LOADING_LOCATIONS,

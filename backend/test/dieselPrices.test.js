@@ -2,12 +2,23 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 const dieselPrices = require('../src/utils/dieselPrices');
-const { DIESEL_PRICE_ROWS, DIESEL_PRICE_START_MONTH } = require('../src/config/constants');
+const {
+  DIESEL_PRICE_ROWS,
+  DIESEL_PRICE_START_MONTH,
+  DIESEL_PRICE_MONTHLY_DEFAULTS,
+  DIESEL_PRICE_MONTHLY_MANUAL_DEFAULTS,
+} = require('../src/config/constants');
 
 const { SOURCES, LEVELS } = dieselPrices;
 const STATES = DIESEL_PRICE_ROWS.map((row) => row.state);
-// The Dec-24 column is pre-filled with each state's configured base diesel price.
-const BASE = Object.fromEntries(DIESEL_PRICE_ROWS.map(({ state, baseDieselPrice }) => [state, { '2024-12': { value: baseDieselPrice, source: 'base' } }]));
+// The Dec-24 base and screenshot-provided local monthly defaults fill otherwise empty cells.
+const BASE = Object.fromEntries(DIESEL_PRICE_ROWS.map(({ state, baseDieselPrice }) => [state, {
+  '2024-12': { value: baseDieselPrice, source: 'base' },
+  ...Object.fromEntries(Object.entries(DIESEL_PRICE_MONTHLY_DEFAULTS[state] || {})
+    .map(([month, value]) => [month, { value, source: 'local-default' }])),
+  ...Object.fromEntries(Object.entries(DIESEL_PRICE_MONTHLY_MANUAL_DEFAULTS[state] || {})
+    .map(([month, value]) => [month, { value, source: 'manual' }])),
+}]));
 
 test('table rows are one reference city per state, including Telangana / Hyderabad, each with its Dec-24 base diesel price', () => {
   assert.deepEqual(DIESEL_PRICE_ROWS.map(({ state, city, baseDieselPrice }) => `${state}:${city}:${baseDieselPrice}`), [
@@ -18,6 +29,22 @@ test('table rows are one reference city per state, including Telangana / Hyderab
     'Tamil Nadu:Chennai:92.41',
     'Telangana:Hyderabad:92.44',
   ]);
+});
+
+test('local defaults match the screenshot from Nov-25 through Sep-26 and seed the available base prices', () => {
+  const table = dieselPrices.emptyTable();
+  assert.deepEqual(
+    Object.fromEntries(STATES.map((state) => [
+      state,
+      Object.fromEntries(Object.entries(table.cells[state])
+        .filter(([month]) => month >= '2025-11' && month <= '2026-09')
+        .map(([month, cell]) => [month, cell.value])),
+    ])),
+    DIESEL_PRICE_MONTHLY_DEFAULTS,
+  );
+  assert.equal(table.cells['Tamil Nadu']['2026-02'].source, SOURCES.MANUAL);
+  assert.equal(table.cells.Telangana['2026-02'].source, SOURCES.MANUAL);
+  assert.equal(table.cells['Andhra Pradesh']['2025-11'].source, SOURCES.LOCAL_DEFAULT);
 });
 
 test('monthRange runs from the start month to the end month inclusive, crossing years', () => {
@@ -94,19 +121,19 @@ test('normalizeTable builds the default shape, keeps manual cells and drops lega
 
 test('the Dec-24 base price always comes from config: a stored base cell is ignored, a manual or synced value replaces it, clearing restores it', () => {
   const stored = dieselPrices.normalizeTable({ cells: { Kerala: { '2024-12': { value: 50, source: 'base' } } } });
-  assert.deepEqual(stored.cells.Kerala, { '2024-12': { value: 96.16, source: SOURCES.BASE } });
+  assert.deepEqual(stored.cells.Kerala, BASE.Kerala);
   assert.deepEqual(dieselPrices.emptyTable().cells, BASE);
 
   const manual = dieselPrices.applyManualEdits(stored, { Kerala: { '2024-12': 97 } });
-  assert.deepEqual(manual.cells.Kerala, { '2024-12': { value: 97, source: SOURCES.MANUAL } });
+  assert.deepEqual(manual.cells.Kerala, { ...BASE.Kerala, '2024-12': { value: 97, source: SOURCES.MANUAL } });
   const cleared = dieselPrices.applyManualEdits(manual, { Kerala: { '2024-12': '' } });
-  assert.deepEqual(cleared.cells.Kerala, { '2024-12': { value: 96.16, source: SOURCES.BASE } });
+  assert.deepEqual(cleared.cells.Kerala, BASE.Kerala);
 
   const synced = dieselPrices.mergeSyncedCells(stored, { Kerala: { '2024-12': { value: 95.1, source: SOURCES.STATE_MONTHLY, fallback: true } } }, { now: new Date('2026-10-03T00:00:00Z') });
-  assert.deepEqual(synced.cells.Kerala, { '2024-12': { value: 95.1, source: SOURCES.STATE_MONTHLY, fallback: true } });
+  assert.deepEqual(synced.cells.Kerala, { ...BASE.Kerala, '2024-12': { value: 95.1, source: SOURCES.STATE_MONTHLY, fallback: true } });
 
   const presented = dieselPrices.presentTable(stored, { now: new Date('2025-01-10T00:00:00Z') });
-  assert.deepEqual(presented.cells['Tamil Nadu'], { '2024-12': { value: 92.41, source: SOURCES.BASE } });
+  assert.deepEqual(presented.cells['Tamil Nadu'], BASE['Tamil Nadu']);
 });
 
 test('recordDailyPrices: city beats state, primary beats backfill within a level, future/old days ignored', () => {

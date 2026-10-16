@@ -233,6 +233,7 @@ export default function DieselPriceTable({ user }) {
                   if (isManual) title = 'Entered manually - kept when prices refresh';
                   else if (isBase) title = `Base diesel price for ${state} - the Price Escalation reference of the Rate/KM/Ton tables (edit to override)`;
                   else if (isFallback) title = `No ${city || 'city'} price available this month - ${state} state-level price used`;
+                  else if (cell?.source === 'local-default') title = 'Locally configured reference price - replaced when refreshed source data is available';
                   else if (cell) title = `Average of ${city || state} daily diesel prices`;
                   const className = isManual ? 'diesel-price-manual' : isFallback ? 'diesel-price-fallback' : '';
                   return (
