@@ -93,11 +93,11 @@ This produces a file anyone can install on an Android phone without the Play Sto
 3. [ ] Play Console → **Create app** → name `LPG Fleet Driver`, app type *App*, free. Complete the **Dashboard** tasks: privacy policy URL, app access (provide a **test driver login** since the app requires sign-in), ads (none), content rating questionnaire, target audience (18+ / business), data safety form (Location: collected, not shared; Photos: collected; Name/Username: collected).
 4. [ ] Store listing: short description, full description, at least 2 phone screenshots (take them from the APK build). The icon and feature graphic are ready in `mobile/store/` (`play-icon-512.png`, `feature-graphic-1024x500.png`). To change the logo later, put the new square PNG at `mobile/store/logo-source.png` and run `powershell -ExecutionPolicy Bypass -File mobile/scripts/make-icons.ps1 -Source mobile/store/logo-source.png`.
 5. [ ] Terminal: `cd mobile` then `eas build --platform android --profile production` (creates the `.aab` bundle Play needs).
-6. [ ] Upload: either `eas submit --platform android --latest` (EAS asks you once for a Play service-account JSON — follow its prompts), or download the `.aab` from the build page and upload it in Play Console → **Testing → Internal testing → Create release**.
+6. [ ] Upload to internal testing: either `eas submit --platform android --latest` (EAS asks you once for a Play service-account JSON — follow its prompts), or download the `.aab` from the build page and upload it in Play Console → **Testing → Internal testing → Create release**.
 7. [ ] Add tester emails (yourself, a driver), roll out to internal testing, install from the test link, confirm it works.
-8. [ ] Promote to **Production** when satisfied. First review typically takes a few days.
+8. [ ] When ready for a public release, submit the production build with `eas submit --platform android --latest --profile production-release`. This targets the Play **Production** track; Google review is still required before users receive it.
 
-**Updating the app later:** `eas build --platform android --profile production` then `eas submit --platform android --latest`. Version numbers increase automatically.
+**Updating the app later:** `eas build --platform android --profile production` then submit to internal testing with `eas submit --platform android --latest`, or target public release with `eas submit --platform android --latest --profile production-release`. Version numbers increase automatically.
 
 ---
 

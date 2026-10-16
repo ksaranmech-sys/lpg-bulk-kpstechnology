@@ -32,6 +32,11 @@
       "android": {
         "track": "internal"
       }
+    },
+    "production-release": {
+      "android": {
+        "track": "production"
+      }
     }
   }
 }
