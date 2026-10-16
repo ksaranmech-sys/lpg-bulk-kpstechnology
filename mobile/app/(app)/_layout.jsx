@@ -50,6 +50,7 @@ export default function AppLayout() {
       <Stack.Screen name="drivers/new" options={{ title: 'Add Driver' }} />
       <Stack.Screen name="drivers/[customerId]/[driverId]" options={{ title: 'Driver' }} />
       <Stack.Screen name="route-km" options={{ title: 'KM Table' }} />
+      <Stack.Screen name="rates-diesel" options={{ title: 'Rates & Diesel' }} />
     </Stack>
   );
 }

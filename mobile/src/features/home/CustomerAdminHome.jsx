@@ -9,6 +9,7 @@ import TripHistoryCard from './TripHistoryCard';
 import VehicleExpensesCard from '../expenses/VehicleExpensesCard';
 import LeavesCard from '../leaves/LeavesCard';
 import SalaryDetailsCard from '../salary/SalaryDetailsCard';
+import MonthlyIncomeCard from './MonthlyIncomeCard';
 
 // Customer admin home: same sections as the web dashboard, top to bottom.
 export default function CustomerAdminHome({ user }) {
@@ -94,6 +95,7 @@ export default function CustomerAdminHome({ user }) {
       <DriversList customerId={customerId} data={customerData || { vehicles, users: [] }} canAdd vehicleExpenses={vehicleExpenses} />
 
       <TripHistoryCard vehicles={listVehicles} setError={setError} />
+      <MonthlyIncomeCard customerId={customerId} />
 
       <VehicleExpensesCard
         customerId={customerId}

@@ -12,6 +12,7 @@ export default function SuperAdminHome({ user }) {
         <NavRow title="Customers" subtitle="All onboarded customers" onPress={() => router.push('/customers')} />
         <NavRow title="All Vehicles" subtitle="Filter by customer, open trip history" onPress={() => router.push('/vehicles')} />
         <NavRow title="KM Table" subtitle="Route KM reference table" onPress={() => router.push('/route-km')} />
+        <NavRow title="Rates & Diesel" subtitle="Shortage rate, average diesel prices and Rate/KM/Ton tables" onPress={() => router.push('/rates-diesel')} />
         <NavRow title="Onboard Customer" subtitle="Create a new customer and admin login" onPress={() => router.push('/customers/new')} />
         <NavRow title="Leaves" subtitle="Leave entries by customer" onPress={() => router.push('/leaves')} />
       </Card>
