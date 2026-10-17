@@ -3,15 +3,14 @@ import { Link } from 'react-router-dom';
 import { previousMonth, formatMonthLabel, formatDateLong } from '@kps/shared';
 import * as api from '../../api/api';
 
-const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const money = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const formatMoney = (value) => (Number.isFinite(value) ? money.format(value) : 'NA');
 const moneyNumber = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const formatMoneyNumber = (value) => (Number.isFinite(value) ? moneyNumber.format(value) : 'NA');
 const totalNumber = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
-const formatTotal = (value, includeCurrency = true) => {
+const formatTotal = (value) => {
   if (!Number.isFinite(value)) return 'NA';
-  const formatted = totalNumber.format(value);
-  return includeCurrency ? `₹${formatted}` : formatted;
+  return totalNumber.format(value);
 };
 
 // "BPC up to the 5th of the next month; others the calendar month"
@@ -100,16 +99,16 @@ function IncomeTable({ vehicleCorporation, group }) {
             ))}
             <tr>
               <td style={{ ...right, fontWeight: 700 }} colSpan={6}>
-                Total {group.state}
+                ₹Total {group.state}
                 {totals.pricedTrips < totals.trips && (
                   <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>{totals.trips - totals.pricedTrips} unloading(s) without income not included</div>
                 )}
               </td>
-              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatTotal(totals.tripIncome, false)}</td>
+              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatTotal(totals.tripIncome)}</td>
               <td className="num" style={{ ...right, fontWeight: 700 }}>{formatTotal(totals.shortage)}</td>
-              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatTotal(totals.tds, false)}</td>
-              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatTotal(totals.diesel, false)}</td>
-              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatTotal(totals.amount, false)}</td>
+              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatTotal(totals.tds)}</td>
+              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatTotal(totals.diesel)}</td>
+              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatTotal(totals.amount)}</td>
             </tr>
           </tbody>
         </table>
@@ -125,11 +124,11 @@ function TotalsRow({ label, sub, totals, strong = false }) {
         {label}
         {sub && <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>{sub}</div>}
       </td>
-      <td className="num" style={{ ...right, fontWeight: 700 }}>Trip Income {formatTotal(totals.tripIncome, false)}</td>
+      <td className="num" style={{ ...right, fontWeight: 700 }}>Trip Income {formatTotal(totals.tripIncome)}</td>
       <td className="num" style={{ ...right, fontWeight: 700 }}>Shortage {formatTotal(totals.shortage)}</td>
-      <td className="num" style={{ ...right, fontWeight: 700 }}>TDS {formatTotal(totals.tds, false)}</td>
-      <td className="num" style={{ ...right, fontWeight: 700 }}>Diesel {formatTotal(totals.diesel, false)}</td>
-      <td className="num" style={{ ...right, fontWeight: strong ? 800 : 700 }}>Amount {formatTotal(totals.amount, false)}</td>
+      <td className="num" style={{ ...right, fontWeight: 700 }}>TDS {formatTotal(totals.tds)}</td>
+      <td className="num" style={{ ...right, fontWeight: 700 }}>Diesel {formatTotal(totals.diesel)}</td>
+      <td className="num" style={{ ...right, fontWeight: strong ? 800 : 700 }}>Amount {formatTotal(totals.amount)}</td>
     </tr>
   );
 }

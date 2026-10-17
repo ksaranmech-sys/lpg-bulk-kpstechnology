@@ -152,9 +152,9 @@ test('shows last month by default, split by vehicle corporation then route state
   ]);
   expect(ka.querySelector('thead').textContent).not.toMatch(/loss above 40|trip income x|\(trip income - tds\)/i);
   const kaRows = Array.from(ka.querySelectorAll('tbody tr')).map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.textContent));
-  expect(kaRows[0]).toEqual(['1', 'KA01AA0001', 'AEGIS, Mangalore', 'Belgaum', '05 Sept 2026', '07 Sept 2026', '10,000.00', '₹100.00', '₹200.00', '₹3,920.00', '₹5,780.00']);
-  expect(kaRows[1]).toEqual(['Total KA', '10,001', '₹100', '201', '3,921', '5,780']);
-  expect(kaRows[1][0]).not.toContain('₹');
+  expect(kaRows[0]).toEqual(['1', 'KA01AA0001', 'AEGIS, Mangalore', 'Belgaum', '05 Sept 2026', '07 Sept 2026', '10,000.00', '100.00', '200.00', '3,920.00', '5,780.00']);
+  expect(kaRows[1]).toEqual(['₹Total KA', '10,001', '100', '201', '3,921', '5,780']);
+  expect(kaRows[1].slice(1).join('')).not.toContain('₹');
   expect(ka.querySelector('tbody tr td a').getAttribute('href')).toBe('/trips/t1');
   expect(ka.querySelector('tbody tr td:nth-child(2)').textContent).not.toContain('IOC');
 
