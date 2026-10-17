@@ -289,6 +289,42 @@ test('settlement mileage uses Tank Fill opening odometers and diesel from the se
   assert.equal(result.settlement.mileageKmPerLitre, 8.33);
 });
 
+test('next trip Load Turn is enough to finalize the previous trip before diesel is recorded', () => {
+  const result = computeTripSettlement({
+    dieselEntries: [],
+    driverAdvances: [{ amount: 500, date: new Date('2026-08-01') }],
+    loadingExpense: 100,
+    unloadingExpense: 0,
+    rtoEntries: [],
+    otherExpenses: [],
+  }, {
+    turnDate: new Date('2026-08-05'),
+    dieselEntries: [],
+  });
+
+  assert.equal(result.ready, true);
+  assert.equal(result.settlement.totalKm, null);
+  assert.equal(result.settlement.totalDieselLitres, null);
+  assert.equal(result.settlement.balance, 400);
+});
+
+test('missing odometer readings remain unavailable instead of being treated as zero', () => {
+  const result = computeTripSettlement({
+    dieselEntries: [{ odometerKm: 1800, volumeLitres: 300, amount: 30000 }],
+    driverAdvances: [],
+    loadingExpense: 0,
+    unloadingExpense: 0,
+    rtoEntries: [],
+    otherExpenses: [],
+  }, {
+    dieselEntries: [{ odometerKm: null, volumeLitres: 60, amount: 6000 }],
+  });
+
+  assert.equal(result.ready, true);
+  assert.equal(result.settlement.totalKm, null);
+  assert.equal(result.settlement.totalDieselLitres, 60);
+});
+
 test('settlement groups same-date next-trip fills at the same GPS location up to the Tank Fill', () => {
   const result = computeTripSettlement({
     dieselEntries: [

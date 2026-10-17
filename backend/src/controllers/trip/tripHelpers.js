@@ -129,21 +129,20 @@ function dieselEntryError(volume, amount) {
 }
 
 /**
- * Shared logic: whenever a new trip's first diesel entry is saved, look up
- * the vehicle's previous OPEN trip and attempt to compute + finalize its
- * settlement now that we have the "next trip first fill" data point we need.
+ * When a new trip starts, look up the vehicle's previous open trip and attempt to
+ * compute + finalize its settlement using the new trip's start details.
  */
 async function tryCloseVehiclePreviousTrip(newTrip) {
   const previousTrip = await Trip.findOne({
     vehicle: newTrip.vehicle,
     status: { $in: [TRIP_STATUS.OPEN, TRIP_STATUS.PENDING_CLOSE] },
     _id: { $ne: newTrip._id },
+    createdAt: { $lt: newTrip.createdAt },
   }).sort('-createdAt');
 
   if (!previousTrip) return; // this is the very first trip ever for the vehicle
 
-  // Never auto-close a trip whose route details are incomplete - leave it
-  // open so someone can fill in loading/unloading info and close it manually.
+  // Never auto-close a trip whose route details are incomplete.
   if (getMissingTripRouteFields(previousTrip).length > 0) return;
 
   const result = computeTripSettlement(previousTrip, newTrip);

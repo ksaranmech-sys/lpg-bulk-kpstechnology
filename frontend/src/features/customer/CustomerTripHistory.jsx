@@ -55,8 +55,7 @@ export default function CustomerTripHistory({ vehicles }) {
     }
   }
 
-  // Trips only auto-close once the vehicle's next trip records its first diesel fill - if that
-  // hasn't happened yet, they're stuck as pending_close and need a manual force-close here.
+  // Trips auto-close when their Load Turn is entered or when the next trip starts.
   async function closeSelectedTrips() {
     if (!selectedTripsToClose.length) return;
     setClosingSelectedTrips(true);

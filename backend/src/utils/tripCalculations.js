@@ -91,8 +91,14 @@ function calculateTripKm(currentTrip, nextTrip) {
   const nextEntries = nextTrip?.dieselEntries || [];
   const currentFill = getFirstTankFill(currentEntries) || currentEntries[0] || null;
   const nextFill = getFirstTankFill(nextEntries) || nextEntries[0] || null;
-  const currentOdometerKm = currentFill ? Number(currentFill.odometerKm) : null;
-  const nextOdometerKm = nextFill ? Number(nextFill.odometerKm) : null;
+  const currentOdometerValue = currentFill?.odometerKm;
+  const nextOdometerValue = nextFill?.odometerKm;
+  if (
+    currentOdometerValue === null || currentOdometerValue === undefined || currentOdometerValue === ''
+    || nextOdometerValue === null || nextOdometerValue === undefined || nextOdometerValue === ''
+  ) return null;
+  const currentOdometerKm = Number(currentOdometerValue);
+  const nextOdometerKm = Number(nextOdometerValue);
   if (!Number.isFinite(currentOdometerKm) || !Number.isFinite(nextOdometerKm)) return null;
   return nextOdometerKm - currentOdometerKm;
 }
@@ -100,22 +106,22 @@ function calculateTripKm(currentTrip, nextTrip) {
 /**
  * @param {Trip} trip - the trip being closed/settled (mongoose doc or plain object)
  * @param {Trip|null} nextTrip - the following trip for this vehicle, if it exists yet.
- *   Settlement cannot be finalized until nextTrip records its first diesel fill, OR (if that
- *   hasn't happened yet) its Unload Turn date, OR its own unloading is done - any one confirms
- *   the next trip has genuinely started. Without a diesel fill (on either this trip or the next
- *   one) the diesel/KM/mileage figures stay null until it's filled.
+ *   Settlement can be finalized once nextTrip has a first diesel fill, Load Turn, Unload Turn,
+ *   or completed unloading. Without diesel fills on both trips, the diesel/KM/mileage figures
+ *   stay null until they're entered.
  * @returns {{ ready: boolean, reason?: string, settlement?: object }}
  */
 function computeTripSettlement(trip, nextTrip) {
   const dieselEntries = trip.dieselEntries || [];
 
   const nextTripHasDiesel = Boolean(nextTrip?.dieselEntries?.length);
+  const nextTripHasLoadTurn = Boolean(nextTrip?.turnDate);
   const nextTripHasUnloadTurn = Boolean(nextTrip?.unTurnDate);
   const nextTripUnloadingDone = Boolean(nextTrip?.unloadingLocation && nextTrip?.unloadingDate);
-  if (!nextTrip || (!nextTripHasDiesel && !nextTripHasUnloadTurn && !nextTripUnloadingDone)) {
+  if (!nextTrip || (!nextTripHasDiesel && !nextTripHasLoadTurn && !nextTripHasUnloadTurn && !nextTripUnloadingDone)) {
     return {
       ready: false,
-      reason: 'Trip cannot be finalized until the next trip records its first diesel fill or its Unload Turn date.',
+      reason: 'Trip cannot be finalized until the next trip starts with a diesel fill, Load Turn, Unload Turn, or unloading details.',
     };
   }
 
@@ -134,7 +140,7 @@ function computeTripSettlement(trip, nextTrip) {
   }
 
   // Diesel-derived figures are only computable once both this trip and the next trip have their
-  // fills recorded - if either is missing (closed via Unload Turn/unloading instead), they stay
+  // fills recorded - if either is missing (closed via a turn/unloading instead), they stay
   // null and get filled in later once the diesel entries exist (refreshRelatedSettlements
   // recomputes this trip's settlement whenever diesel entries change).
   const dieselForTripLitres = (firstFill && nextTripFirstFill)

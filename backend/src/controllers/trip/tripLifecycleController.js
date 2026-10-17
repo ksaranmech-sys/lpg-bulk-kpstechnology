@@ -380,6 +380,8 @@ async function setTurnDetails(req, res) {
     }
   }
   await trip.save();
+  // Entering the Load Turn confirms this trip has started and can finalize its previous trip.
+  await tryCloseVehiclePreviousTrip(trip);
   res.json({ trip });
 }
 
@@ -441,7 +443,6 @@ async function closeTrip(req, res) {
     createdAt: { $gt: trip.createdAt },
   }).sort({ createdAt: 1 });
 
-  const isCustomerFinalClose = req.user.role === ROLES.CUSTOMER_ADMIN || req.user.role === ROLES.SUPER_ADMIN;
   const result = computeTripSettlement(trip, nextTrip);
   if (result.ready) {
     trip.settlement = result.settlement;
@@ -450,13 +451,17 @@ async function closeTrip(req, res) {
     trip.nextTrip = nextTrip._id;
   }
 
-  trip.status = isCustomerFinalClose ? TRIP_STATUS.CLOSED : TRIP_STATUS.PENDING_CLOSE;
-  if (isCustomerFinalClose) trip.closedAt = getTripCloseDate(trip);
+  const isFinalClose = req.user.role === ROLES.CUSTOMER_ADMIN
+    || req.user.role === ROLES.SUPER_ADMIN
+    || Boolean(trip.turnDate)
+    || result.ready;
+  trip.status = isFinalClose ? TRIP_STATUS.CLOSED : TRIP_STATUS.PENDING_CLOSE;
+  if (isFinalClose) trip.closedAt = getTripCloseDate(trip);
   await trip.save();
 
   res.json({
     trip,
-    message: isCustomerFinalClose
+    message: isFinalClose
       ? 'Trip closed successfully.'
       : 'Trip marked ready for customer close.',
   });

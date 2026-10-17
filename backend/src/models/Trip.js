@@ -109,9 +109,8 @@ const tripSchema = new mongoose.Schema(
 
     status: { type: String, enum: Object.values(TRIP_STATUS), default: TRIP_STATUS.OPEN },
 
-    // Filled in by closeTrip() in tripCalculations.js once the NEXT trip's
-    // first diesel entry exists (that's what actually closes this trip -
-    // see spec: "Trip closes once again diesel filled at loading location").
+    // Set when the trip closes; diesel-derived settlement fields may remain null until the
+    // next trip records its first fill.
     closedAt: { type: Date, default: null },
     nextTrip: { type: mongoose.Schema.Types.ObjectId, ref: 'Trip', default: null },
 
