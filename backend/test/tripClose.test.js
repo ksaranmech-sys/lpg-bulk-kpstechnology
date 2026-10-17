@@ -456,6 +456,13 @@ test('L Turn date takes precedence as the salary close date', () => {
   assert.equal(customerController.getTripClosedDate(trip).toISOString(), '2026-08-31T00:00:00.000Z');
 });
 
+test('monthly salary includes a trip only after its unloading turn is recorded', () => {
+  assert.equal(customerController.hasCompletedUnloadingTurn({ unTurnDate: null }), false);
+  assert.equal(customerController.hasCompletedUnloadingTurn({}), false);
+  assert.equal(customerController.hasCompletedUnloadingTurn({ unTurnDate: 'not-a-date' }), false);
+  assert.equal(customerController.hasCompletedUnloadingTurn({ unTurnDate: new Date('2026-09-28T00:00:00.000Z') }), true);
+});
+
 test('COP KM is the sum of matching route KM table entries for closed trips', () => {
   const total = customerController.sumRouteTableKm([
     { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', fillingOrderLocation: 'MRPL', settlement: { totalKm: 999 } },

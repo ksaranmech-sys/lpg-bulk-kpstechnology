@@ -212,8 +212,8 @@ function validateSalaryMonth(month) {
 }
 
 function getClosedTripsMonthFilter(monthStart, monthEnd) {
-  // Still-open trips are included too, so the admin can see and manually close them from the
-  // salary table instead of waiting for the automatic next-trip close.
+  // Keep open trips with an unloading turn available; salary calculation later excludes trips
+  // that have not completed that turn.
   return { status: { $in: ['open', 'pending_close', 'closed'] } };
 }
 
@@ -255,6 +255,11 @@ function getTripSalaryDate(trip) {
 function isTripInSalaryMonth(trip, monthStart, monthEnd) {
   const salaryDate = getTripSalaryDate(trip);
   return salaryDate && salaryDate >= monthStart && salaryDate < monthEnd;
+}
+
+function hasCompletedUnloadingTurn(trip) {
+  if (!trip?.unTurnDate) return false;
+  return !Number.isNaN(new Date(trip.unTurnDate).getTime());
 }
 
 // `shareOf(trip)` returns the 0..1 fraction of that trip's KM owed to the driver being summed -
@@ -446,7 +451,8 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   // A vehicle can carry several drivers over time (one per date range) - only trips that fall
   // inside this driver's own joining/resigning window belong on their sheet.
   const monthTrips = trips.filter((trip) => (
-    isTripInSalaryMonth(trip, monthStart, monthEnd)
+    hasCompletedUnloadingTurn(trip)
+    && isTripInSalaryMonth(trip, monthStart, monthEnd)
     && isDriverAssignedOn(driver, getTripSalaryDate(trip))
   ));
   const routeKmTable = loadRouteKmTable();
@@ -533,6 +539,7 @@ module.exports = {
   getTripClosedDate,
   getTripSalaryDate,
   isTripInSalaryMonth,
+  hasCompletedUnloadingTurn,
   loadRouteKmTable,
   getTripCorporationKm,
   sumRouteTableKm,
