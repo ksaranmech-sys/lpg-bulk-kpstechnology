@@ -5,6 +5,14 @@ import * as api from '../../api/api';
 
 const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const formatMoney = (value) => (Number.isFinite(value) ? money.format(value) : 'NA');
+const moneyNumber = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const formatMoneyNumber = (value) => (Number.isFinite(value) ? moneyNumber.format(value) : 'NA');
+const totalNumber = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 });
+const formatTotal = (value, includeCurrency = true) => {
+  if (!Number.isFinite(value)) return 'NA';
+  const formatted = totalNumber.format(value);
+  return includeCurrency ? `₹${formatted}` : formatted;
+};
 
 // "BPC up to the 5th of the next month; others the calendar month"
 function cutoffText(cutoffDays) {
@@ -79,7 +87,7 @@ function IncomeTable({ vehicleCorporation, group }) {
                 <td style={cell}>{row.loadingDate ? formatDateLong(row.loadingDate) : '-'}</td>
                 <td style={cell}>{row.unloadingDate ? formatDateLong(row.unloadingDate) : '-'}</td>
                 <td className="num" style={right}>
-                  {formatMoney(row.tripIncome)}
+                  {formatMoneyNumber(row.tripIncome)}
                   {row.tripIncome == null && row.notes?.length > 0 && (
                     <div style={{ fontWeight: 400, fontSize: 11, color: '#8a5a00', textAlign: 'left', whiteSpace: 'normal' }}>{row.notes[0]}</div>
                   )}
@@ -97,11 +105,11 @@ function IncomeTable({ vehicleCorporation, group }) {
                   <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>{totals.trips - totals.pricedTrips} unloading(s) without income not included</div>
                 )}
               </td>
-              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatMoney(totals.tripIncome)}</td>
-              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatMoney(totals.shortage)}</td>
-              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatMoney(totals.tds)}</td>
-              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatMoney(totals.diesel)}</td>
-              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatMoney(totals.amount)}</td>
+              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatTotal(totals.tripIncome, false)}</td>
+              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatTotal(totals.shortage)}</td>
+              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatTotal(totals.tds, false)}</td>
+              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatTotal(totals.diesel, false)}</td>
+              <td className="num" style={{ ...right, fontWeight: 700 }}>{formatTotal(totals.amount, false)}</td>
             </tr>
           </tbody>
         </table>
@@ -117,11 +125,11 @@ function TotalsRow({ label, sub, totals, strong = false }) {
         {label}
         {sub && <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>{sub}</div>}
       </td>
-      <td className="num" style={{ ...right, fontWeight: 700 }}>Trip Income {formatMoney(totals.tripIncome)}</td>
-      <td className="num" style={{ ...right, fontWeight: 700 }}>Shortage {formatMoney(totals.shortage)}</td>
-      <td className="num" style={{ ...right, fontWeight: 700 }}>TDS {formatMoney(totals.tds)}</td>
-      <td className="num" style={{ ...right, fontWeight: 700 }}>Diesel {formatMoney(totals.diesel)}</td>
-      <td className="num" style={{ ...right, fontWeight: strong ? 800 : 700 }}>Amount {formatMoney(totals.amount)}</td>
+      <td className="num" style={{ ...right, fontWeight: 700 }}>Trip Income {formatTotal(totals.tripIncome, false)}</td>
+      <td className="num" style={{ ...right, fontWeight: 700 }}>Shortage {formatTotal(totals.shortage)}</td>
+      <td className="num" style={{ ...right, fontWeight: 700 }}>TDS {formatTotal(totals.tds, false)}</td>
+      <td className="num" style={{ ...right, fontWeight: 700 }}>Diesel {formatTotal(totals.diesel, false)}</td>
+      <td className="num" style={{ ...right, fontWeight: strong ? 800 : 700 }}>Amount {formatTotal(totals.amount, false)}</td>
     </tr>
   );
 }
