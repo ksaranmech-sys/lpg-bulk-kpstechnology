@@ -266,7 +266,7 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
           }
           .monthly-income-print-area .no-print { display: none !important; }
           .monthly-income-print-area .print-only { display: block !important; }
-          .monthly-income-print-area .monthly-income-header { display: block !important; margin: 0 0 6pt !important; }
+          .monthly-income-print-area .monthly-income-header { display: block !important; margin: 0 0 2pt !important; page-break-after: avoid; break-after: avoid; }
           .monthly-income-print-area h3 {
             font-size: 14pt !important;
             margin: 0 !important;
@@ -278,19 +278,31 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
           }
           .monthly-income-print-area h4 {
             font-size: 12pt !important;
-            margin: 8pt 0 3pt !important;
+            margin: 3pt 0 2pt !important;
             page-break-after: avoid;
+            break-after: avoid;
           }
           .monthly-income-print-area h5 {
             font-size: 11pt !important;
-            margin: 6pt 0 2pt !important;
+            margin: 2pt 0 1pt !important;
             page-break-after: avoid;
+            break-after: avoid;
           }
-          .monthly-income-print-area .income-corporation { page-break-inside: auto; }
-          .monthly-income-print-area .income-period { page-break-inside: avoid; border-color: #1f4d2b !important; background: #fff !important; }
-          .monthly-income-print-area h6 { font-size: 10.5pt !important; margin: 4pt 0 2pt !important; page-break-after: avoid; }
+          .monthly-income-print-area .income-corporation,
+          .monthly-income-print-area .income-period,
+          .monthly-income-print-area .income-group {
+            page-break-inside: auto !important;
+            break-inside: auto !important;
+          }
+          .monthly-income-print-area .income-period { border-color: #1f4d2b !important; background: #fff !important; }
+          .monthly-income-print-area h6 {
+            font-size: 10.5pt !important;
+            margin: 2pt 0 1pt !important;
+            page-break-after: avoid;
+            break-after: avoid;
+          }
           .monthly-income-print-area div { overflow: visible !important; }
-          .monthly-income-print-area .income-group { margin-top: 6pt !important; page-break-inside: avoid; }
+          .monthly-income-print-area .income-group { margin-top: 2pt !important; }
           .monthly-income-print-area table {
             min-width: 0 !important;
             width: 100% !important;
