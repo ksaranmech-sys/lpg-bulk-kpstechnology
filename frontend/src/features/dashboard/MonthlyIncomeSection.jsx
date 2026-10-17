@@ -5,7 +5,6 @@ import * as api from '../../api/api';
 
 const money = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const formatMoney = (value) => (Number.isFinite(value) ? money.format(value) : 'NA');
-const percent = (rate) => `${Math.round(rate * 100)}%`;
 
 // "BPC up to the 5th of the next month; others the calendar month"
 function cutoffText(cutoffDays) {
@@ -29,7 +28,7 @@ const right = { ...cell, textAlign: 'right' };
 const head = { ...cell, textAlign: 'left', fontSize: 12 };
 
 // One state's table inside a vehicle-corporation block (e.g. IOC > TN routes).
-function IncomeTable({ vehicleCorporation, group, rates }) {
+function IncomeTable({ vehicleCorporation, group }) {
   const { rows, totals } = group;
   const routeNote = group.corporations?.length ? ` (${group.corporations.join(', ')} routes)` : '';
   return (
@@ -39,7 +38,12 @@ function IncomeTable({ vehicleCorporation, group, rates }) {
         <span style={{ fontWeight: 400, color: '#4b5f52', fontSize: 12 }}> - {totals.trips} unloading{totals.trips === 1 ? '' : 's'}</span>
       </h6>
       <div style={{ overflowX: 'auto' }}>
-        <table className="trip-km-table" style={{ width: '100%', minWidth: 1000, borderCollapse: 'collapse', tableLayout: 'auto' }}>
+        <table className="trip-km-table" style={{ width: '100%', minWidth: 1000, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+          <colgroup>
+            {[4, 10, 12, 12, 10, 10, 11, 7, 7, 8, 9].map((width, index) => (
+              <col key={index} style={{ width: `${width}%` }} />
+            ))}
+          </colgroup>
           <thead>
             <tr>
               <th style={{ ...head, whiteSpace: 'nowrap' }}>S.No</th>
@@ -49,28 +53,10 @@ function IncomeTable({ vehicleCorporation, group, rates }) {
               <th style={head}>Loading date</th>
               <th style={head}>Unloading date</th>
               <th style={{ ...right, fontSize: 12 }}>Trip Income</th>
-              <th style={{ ...right, fontSize: 12 }}>
-                Shortage
-                {Number.isFinite(rates.shortagePerKg) && (
-                  <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>
-                    Loss above 40 Kg x {formatMoney(rates.shortagePerKg)}/Kg
-                  </div>
-                )}
-              </th>
-              <th style={{ ...right, fontSize: 12 }}>
-                TDS
-                <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>Trip Income x {percent(rates.tds)}</div>
-              </th>
-              <th style={{ ...right, fontSize: 12 }}>
-                Diesel
-                <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>(Trip Income - TDS) x {percent(rates.diesel)}</div>
-              </th>
-              <th style={{ ...right, fontSize: 12 }}>
-                Amount
-                <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>
-                  ((Trip Income - TDS) x {percent(rates.amount)}) - Shortage
-                </div>
-              </th>
+              <th style={{ ...right, fontSize: 12 }}>Shortage</th>
+              <th style={{ ...right, fontSize: 12 }}>TDS</th>
+              <th style={{ ...right, fontSize: 12 }}>Diesel</th>
+              <th style={{ ...right, fontSize: 12 }}>Amount</th>
             </tr>
           </thead>
           <tbody>
@@ -79,10 +65,11 @@ function IncomeTable({ vehicleCorporation, group, rates }) {
                 <td className="num" style={right}>{row.sNo}</td>
                 <td style={{ ...cell, fontWeight: 600 }}>
                   <Link to={`/trips/${row.tripId}`}>{row.vehicleNumber || '-'}</Link>
-                  <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>
-                    {row.vehicleCorporation || 'No corporation'}
-                    {row.status !== 'closed' && ` - ${row.status === 'open' ? 'Open' : 'Closing'}`}
-                  </div>
+                  {row.status !== 'closed' && (
+                    <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>
+                      {row.status === 'open' ? 'Open' : 'Closing'}
+                    </div>
+                  )}
                 </td>
                 <td style={cell}>{row.loadingLocation || '-'}</td>
                 <td style={cell}>
@@ -153,7 +140,7 @@ function TotalsTable({ label, sub, totals, strong }) {
 
 // One billing period of a vehicle corporation: IOC / HPC have "1 - 15" and "16 - 30" blocks,
 // everyone else a single block covering the whole (cut-off adjusted) month.
-function PeriodBlock({ group, period, rates, monthLabel }) {
+function PeriodBlock({ group, period, monthLabel }) {
   const title = `${group.vehicleCorporation} - ${period.label} ${monthLabel}`;
   return (
     <div
@@ -167,7 +154,7 @@ function PeriodBlock({ group, period, rates, monthLabel }) {
       </h5>
       {period.states.length === 0 && <p style={{ margin: '8px 0 0', fontSize: 13, color: '#4b5f52' }}>No unloadings in this period.</p>}
       {period.states.map((state) => (
-        <IncomeTable key={state.state} vehicleCorporation={`${group.vehicleCorporation}-${period.key}`} group={state} rates={rates} />
+        <IncomeTable key={state.state} vehicleCorporation={`${group.vehicleCorporation}-${period.key}`} group={state} />
       ))}
       {period.states.length > 1 && (
         <TotalsTable label={`Total ${title}`} sub={`${period.totals.pricedTrips} of ${period.totals.trips} unloadings priced`} totals={period.totals} />
@@ -178,7 +165,7 @@ function PeriodBlock({ group, period, rates, monthLabel }) {
 
 // Main split: one block per vehicle corporation (IOC, BPC, HPC, ...), then per billing period,
 // then a table per route state.
-function CorporationBlock({ group, rates, monthLabel }) {
+function CorporationBlock({ group, monthLabel }) {
   const cutoff = group.cutoffDay > 0 ? `cut-off: up to the ${group.cutoffDay}th of the next month` : 'cut-off: calendar month';
   const billing = group.halfMonth ? 'billed per half month' : 'billed once a month';
   return (
@@ -188,7 +175,7 @@ function CorporationBlock({ group, rates, monthLabel }) {
         <span style={{ fontWeight: 400, color: '#4b5f52', fontSize: 12 }}> - {group.totals.trips} unloading{group.totals.trips === 1 ? '' : 's'} - {billing} - {cutoff}</span>
       </h4>
       {group.periods.map((period) => (
-        <PeriodBlock key={period.key} group={group} period={period} rates={rates} monthLabel={monthLabel} />
+        <PeriodBlock key={period.key} group={group} period={period} monthLabel={monthLabel} />
       ))}
       {group.periods.length > 1 && (
         <TotalsTable label={`Total ${group.vehicleCorporation} - ${monthLabel}`} sub={`${group.totals.pricedTrips} of ${group.totals.trips} unloadings priced`} totals={group.totals} />
@@ -274,14 +261,14 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
             border-radius: 0 !important;
             box-shadow: none !important;
             background: #fff !important;
-            font-size: 9.5pt !important;
-            line-height: 1.25 !important;
+            font-size: 11pt !important;
+            line-height: 1.35 !important;
           }
           .monthly-income-print-area .no-print { display: none !important; }
           .monthly-income-print-area .print-only { display: block !important; }
           .monthly-income-print-area .monthly-income-header { display: block !important; margin: 0 0 6pt !important; }
           .monthly-income-print-area h3 {
-            font-size: 11pt !important;
+            font-size: 14pt !important;
             margin: 0 !important;
             padding: 6pt 8pt !important;
             background: #f3f6f3 !important;
@@ -290,34 +277,39 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
             print-color-adjust: exact;
           }
           .monthly-income-print-area h4 {
-            font-size: 10.5pt !important;
+            font-size: 12pt !important;
             margin: 8pt 0 3pt !important;
             page-break-after: avoid;
           }
           .monthly-income-print-area h5 {
-            font-size: 9.5pt !important;
+            font-size: 11pt !important;
             margin: 6pt 0 2pt !important;
             page-break-after: avoid;
           }
           .monthly-income-print-area .income-corporation { page-break-inside: auto; }
           .monthly-income-print-area .income-period { page-break-inside: avoid; border-color: #1f4d2b !important; background: #fff !important; }
-          .monthly-income-print-area h6 { font-size: 9pt !important; margin: 4pt 0 2pt !important; page-break-after: avoid; }
+          .monthly-income-print-area h6 { font-size: 10.5pt !important; margin: 4pt 0 2pt !important; page-break-after: avoid; }
           .monthly-income-print-area div { overflow: visible !important; }
           .monthly-income-print-area .income-group { margin-top: 6pt !important; page-break-inside: avoid; }
           .monthly-income-print-area table {
             min-width: 0 !important;
             width: 100% !important;
             border-collapse: collapse !important;
-            font-size: 9pt !important;
+            font-size: 10.5pt !important;
           }
           .monthly-income-print-area thead { display: table-header-group; }
           .monthly-income-print-area tr { page-break-inside: avoid; }
           .monthly-income-print-area th,
           .monthly-income-print-area td {
-            padding: 4pt 6px !important;
+            padding: 5pt 6px !important;
             vertical-align: top !important;
             color: #000 !important;
             border-color: #1f4d2b !important;
+          }
+          .monthly-income-print-area th div,
+          .monthly-income-print-area td div,
+          .monthly-income-print-area h6 span {
+            font-size: 9pt !important;
           }
           /* Money columns and dates never wrap mid-number. */
           .monthly-income-print-area td.num,
@@ -344,8 +336,7 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
         </div>
       </div>
       <p className="print-only" style={{ margin: '0 0 8pt', fontSize: 9, color: '#4b5f52' }}>
-        Printed on {formatDateLong(new Date())} - TDS = Trip Income x {percent(income?.rates?.tds ?? 0.02)},
-        Diesel = (Trip Income - TDS) x {percent(income?.rates?.diesel ?? 0.4)}, Amount = ((Trip Income - TDS) x {percent(income?.rates?.amount ?? 0.6)}) - Shortage
+        Printed on {formatDateLong(new Date())}
       </p>
       <p className="no-print" style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
         Income for all vehicles unloaded in {formatMonthLabel(month)}, split by the vehicle&apos;s corporation (IOC, BPC, HPC, ...)
@@ -362,7 +353,7 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
         <p>No unloadings in {formatMonthLabel(month)}.</p>
       )}
       {!loading && !error && income && income.groups.map((group) => (
-        <CorporationBlock key={group.vehicleCorporation} group={group} rates={income.rates} monthLabel={formatMonthLabel(month)} />
+        <CorporationBlock key={group.vehicleCorporation} group={group} monthLabel={formatMonthLabel(month)} />
       ))}
       {!loading && !error && income && income.groups.length > 1 && (
         <div style={{ marginTop: 20, overflowX: 'auto' }}>

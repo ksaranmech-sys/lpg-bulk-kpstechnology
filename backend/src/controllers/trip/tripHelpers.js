@@ -4,6 +4,7 @@ const User = require('../../models/User');
 const { computeTripSettlement } = require('../../utils/tripCalculations');
 const { TRIP_STATUS, ROLES, DIESEL_MIN_LITRES, DIESEL_MIN_RATE_PER_LITRE } = require('../../config/constants');
 const { findCurrentDriverForVehicle } = require('../../utils/driverAssignment');
+const { CLOSED_TRIP_EDIT_ERROR, isClosedTripEditable } = require('../../utils/tripEditPolicy');
 
 function getClosingDieselDate(trip, fallback = null) {
   const closingEntry = trip.dieselEntries?.[trip.dieselEntries.length - 1];
@@ -190,7 +191,13 @@ async function getOpenTripOr404(req, res) {
     return null;
   }
 
-  if (req.user.role === ROLES.SUPER_ADMIN) return trip;
+  if (req.user.role === ROLES.SUPER_ADMIN) {
+    if (trip.status !== TRIP_STATUS.OPEN && !isClosedTripEditable(trip.loadingDate || trip.createdAt)) {
+      res.status(403).json({ error: CLOSED_TRIP_EDIT_ERROR });
+      return null;
+    }
+    return trip;
+  }
   if (req.user.role === ROLES.CUSTOMER_ADMIN) {
     res.status(403).json({ error: 'Customer admins cannot edit trip details' });
     return null;

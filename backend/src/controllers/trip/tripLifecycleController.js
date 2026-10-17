@@ -9,6 +9,7 @@ const { findCurrentDriverForVehicle } = require('../../utils/driverAssignment');
 const metaRoutes = require('../../routes/metaRoutes');
 const { getCorporationKmDetails, findRouteKm } = require('../../utils/corporationKm');
 const { computeTripIncome } = require('../../utils/tripIncome');
+const { isClosedTripEditable } = require('../../utils/tripEditPolicy');
 const {
   getTripCloseDate,
   getEntryFloorDate,
@@ -189,6 +190,9 @@ async function getTrip(req, res) {
   const driver = await findCurrentDriverForVehicle(trip.vehicle._id, trip.loadingDate || trip.createdAt || new Date(), 'name temporaryDriver joiningDate');
   if (trip.status === TRIP_STATUS.CLOSED) await refreshTripSettlement(trip);
   const result = trip.toObject();
+  result.editWindowClosed = req.user?.role === ROLES.SUPER_ADMIN &&
+    trip.status !== TRIP_STATUS.OPEN &&
+    !isClosedTripEditable(trip.loadingDate || trip.createdAt);
   result.odometerKm = trip.status === TRIP_STATUS.CLOSED && trip.settlement?.totalKm != null
     ? trip.settlement.totalKm
     : calculateTripKm(trip, nextTrip);

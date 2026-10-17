@@ -46,7 +46,7 @@ async function buildTripSettlementPdf(trip, nextTrip = null) {
     const totalExpenses = dieselCashTotal + loadingExpenseTotal + turnExpenseTotal + parkingExpenseTotal + unloadingExpenseTotal + rtoExpenseTotal + otherExpenseTotal;
     const balance = totalAdvance - totalExpenses;
 
-    doc.fontSize(14).font('Helvetica-Bold').fillColor('#102f52').text('Single Trip', { align: 'left' });
+    doc.fontSize(17).font('Helvetica-Bold').fillColor('#102f52').text('Single Trip', { align: 'left' });
     doc.moveDown(0.25);
 
     styledSectionHeader(doc, 'Single Trip');
@@ -103,7 +103,7 @@ async function buildTripSettlementPdf(trip, nextTrip = null) {
     styledSectionHeader(doc, 'Balance');
     renderSalaryRows(doc, [['Balance', `Rs ${fmtMoney(balance)}`], ['Driver Advance - Expenses Total', '']]);
 
-    doc.fontSize(7).fillColor('gray').text(
+    doc.fontSize(8.5).fillColor('gray').text(
       `Generated on ${new Date().toLocaleString('en-IN')} by KPS Fleet Management System`,
       { align: 'center' }
     );
@@ -205,9 +205,9 @@ function renderTripPhotos(doc, photos) {
     try {
       doc.image(photo.buffer, cellX + 4, rowY + 4, { fit: [cellWidth - 8, imageHeight], align: 'center', valign: 'center' });
     } catch (err) {
-      doc.fillColor('gray').font('Helvetica').fontSize(7.5).text('Photo unavailable', cellX + 4, rowY + imageHeight / 2, { width: cellWidth - 8, align: 'center', lineBreak: false });
+      doc.fillColor('gray').font('Helvetica').fontSize(9).text('Photo unavailable', cellX + 4, rowY + imageHeight / 2, { width: cellWidth - 8, align: 'center', lineBreak: false });
     }
-    doc.fillColor('#102f52').font('Helvetica').fontSize(7.5).text(photo.caption, cellX + 4, rowY + imageHeight + 9, { width: cellWidth - 8, align: 'center', lineBreak: false });
+    doc.fillColor('#102f52').font('Helvetica').fontSize(9).text(photo.caption, cellX + 4, rowY + imageHeight + 9, { width: cellWidth - 8, align: 'center', lineBreak: false });
   });
   doc.x = x;
   doc.y = rowY + cellHeight + 6;
@@ -265,9 +265,9 @@ function renderSalarySheet(doc, { title, driverLabel, vehicle, customer, month, 
   const reportStartY = doc.page.margins.top - 10;
   doc.x = doc.page.margins.left;
   doc.y = doc.page.margins.top;
-  doc.fillColor('black').fontSize(13).font('Helvetica-Bold').text(title, { align: 'center' });
+  doc.fillColor('black').fontSize(17).font('Helvetica-Bold').text(title, { align: 'center' });
   doc.moveDown(0.2);
-  doc.font('Helvetica').fontSize(8.5);
+  doc.font('Helvetica').fontSize(10);
   const metadataWidth = (doc.page.width - doc.page.margins.left - doc.page.margins.right) / 4;
   const metadataY = doc.y;
   doc.text(`Customer: ${customer?.companyName || '-'}`, doc.page.margins.left, metadataY, {
@@ -286,7 +286,7 @@ function renderSalarySheet(doc, { title, driverLabel, vehicle, customer, month, 
     width: metadataWidth,
     align: 'right',
   });
-  doc.y = metadataY + 12;
+  doc.y = metadataY + 14;
   doc.x = doc.page.margins.left;
   if (subtitle) {
     doc.text(subtitle, { align: 'center' });
@@ -338,7 +338,7 @@ function renderSalarySheet(doc, { title, driverLabel, vehicle, customer, month, 
   }
   renderSalaryRows(doc, salaryRows);
   doc.moveDown(0.25);
-  doc.fontSize(7).fillColor('gray').text(
+  doc.fontSize(8.5).fillColor('gray').text(
     `Generated on ${new Date().toLocaleString('en-IN')} by KPS Fleet Management System`,
     { align: 'center' }
   );
@@ -376,7 +376,7 @@ function renderMonthlyTripDetailsPage(doc, trip, driver, vehicle, customer) {
   const balance = totalAdvance - totalExpenses;
   const settlement = trip.settlement || {};
 
-  doc.fontSize(14).font('Helvetica-Bold').fillColor('#102f52').text('Single Trip', x, doc.y, { width, align: 'left' });
+  doc.fontSize(17).font('Helvetica-Bold').fillColor('#102f52').text('Single Trip', x, doc.y, { width, align: 'left' });
   doc.moveDown(0.35);
   styledSectionHeader(doc, 'Trip Details');
   renderTripOverview(
@@ -415,18 +415,18 @@ function renderTripOverview(doc, trip, customer, driver, vehicle, odometerKm = n
   const labelWidth = width * 0.10;
   const valueWidth = width * 0.40;
   const y = doc.y;
-  const rowHeight = 18;
+  const rowHeight = 22;
   const rows = [
     ['Customer', customer?.companyName || '-', 'Driver', driver?.name || driver?.username || '-'],
-    ['Trip Route', `${trip.loadingLocation || '-'} (${fmtDate(trip.loadingDate)}) -> ${trip.unloadingLocation || '-'} (${fmtDate(trip.unloadingDate)})${trip.isDiverted ? ` -> ${trip.divertUnloadingLocation || '-'} (${fmtDate(trip.divertDate)})` : ''}`, '', ''],
+    ['Trip Route', `${trip.loadingLocation || '-'} (${fmtDate(trip.loadingDate)}${trip.loadingWeightTons != null ? ` - ${fmtMoney(trip.loadingWeightTons)} t` : ''}) -> ${trip.unloadingLocation || '-'} (${fmtDate(trip.unloadingDate)}${trip.unloadingWeightTons != null ? ` - ${fmtMoney(trip.unloadingWeightTons)} t` : ''})${trip.isDiverted ? ` -> ${trip.divertUnloadingLocation || '-'} (${fmtDate(trip.divertDate)})` : ''}`, '', ''],
   ];
   const totalHeight = rowHeight * rows.length + 54;
   doc.rect(x, y, width, totalHeight).fillAndStroke('#ffffff', '#1f4d2b');
   rows.forEach((row, index) => {
     const rowY = y + index * rowHeight;
     if (index > 0) doc.moveTo(x, rowY).lineTo(x + width, rowY).lineWidth(0.5).strokeColor('#b8c9d1').stroke();
-    doc.fillColor('#102f52').font('Helvetica-Bold').fontSize(7.5).text(row[0], x + 8, rowY + 5, { width: labelWidth - 16, lineBreak: false });
-    doc.font('Helvetica').text(row[1], x + labelWidth + 8, rowY + 5, {
+    doc.fillColor('#102f52').font('Helvetica-Bold').fontSize(9).text(row[0], x + 8, rowY + 6, { width: labelWidth - 16, lineBreak: false });
+    doc.font('Helvetica').fontSize(9).text(row[1], x + labelWidth + 8, rowY + 6, {
       width: row[0] === 'Trip Route' ? width - labelWidth - 16 : valueWidth - 16,
       lineBreak: false,
     });
@@ -437,20 +437,20 @@ function renderTripOverview(doc, trip, customer, driver, vehicle, odometerKm = n
       const driverValueX = driverRow ? x + width * 0.60 : x + labelWidth * 3;
       const driverLabelWidth = driverRow ? width * 0.10 - 16 : labelWidth - 16;
       const driverValueWidth = driverRow ? width * 0.40 - 24 : valueWidth - 24;
-      doc.font('Helvetica-Bold').text(row[2], driverLabelX + 8, rowY + 5, { width: driverLabelWidth, align: 'right', lineBreak: false });
-      doc.font('Helvetica').text(row[3], driverValueX + 8, rowY + 5, { width: driverValueWidth, align: 'right', lineBreak: false });
+      doc.font('Helvetica-Bold').fontSize(9).text(row[2], driverLabelX + 8, rowY + 6, { width: driverLabelWidth, align: 'right', lineBreak: false });
+      doc.font('Helvetica').fontSize(9).text(row[3], driverValueX + 8, rowY + 6, { width: driverValueWidth, align: 'right', lineBreak: false });
     }
   });
 
   const tableY = y + rowHeight * rows.length + 4;
-  const tableRowHeight = 18;
+  const tableRowHeight = 22;
   function drawKmTable(startY, headers, tableRows, columnWidths) {
     const tableHeight = tableRowHeight * (tableRows.length + 1);
     doc.rect(x, startY, width, tableHeight).fillAndStroke('#ffffff', '#1f4d2b');
     doc.rect(x, startY, width, tableRowHeight).fillAndStroke('#eaf2f5', '#1f4d2b');
     headers.forEach((header, index) => {
       const columnX = x + columnWidths.slice(0, index).reduce((sum, value) => sum + value, 0);
-      doc.fillColor('#102f52').font('Helvetica-Bold').fontSize(7).text(header, columnX + 8, startY + 6, {
+      doc.fillColor('#102f52').font('Helvetica-Bold').fontSize(8.5).text(header, columnX + 8, startY + 7, {
         width: columnWidths[index] - 16,
         align: index === 0 ? 'left' : 'right',
       });
@@ -460,8 +460,8 @@ function renderTripOverview(doc, trip, customer, driver, vehicle, odometerKm = n
       doc.moveTo(x, rowY).lineTo(x + width, rowY).lineWidth(0.5).strokeColor('#b8c9d1').stroke();
       row.forEach((value, index) => {
         const columnX = x + columnWidths.slice(0, index).reduce((sum, itemWidth) => sum + itemWidth, 0);
-        doc.fillColor('#102f52').font(index === 0 ? 'Helvetica-Bold' : 'Helvetica').fontSize(7.5).text(
-          String(value), columnX + 8, rowY + 5, { width: columnWidths[index] - 16, align: index === 0 ? 'left' : 'right', lineBreak: false }
+        doc.fillColor('#102f52').font(index === 0 ? 'Helvetica-Bold' : 'Helvetica').fontSize(9).text(
+          String(value), columnX + 8, rowY + 6, { width: columnWidths[index] - 16, align: index === 0 ? 'left' : 'right', lineBreak: false }
         );
       });
     });
@@ -495,9 +495,9 @@ function styledSectionHeader(doc, text) {
   const x = doc.page.margins.left;
   const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
   const y = doc.y;
-  doc.roundedRect(x, y, width, 20, 4).fillAndStroke('#f3f6f3', '#1f4d2b');
-  doc.fillColor('#102f52').font('Helvetica-Bold').fontSize(9).text(text, x + 8, y + 6, { width: width - 16 });
-  doc.y = y + 24;
+  doc.roundedRect(x, y, width, 24, 4).fillAndStroke('#f3f6f3', '#1f4d2b');
+  doc.fillColor('#102f52').font('Helvetica-Bold').fontSize(11).text(text, x + 8, y + 7, { width: width - 16 });
+  doc.y = y + 28;
 }
 
 function renderSalaryTripsTable(doc, headers, rows, total = {}) {
@@ -516,8 +516,8 @@ function renderSalaryTripsTable(doc, headers, rows, total = {}) {
       : [0.05, 0.15, 0.12, 0.15, 0.12, 0.08, 0.08, 0.09, 0.16];
   // The trailing columns (KM/money figures) are right-aligned - how many varies by table shape.
   const numericTrailingCount = headers.length === 12 ? 6 : headers.length === 11 ? 4 : headers.length === 4 ? 1 : 2;
-  const rowHeight = 22;
-  const headerHeight = 30;
+  const rowHeight = 24;
+  const headerHeight = 36;
   const columnWidths = columnRatios.map((ratio) => width * ratio);
   const y = doc.y;
   const totalHeight = headerHeight + Math.max(rows.length, 1) * rowHeight + rowHeight;
@@ -527,7 +527,7 @@ function renderSalaryTripsTable(doc, headers, rows, total = {}) {
   let columnX = x;
   headers.forEach((header, index) => {
     const numericColumn = index >= headers.length - numericTrailingCount;
-    doc.fillColor('#102f52').font('Helvetica-Bold').fontSize(7).text(
+    doc.fillColor('#102f52').font('Helvetica-Bold').fontSize(8.5).text(
       header.toUpperCase(), columnX + 8, y + 6, { width: columnWidths[index] - 16, align: numericColumn ? 'right' : 'left', lineBreak: true }
     );
     columnX += columnWidths[index];
@@ -540,8 +540,8 @@ function renderSalaryTripsTable(doc, headers, rows, total = {}) {
     let cellX = x;
     row.forEach((cell, index) => {
       const numericColumn = index >= row.length - numericTrailingCount;
-      doc.fillColor('#102f52').font('Helvetica').fontSize(7.5).text(
-        String(cell), cellX + 8, rowY + 5, { width: columnWidths[index] - 16, align: numericColumn ? 'right' : 'left', lineBreak: false }
+      doc.fillColor('#102f52').font('Helvetica').fontSize(9).text(
+        String(cell), cellX + 8, rowY + 6, { width: columnWidths[index] - 16, align: numericColumn ? 'right' : 'left', lineBreak: false }
       );
       cellX += columnWidths[index];
     });
@@ -551,7 +551,7 @@ function renderSalaryTripsTable(doc, headers, rows, total = {}) {
   doc.moveTo(x, totalY).lineTo(x + width, totalY).lineWidth(0.8).strokeColor('#1f4d2b').stroke();
   const labelColumnCount = headers.length - numericTrailingCount;
   const labelWidth = columnWidths.slice(0, labelColumnCount).reduce((sum, w) => sum + w, 0);
-  doc.fillColor('#102f52').font('Helvetica-Bold').fontSize(7.5).text(total.totalLabel || 'Total', x + 8, totalY + 5, { width: labelWidth - 16, align: 'left' });
+  doc.fillColor('#102f52').font('Helvetica-Bold').fontSize(9).text(total.totalLabel || 'Total', x + 8, totalY + 6, { width: labelWidth - 16, align: 'left' });
   // Show a running total under each numeric column (Driver KM, Trip Diesel, Trip Advance, etc.),
   // not just the last one, so the report totals every figure the reader can see per trip.
   let numericColumnX = x + labelWidth;
@@ -564,7 +564,7 @@ function renderSalaryTripsTable(doc, headers, rows, total = {}) {
       : /km$/i.test(headers[index]) ? `${fmtMoney(columnTotal)} km`
       : /litre/i.test(headers[index]) ? `${fmtMoney(columnTotal)} L`
       : `Rs ${fmtMoney(columnTotal)}`;
-    doc.text(displayValue, numericColumnX + 8, totalY + 5, { width: columnWidth - 16, align: 'right' });
+    doc.text(displayValue, numericColumnX + 8, totalY + 6, { width: columnWidth - 16, align: 'right' });
     numericColumnX += columnWidth;
   }
   doc.y = y + totalHeight + 4;
@@ -573,15 +573,15 @@ function renderSalaryTripsTable(doc, headers, rows, total = {}) {
 function renderSalaryRows(doc, rows) {
   const x = doc.page.margins.left;
   const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const rowHeight = 20;
+  const rowHeight = 25;
   const y = doc.y;
   doc.rect(x, y, width, rows.length * rowHeight).fillAndStroke('#ffffff', '#1f4d2b');
   rows.forEach(([label, value], index) => {
     const rowY = y + index * rowHeight;
     if (index > 0) doc.moveTo(x, rowY).lineTo(x + width, rowY).lineWidth(0.5).strokeColor('#b8c9d1').stroke();
     if (index === rows.length - 1) doc.rect(x, rowY, width, rowHeight).fill('#f3f6f3');
-    doc.fillColor('#102f52').font(index === rows.length - 1 ? 'Helvetica-Bold' : 'Helvetica').fontSize(8).text(label, x + 8, rowY + 6, { width: width * 0.72 - 8 });
-    doc.text(value, x + width * 0.72, rowY + 6, { width: width * 0.28 - 16, align: 'right' });
+    doc.fillColor('#102f52').font(index === rows.length - 1 ? 'Helvetica-Bold' : 'Helvetica').fontSize(10).text(label, x + 8, rowY + 7, { width: width * 0.72 - 8 });
+    doc.text(value, x + width * 0.72, rowY + 7, { width: width * 0.28 - 16, align: 'right' });
   });
   doc.y = y + rows.length * rowHeight + 4;
 }
@@ -669,7 +669,7 @@ function renderStyledReportTable(doc, headers, rows, summary) {
     if (rowIndex % 2 === 1) doc.rect(x, rowY, width, rowHeight).fill('#f8fbfc');
     doc.moveTo(x, rowY).lineTo(x + width, rowY).lineWidth(0.5).strokeColor('#b8c9d1').stroke();
     row.forEach((cell, index) => {
-      doc.fillColor('#102f52').font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(7.5).text(
+      doc.fillColor('#102f52').font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(9).text(
         String(cell), x + index * columnWidth + 8, rowY + 5,
         { width: columnWidth - 24, align: index === row.length - 1 ? 'right' : 'left', lineBreak: false }
       );

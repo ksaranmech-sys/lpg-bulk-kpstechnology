@@ -143,23 +143,27 @@ test('shows last month by default, split by vehicle corporation then route state
   const headers = Array.from(ka.querySelectorAll('thead th')).map((th) => th.textContent);
   expect(headers).toEqual([
     'S.No', 'Vehicle Number', 'Loading location', 'Unloading location', 'Loading date', 'Unloading date', 'Trip Income',
-    'ShortageLoss above 40 Kg x ₹5.00/Kg', 'TDSTrip Income x 2%', 'Diesel(Trip Income - TDS) x 40%', 'Amount((Trip Income - TDS) x 60%) - Shortage',
+    'Shortage', 'TDS', 'Diesel', 'Amount',
   ]);
+  expect(ka.querySelector('thead').textContent).not.toMatch(/loss above 40|trip income x|\(trip income - tds\)/i);
   const kaRows = Array.from(ka.querySelectorAll('tbody tr')).map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.textContent));
-  expect(kaRows[0]).toEqual(['1', 'KA01AA0001IOC', 'AEGIS, Mangalore', 'Belgaum', '05 Sept 2026', '07 Sept 2026', '₹10,000.00', '₹100.00', '₹200.00', '₹3,920.00', '₹5,780.00']);
+  expect(kaRows[0]).toEqual(['1', 'KA01AA0001', 'AEGIS, Mangalore', 'Belgaum', '05 Sept 2026', '07 Sept 2026', '₹10,000.00', '₹100.00', '₹200.00', '₹3,920.00', '₹5,780.00']);
   expect(kaRows[1]).toEqual(['Total KA', '₹10,000.00', '₹100.00', '₹200.00', '₹3,920.00', '₹5,780.00']);
   expect(ka.querySelector('tbody tr td a').getAttribute('href')).toBe('/trips/t1');
+  expect(ka.querySelector('tbody tr td:nth-child(2)').textContent).not.toContain('IOC');
 
   expect(tn.textContent).toContain('NA');
   expect(tn.textContent).toContain('Loading weight (tons) is required');
   expect(tn.textContent).toContain('1 unloading(s) without income not included');
   const divertRow = Array.from(tn.querySelectorAll('tbody tr'))[1];
   const divertCells = Array.from(divertRow.querySelectorAll('td')).map((td) => td.textContent);
-  expect(divertCells[1]).toBe('TN01BB0002IOC');
+  expect(divertCells[1]).toBe('TN01BB0002');
   expect(divertCells[2]).toBe('Chengalpattu');
   expect(divertCells[3]).toBe('SalemDivert (new unloading)');
   expect(divertCells[5]).toBe('12 Sept 2026');
   expect(divertCells[6]).toBe('₹5,000.00');
+  const openRow = Array.from(tn.querySelectorAll('tbody tr')).find((tr) => tr.textContent.includes('TN01BB0001'));
+  expect(openRow.querySelector('td:nth-child(2)').textContent).toContain('Open');
   await unmount();
 });
 

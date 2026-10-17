@@ -122,8 +122,8 @@ export default function EntriesSummary({ trip, corporationKm, calculatedCorporat
             border: 2px solid #1f4d2b !important;
             box-shadow: none !important;
             background: #fff !important;
-            font-size: 9.5pt !important;
-            line-height: 1.25 !important;
+            font-size: 11pt !important;
+            line-height: 1.35 !important;
             padding-left: 10px !important;
             padding-right: 10px !important;
           }
@@ -134,7 +134,7 @@ export default function EntriesSummary({ trip, corporationKm, calculatedCorporat
             display: none !important;
           }
           .trip-details-print-area h3 {
-            font-size: 11pt !important;
+            font-size: 14pt !important;
             margin: 0 !important;
             padding: 6pt 8pt !important;
             background: #f3f6f3 !important;
@@ -144,7 +144,7 @@ export default function EntriesSummary({ trip, corporationKm, calculatedCorporat
             width: 100% !important;
             border-collapse: collapse !important;
             table-layout: fixed !important;
-            font-size: 9pt !important;
+            font-size: 11pt !important;
           }
           .trip-details-print-area th,
           .trip-details-print-area td {
@@ -154,6 +154,9 @@ export default function EntriesSummary({ trip, corporationKm, calculatedCorporat
             padding-right: 6px !important;
             vertical-align: top !important;
             color: #000 !important;
+          }
+          .trip-details-print-area td div {
+            font-size: 9.5pt !important;
           }
           .trip-details-print-area .card-section {
             border: 1px solid #1f4d2b !important;
@@ -209,6 +212,7 @@ export default function EntriesSummary({ trip, corporationKm, calculatedCorporat
                   <td style={{ width: '10%', padding: '8px 6px 8px 12px', fontWeight: 600 }}>Trip Route</td>
                   <td colSpan="3" style={{ width: '90%', padding: '8px 6px' }}>
                     {trip.loadingLocation || '-'} ({trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'})
+                    {trip.loadingWeightTons != null && trip.loadingWeightTons !== '' && ` - ${trip.loadingWeightTons} t`}
                     {' \u2192 '}{trip.unloadingLocation || '-'} ({trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'})
                     {trip.unloadingWeightTons != null && trip.unloadingWeightTons !== '' && ` - ${trip.unloadingWeightTons} t`}
                     {trip.isDiverted && ` \u2192 ${trip.divertUnloadingLocation || '-'} (${trip.divertDate ? new Date(trip.divertDate).toLocaleDateString('en-IN') : '-'}) - Divert`}

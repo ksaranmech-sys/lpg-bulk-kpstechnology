@@ -1,6 +1,7 @@
 const Trip = require('../models/Trip');
 const User = require('../models/User');
-const { ROLES } = require('../config/constants');
+const { ROLES, TRIP_STATUS } = require('../config/constants');
+const { CLOSED_TRIP_EDIT_ERROR, isClosedTripEditable } = require('../utils/tripEditPolicy');
 
 async function scopeToTrip(req, res, next) {
   const trip = await getTripOr404(req, res);
@@ -21,7 +22,12 @@ async function scopeToOpenTripForUser(req, res, next) {
   const trip = await getTripOr404(req, res);
   if (!trip) return;
 
-  if (req.user.role === ROLES.SUPER_ADMIN) return next();
+  if (req.user.role === ROLES.SUPER_ADMIN) {
+    if (trip.status !== TRIP_STATUS.OPEN && !isClosedTripEditable(trip.loadingDate || trip.createdAt)) {
+      return res.status(403).json({ error: CLOSED_TRIP_EDIT_ERROR });
+    }
+    return next();
+  }
   if (req.user.role === ROLES.CUSTOMER_ADMIN) {
     return res.status(403).json({ error: 'Customer admins cannot edit trip details' });
   }

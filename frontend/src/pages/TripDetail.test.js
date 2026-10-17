@@ -47,6 +47,7 @@ test('renders trip sections in order and toggles divert fields', async () => {
         otherExpenses: [],
         loadingLocation: 'MRPL',
         loadingDate: '2026-09-14T00:00:00.000Z',
+        loadingWeightTons: 17.5,
         loadingExpense: 100,
         unloadingLocation: 'Depot',
         unloadingDate: '2026-09-15T00:00:00.000Z',
@@ -81,6 +82,10 @@ test('renders trip sections in order and toggles divert fields', async () => {
   const heading = container.querySelector('h2');
   expect(heading.textContent).toContain('MRPL');
   expect(heading.textContent).toContain('Depot');
+  const loadingSummary = Array.from(container.querySelectorAll('.card')).find(
+    (card) => card.querySelector('h3')?.textContent === 'Loading Details & Expenses'
+  );
+  expect(loadingSummary.textContent).toContain('Weight 17.5 t');
 
   const headings = Array.from(container.querySelectorAll('h3')).map((h3) => h3.textContent);
   const advanceIndex = headings.indexOf('Advance');
@@ -134,7 +139,9 @@ test('shows Trip Income KM and Trip Income for admins between Load Turn Added an
         loadingDate: '2026-10-02T00:00:00.000Z',
         unloadingLocation: 'Shimoga',
         unloadingDate: '2026-10-03T00:00:00.000Z',
+        loadingWeightTons: 17.5,
         unloadingWeightTons: 18,
+        editWindowClosed: true,
         isDiverted: true,
         divertUnloadingLocation: 'Davangere',
         divertDate: '2026-10-04T00:00:00.000Z',
@@ -199,6 +206,11 @@ test('shows Trip Income KM and Trip Income for admins between Load Turn Added an
   expect(card.textContent).toContain('18 t x 1044.9114');
   expect(card.textContent).toContain('Rate/KM/Ton - KA (18MT) - Oct-26');
   expect(card.textContent).toContain('62,551.50');
+  const tripRoute = container.querySelector('.trip-details-print-area .trip-overview-table').textContent;
+  expect(tripRoute).toContain('17.5 t');
+  expect(tripRoute).toContain('18 t');
+  expect(container.querySelector('fieldset').disabled).toBe(true);
+  expect(container.textContent).toContain('through the 10th of the following month');
   // the card is not part of the printable Single Trip area
   expect(card.closest('.trip-details-print-area')).toBeNull();
 

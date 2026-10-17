@@ -10,6 +10,11 @@ export default function LoadingDetailsSummary({ trip, onEdit }) {
         <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14, color: '#64748b' }}>
           {trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}
         </span>
+        {trip.loadingWeightTons != null && trip.loadingWeightTons !== '' && (
+          <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 }}>
+            <span style={{ color: '#64748b' }}>Weight</span> <strong>{trip.loadingWeightTons} t</strong>
+          </span>
+        )}
         <span style={{ background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 }}>
           <span style={{ color: '#64748b' }}>Cleaner</span> <strong>Rs {trip.loadingExpense || 0}</strong>
         </span>
