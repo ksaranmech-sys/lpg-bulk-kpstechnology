@@ -846,11 +846,11 @@ test('meta route table exists for loading, unloading and KM values', () => {
   }
 });
 
-test('meta route table normalizes and sorts rows by corporation and loading location', () => {
+test('meta route table normalizes and sorts rows by corporation and unloading location', () => {
   const rows = metaRoutes.normalizeRouteKmTable([
     { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', corporation: 'Zeta', km: '50' },
+    { loadingLocation: 'MRPL', unloadingLocation: 'Shimoga', corporation: 'KPS', km: '70' },
     { loadingLocation: 'AEGIS', unloadingLocation: 'Belgaum', corporation: 'KPS', km: '60' },
-    { loadingLocation: 'Total', unloadingLocation: 'Madurai', corporation: 'KPS', km: '70' },
   ]);
 
   assert.equal(rows.length, 3);
@@ -858,7 +858,8 @@ test('meta route table normalizes and sorts rows by corporation and loading loca
   assert.equal(rows[0].unloadingLocation, 'Belgaum');
   assert.equal(rows[0].corporation, 'KPS');
   assert.equal(rows[0].km, 60);
-  assert.equal(rows[1].loadingLocation, 'Total');
+  assert.equal(rows[1].loadingLocation, 'MRPL');
+  assert.equal(rows[1].unloadingLocation, 'Shimoga');
   assert.equal(rows[2].loadingLocation, 'MRPL');
   assert.equal(rows[2].corporation, 'Zeta');
 });

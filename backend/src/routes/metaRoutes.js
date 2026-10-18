@@ -18,7 +18,6 @@ function normalizeRouteKmTable(rows) {
     return hasRequiredFields;
   }).sort((left, right) => (
     left.corporation.localeCompare(right.corporation, undefined, { sensitivity: 'base' }) ||
-    left.loadingLocation.localeCompare(right.loadingLocation, undefined, { sensitivity: 'base' }) ||
     left.unloadingLocation.localeCompare(right.unloadingLocation, undefined, { sensitivity: 'base' })
   ));
 }

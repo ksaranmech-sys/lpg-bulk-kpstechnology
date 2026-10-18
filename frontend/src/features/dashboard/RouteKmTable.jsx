@@ -1,8 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import * as api from '../../api/api';
 
 export default function RouteKmTable({ user }) {
   const [routeKmTable, setRouteKmTable] = useState([]);
+  const sortedRouteKmTable = useMemo(() => [...routeKmTable].sort((left, right) => (
+    String(left.corporation || '').localeCompare(String(right.corporation || ''), undefined, { sensitivity: 'base' }) ||
+    String(left.unloadingLocation || '').localeCompare(String(right.unloadingLocation || ''), undefined, { sensitivity: 'base' })
+  )), [routeKmTable]);
   const [routeKmForm, setRouteKmForm] = useState({ loadingLocation: '', corporation: '', unloadingLocation: '', km: '' });
   const [routeKmError, setRouteKmError] = useState('');
   const [routeKmSaving, setRouteKmSaving] = useState(false);
@@ -32,7 +36,7 @@ export default function RouteKmTable({ user }) {
     setRouteKmError('');
     setRouteKmSaving(true);
     try {
-      const nextTable = routeKmTable
+      const nextTable = sortedRouteKmTable
         .filter((row) => row.loadingLocation || row.unloadingLocation || row.corporation || row.km !== '')
         .map((row) => ({
           ...row,
@@ -104,7 +108,7 @@ export default function RouteKmTable({ user }) {
             </tr>
           </thead>
           <tbody>
-            {routeKmTable.map((row) => {
+            {sortedRouteKmTable.map((row) => {
               const routeRowId = row.id || `${row.loadingLocation}-${row.unloadingLocation}`;
               return (
                 <tr key={routeRowId}>
