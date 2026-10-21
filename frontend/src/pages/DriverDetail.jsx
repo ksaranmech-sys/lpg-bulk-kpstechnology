@@ -9,6 +9,7 @@ import DriverLeavesList from '../features/driver/DriverLeavesList';
 import DriverSalaryPanel from '../features/driver/DriverSalaryPanel';
 import DriverReminderEditor from '../features/driver/DriverReminderEditor';
 import DriverVehicleExpenses from '../features/driver/DriverVehicleExpenses';
+import VehicleTyreDetails from '../features/driver/VehicleTyreDetails';
 
 export default function DriverDetail() {
   const { user } = useAuth();
@@ -72,6 +73,7 @@ export default function DriverDetail() {
           {vehicle && (
             <DriverReminderEditor vehicle={vehicle} setData={setData} setError={setError} />
           )}
+          <VehicleTyreDetails vehicle={vehicle} />
         </>
       )}
     </Layout>

@@ -7,6 +7,11 @@ const vehicleExpenseSchema = new mongoose.Schema(
     vehicle: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle', required: true },
     // Free text so admins can pick a preset (Quarter Tax, Insurance, ...) or type their own.
     category: { type: String, required: true, trim: true, maxlength: 100 },
+    tyreMaker: { type: String, trim: true, maxlength: 100 },
+    tyreModel: { type: String, trim: true, maxlength: 100 },
+    tyrePosition: { type: String, trim: true, maxlength: 50 },
+    tyreNumber: { type: String, trim: true, maxlength: 50 },
+    tyreNumber2: { type: String, trim: true, maxlength: 50 },
     amount: { type: Number, required: true, min: 0 },
     date: { type: Date, required: true },
     note: { type: String, trim: true, maxlength: 500 },

@@ -21,6 +21,7 @@ import DriverList from '../features/dashboard/DriverList';
 import MobileAppCard from '../features/dashboard/MobileAppCard';
 import VehicleExpensesSection from '../features/dashboard/VehicleExpensesSection';
 import MonthlyIncomeSection from '../features/dashboard/MonthlyIncomeSection';
+import VehicleTyreDetails from '../features/driver/VehicleTyreDetails';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -130,6 +131,9 @@ export default function Dashboard() {
           loading={vehicleExpensesLoading}
           error={vehicleExpenseError}
         />
+      )}
+      {user?.role === 'vehicle_user' && vehicles[0] && (
+        <VehicleTyreDetails vehicle={vehicles[0]} />
       )}
     </Layout>
   );

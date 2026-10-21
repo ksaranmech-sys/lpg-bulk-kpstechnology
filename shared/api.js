@@ -109,6 +109,7 @@ export function createEndpoints(api) {
     listVehicles: (customerId) => api.get('/vehicles', { params: customerId ? { customerId } : {} }),
     getVehicle: (vehicleId) => api.get(`/vehicles/${vehicleId}`),
     updateVehicle: (vehicleId, data) => api.patch(`/vehicles/${vehicleId}`, data),
+    updateVehicleTyres: (vehicleId, tyres) => api.patch(`/vehicles/${vehicleId}/tyres`, { tyres }),
     deleteVehicle: (vehicleId) => api.delete(`/vehicles/${vehicleId}`),
     updateVehicleReminderDates: (vehicleId, data) => api.patch(`/vehicles/${vehicleId}/document-reminders`, data),
     sendVehicleReminder: (vehicleId, type) => api.post(`/vehicles/${vehicleId}/reminders/send`, { type }),

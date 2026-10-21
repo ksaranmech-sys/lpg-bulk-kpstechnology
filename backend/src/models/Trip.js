@@ -67,6 +67,7 @@ const tripSchema = new mongoose.Schema(
     // No separate single-field index here - the {vehicle:1, createdAt:1} and partial unique
     // indexes below already cover vehicle-scoped lookups (avoids a duplicate-index warning).
     vehicle: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle', required: true },
+    startOdometerKm: { type: Number, min: 0, default: null },
 
     driverAdvances: { type: [advanceSchema], default: [] },
 

@@ -9,6 +9,19 @@ const reminderDocumentSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const tyrePositionSchema = new mongoose.Schema(
+  {
+    position: { type: Number, required: true, min: 1, max: 7 },
+    tyreNumber: { type: String, trim: true, maxlength: 50, default: '' },
+    tyreNumber2: { type: String, trim: true, maxlength: 50, default: '' },
+    installedOdometerKm: { type: Number, min: 0, default: null },
+    expectedMileageKm: { type: Number, min: 0, default: null },
+    // Legacy data stored the tyre installation reading as odometerKm.
+    odometerKm: { type: Number, min: 0, default: null },
+  },
+  { _id: false }
+);
+
 const vehicleSchema = new mongoose.Schema(
   {
     customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true, index: true },
@@ -19,6 +32,10 @@ const vehicleSchema = new mongoose.Schema(
     // Running odometer cache, updated whenever a new diesel entry is recorded,
     // so the UI can show "last known KM" without recomputing from trip history.
     lastKnownOdometer: { type: Number, default: null },
+    tyres: {
+      type: [tyrePositionSchema],
+      default: () => Array.from({ length: 7 }, (_, index) => ({ position: index + 1 })),
+    },
     documentReminders: {
       qTax: { type: reminderDocumentSchema, default: () => ({}) },
       fitness: { type: reminderDocumentSchema, default: () => ({}) },

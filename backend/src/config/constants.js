@@ -162,6 +162,16 @@ const RATE_TABLE_BAND_MAX_KM = 450;
 
 // Oil / gas company a vehicle is contracted to (chosen when the vehicle is added).
 const VEHICLE_CORPORATIONS = ['IOC', 'BPC', 'HPC', 'Total Gas', 'Super Gas'];
+const TYRE_EXPENSE_CATEGORIES = ['tyre', 'tyre rebutton'];
+const VEHICLE_TYRE_POSITIONS = [
+  'Front Tyre',
+  'Right Center',
+  'Left Center',
+  'Front Right Running',
+  'Front Left Running',
+  'Rear Right Running',
+  'Rear Left Running',
+];
 // Monthly Income cut-off per vehicle corporation: a month's income includes unloadings up to this
 // day of the NEXT month (BPC: 1-5 Oct still count in September). Corporations not listed (IOC,
 // HPC, ...) use the calendar month.
@@ -191,6 +201,8 @@ module.exports = {
   RATE_TABLE_WEIGHT_LIMIT_18MT,
   RATE_TABLE_BAND_MAX_KM,
   VEHICLE_CORPORATIONS,
+  TYRE_EXPENSE_CATEGORIES,
+  VEHICLE_TYRE_POSITIONS,
   MONTHLY_INCOME_CUTOFF_DAY,
   MONTHLY_INCOME_HALF_MONTH_CORPORATIONS,
   MONTHLY_INCOME_HALF_MONTH_DAY,

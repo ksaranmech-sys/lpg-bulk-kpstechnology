@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { VEHICLE_EXPENSE_CATEGORIES, currentMonth, formatMonthLabel, monthKey, wholeNumberInput } from '@kps/shared';
+import { VEHICLE_EXPENSE_CATEGORIES, VEHICLE_TYRE_POSITION_OPTIONS, currentMonth, formatMonthLabel, isTyreExpenseCategory, monthKey, wholeNumberInput } from '@kps/shared';
 import * as api from '../../api/api';
 import ComboBoxInput from '../../components/ComboBoxInput';
 
-const EMPTY_FORM = { category: '', amount: '', date: '', note: '', photo: null, removePhoto: false };
+const EMPTY_FORM = { category: '', tyreMaker: '', tyreModel: '', tyrePosition: '', tyreNumber: '', tyreNumber2: '', amount: '', date: '', note: '', photo: null, removePhoto: false };
 const cell = { padding: '8px 12px' };
 
 function formatRs(value) {
@@ -89,6 +89,11 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
     setEditId(expense._id);
     setEditForm({
       category: expense.category || '',
+      tyreMaker: expense.tyreMaker || '',
+      tyreModel: expense.tyreModel || '',
+      tyrePosition: expense.tyrePosition || '',
+      tyreNumber: expense.tyreNumber || '',
+      tyreNumber2: expense.tyreNumber2 || '',
       amount: expense.amount == null ? '' : String(Math.round(Number(expense.amount))),
       date: toInputDate(expense.date),
       note: expense.note || '',
@@ -135,7 +140,21 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
     }
   }
 
-  function renderFields(state, setState, existingPhotoUrl) {
+  function previousTyreNumbers(position, excludeExpenseId = '') {
+    const previousExpense = expenses
+      .filter((expense) => (
+        expense._id !== excludeExpenseId
+        && isTyreExpenseCategory(expense.category)
+        && expense.tyrePosition === position
+      ))
+      .sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt))[0];
+    return {
+      tyreNumber: previousExpense?.tyreNumber || '',
+      tyreNumber2: previousExpense?.tyreNumber2 || '',
+    };
+  }
+
+  function renderFields(state, setState, existingPhotoUrl, expenseId = '') {
     return (
       <>
         <div className="grid-2">
@@ -143,7 +162,15 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
             <label>Expense Type</label>
             <ComboBoxInput
               value={state.category}
-              onChange={(value) => setState({ ...state, category: value })}
+              onChange={(category) => setState((current) => ({
+                ...current,
+                category,
+                tyreMaker: isTyreExpenseCategory(category) ? current.tyreMaker : '',
+                tyreModel: isTyreExpenseCategory(category) ? current.tyreModel : '',
+                tyrePosition: isTyreExpenseCategory(category) ? current.tyrePosition : '',
+                tyreNumber: isTyreExpenseCategory(category) ? current.tyreNumber : '',
+                tyreNumber2: isTyreExpenseCategory(category) ? current.tyreNumber2 : '',
+              }))}
               options={VEHICLE_EXPENSE_CATEGORIES}
               placeholder="Select or enter expense type"
               required
@@ -153,6 +180,51 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
             <label>Amount (Rs)</label>
             <input type="text" inputMode="numeric" pattern="\d+" title="Enter a whole number (no decimals)" value={state.amount} onChange={(e) => setState({ ...state, amount: wholeNumberInput(e.target.value) })} required />
           </div>
+          {isTyreExpenseCategory(state.category) && (
+            <>
+              <div className="field">
+                <label>Maker Name</label>
+                <input value={state.tyreMaker} onChange={(e) => setState({ ...state, tyreMaker: e.target.value })} maxLength={100} required />
+              </div>
+              <div className="field">
+                <label>Model</label>
+                <input value={state.tyreModel} onChange={(e) => setState({ ...state, tyreModel: e.target.value })} maxLength={100} required />
+              </div>
+              <div className="field">
+                <label>Tyre Position</label>
+                <select
+                  value={state.tyrePosition}
+                  onChange={(e) => {
+                    const tyrePosition = e.target.value;
+                    const previousNumbers = previousTyreNumbers(tyrePosition, expenseId);
+                    setState((current) => ({
+                      ...current,
+                      tyrePosition,
+                      ...(
+                        tyrePosition === current.tyrePosition
+                          ? {}
+                          : previousNumbers
+                      ),
+                    }));
+                  }}
+                  required
+                >
+                  <option value="">Select tyre position</option>
+                  {VEHICLE_TYRE_POSITION_OPTIONS.map((position) => (
+                    <option key={position.value} value={position.value}>{position.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label>Tyre Number 1</label>
+                <input value={state.tyreNumber} onChange={(e) => setState({ ...state, tyreNumber: e.target.value })} maxLength={50} required />
+              </div>
+              <div className="field">
+                <label>Tyre Number 2</label>
+                <input value={state.tyreNumber2} onChange={(e) => setState({ ...state, tyreNumber2: e.target.value })} maxLength={50} required />
+              </div>
+            </>
+          )}
         </div>
         <div className="grid-2">
           <div className="field">
@@ -214,6 +286,7 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
                 <th style={{ width: 44, textAlign: 'center', ...cell }}>Select</th>
                 <th style={{ textAlign: 'left', ...cell }}>Date</th>
                 <th style={{ textAlign: 'left', ...cell }}>Expense Type</th>
+                <th style={{ textAlign: 'left', ...cell }}>Tyre Details</th>
                 <th style={{ textAlign: 'right', ...cell }}>Amount</th>
                 <th style={{ textAlign: 'left', ...cell }}>Note</th>
                 <th style={{ textAlign: 'left', ...cell }}>Photo</th>
@@ -223,9 +296,9 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
               {visibleEntries.map((expense) => (
                 <tr key={expense._id}>
                   {editId === expense._id ? (
-                    <td colSpan={6} style={cell}>
+                    <td colSpan={7} style={cell}>
                       <form onSubmit={saveEdit}>
-                        {renderFields(editForm, setEditForm, expense.photo?.url)}
+                        {renderFields(editForm, setEditForm, expense.photo?.url, expense._id)}
                         <div style={{ display: 'flex', gap: 8 }}>
                           <button className="btn" disabled={editSaving} type="submit">{editSaving ? 'Saving...' : 'Save'}</button>
                           <button type="button" className="btn secondary" onClick={cancelEdit}>Cancel</button>
@@ -247,6 +320,14 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
                       </td>
                       <td style={cell}>{new Date(expense.date).toLocaleDateString('en-IN')}</td>
                       <td style={cell}>{expense.category}</td>
+                      <td style={cell}>
+                        {[
+                          [expense.tyreNumber, expense.tyreNumber2].filter(Boolean).join(', '),
+                          expense.tyreMaker,
+                          expense.tyreModel,
+                          expense.tyrePosition,
+                        ].filter(Boolean).join(' - ') || '-'}
+                      </td>
                       <td style={{ ...cell, textAlign: 'right' }}>{formatRs(expense.amount)}</td>
                       <td style={cell}>{expense.note || '-'}</td>
                       <td style={cell}>{expense.photo?.url ? <a href={expense.photo.url} target="_blank" rel="noreferrer">view</a> : '-'}</td>
@@ -257,12 +338,12 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={3} style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>Month Total</td>
+                <td colSpan={4} style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>Month Total</td>
                 <td style={{ ...cell, textAlign: 'right', fontWeight: 700 }}>{formatRs(visibleTotal)}</td>
                 <td colSpan={2} />
               </tr>
               <tr>
-                <td colSpan={3} style={{ ...cell, textAlign: 'right', fontWeight: 700, borderTop: '1px solid var(--border)' }}>Yearly Total {year}</td>
+                <td colSpan={4} style={{ ...cell, textAlign: 'right', fontWeight: 700, borderTop: '1px solid var(--border)' }}>Yearly Total {year}</td>
                 <td style={{ ...cell, textAlign: 'right', fontWeight: 700, borderTop: '1px solid var(--border)' }}>{formatRs(yearTotal)}</td>
                 <td colSpan={2} style={{ borderTop: '1px solid var(--border)' }} />
               </tr>

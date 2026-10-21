@@ -1,9 +1,13 @@
 const VehicleExpense = require('../models/VehicleExpense');
 const Vehicle = require('../models/Vehicle');
-const { ROLES } = require('../config/constants');
+const { ROLES, TYRE_EXPENSE_CATEGORIES } = require('../config/constants');
 const { saveUploadedFile } = require('../middleware/upload');
 
 const POPULATE_VEHICLE = ['vehicle', 'vehicleNumber'];
+
+function requiresTyreDetails(category) {
+  return TYRE_EXPENSE_CATEGORIES.includes(String(category || '').trim().toLowerCase());
+}
 
 function customerFilterFor(req) {
   const { user } = req;
@@ -55,11 +59,19 @@ async function listVehicleExpenses(req, res) {
 // POST /api/v1/vehicle-expenses   body: { vehicleId, category, amount, date, note } + optional multipart `photo`
 async function createVehicleExpense(req, res) {
   const { user } = req;
-  const { vehicleId, category, amount, date, note } = req.body;
+  const { vehicleId, category, tyreMaker, tyreModel, tyrePosition, tyreNumber, tyreNumber2, amount, date, note } = req.body;
 
   const cleanCategory = String(category || '').trim();
   if (!vehicleId || !cleanCategory || amount == null || amount === '' || !date) {
     return res.status(400).json({ error: 'vehicleId, category, amount and date are required' });
+  }
+  const cleanTyreMaker = String(tyreMaker || '').trim();
+  const cleanTyreModel = String(tyreModel || '').trim();
+  const cleanTyrePosition = String(tyrePosition || '').trim();
+  const cleanTyreNumber = String(tyreNumber || '').trim();
+  const cleanTyreNumber2 = String(tyreNumber2 || '').trim();
+  if (requiresTyreDetails(cleanCategory) && (!cleanTyreMaker || !cleanTyreModel || !cleanTyrePosition || !cleanTyreNumber || !cleanTyreNumber2)) {
+    return res.status(400).json({ error: 'Maker, model, tyre position, and both tyre numbers are required for tyre expenses' });
   }
   const parsedAmount = parseAmount(amount);
   if (parsedAmount == null) return res.status(400).json({ error: 'amount must be a non-negative number' });
@@ -74,6 +86,11 @@ async function createVehicleExpense(req, res) {
     customer: vehicle.customer,
     vehicle: vehicle._id,
     category: cleanCategory,
+    tyreMaker: requiresTyreDetails(cleanCategory) ? cleanTyreMaker : undefined,
+    tyreModel: requiresTyreDetails(cleanCategory) ? cleanTyreModel : undefined,
+    tyrePosition: requiresTyreDetails(cleanCategory) ? cleanTyrePosition : undefined,
+    tyreNumber: requiresTyreDetails(cleanCategory) ? cleanTyreNumber : undefined,
+    tyreNumber2: requiresTyreDetails(cleanCategory) ? cleanTyreNumber2 : undefined,
     amount: parsedAmount,
     date: parsedDate,
     note: note ? String(note).trim() : undefined,
@@ -92,7 +109,16 @@ async function updateVehicleExpense(req, res) {
   if (!expense) return res.status(404).json({ error: 'Vehicle expense not found' });
   if (!canManage(user, expense)) return res.status(403).json({ error: 'Not allowed to edit this vehicle expense' });
 
-  const { vehicleId, category, amount, date, note } = req.body;
+  const { vehicleId, category, tyreMaker, tyreModel, tyrePosition, tyreNumber, tyreNumber2, amount, date, note } = req.body;
+  const cleanCategory = category === undefined ? expense.category : String(category || '').trim();
+  const cleanTyreMaker = tyreMaker === undefined ? String(expense.tyreMaker || '').trim() : String(tyreMaker || '').trim();
+  const cleanTyreModel = tyreModel === undefined ? String(expense.tyreModel || '').trim() : String(tyreModel || '').trim();
+  const cleanTyrePosition = tyrePosition === undefined ? String(expense.tyrePosition || '').trim() : String(tyrePosition || '').trim();
+  const cleanTyreNumber = tyreNumber === undefined ? String(expense.tyreNumber || '').trim() : String(tyreNumber || '').trim();
+  const cleanTyreNumber2 = tyreNumber2 === undefined ? String(expense.tyreNumber2 || '').trim() : String(tyreNumber2 || '').trim();
+  if (requiresTyreDetails(cleanCategory) && (!cleanTyreMaker || !cleanTyreModel || !cleanTyrePosition || !cleanTyreNumber || !cleanTyreNumber2)) {
+    return res.status(400).json({ error: 'Maker, model, tyre position, and both tyre numbers are required for tyre expenses' });
+  }
   if (vehicleId && String(vehicleId) !== String(expense.vehicle)) {
     const { vehicle, error } = await resolveVehicleForUser(user, vehicleId);
     if (error) return res.status(error.status).json({ error: error.message });
@@ -100,10 +126,13 @@ async function updateVehicleExpense(req, res) {
     expense.customer = vehicle.customer;
   }
   if (category !== undefined) {
-    const cleanCategory = String(category || '').trim();
-    if (!cleanCategory) return res.status(400).json({ error: 'category is required' });
     expense.category = cleanCategory;
   }
+  expense.tyreMaker = requiresTyreDetails(cleanCategory) ? cleanTyreMaker : undefined;
+  expense.tyreModel = requiresTyreDetails(cleanCategory) ? cleanTyreModel : undefined;
+  expense.tyrePosition = requiresTyreDetails(cleanCategory) ? cleanTyrePosition : undefined;
+  expense.tyreNumber = requiresTyreDetails(cleanCategory) ? cleanTyreNumber : undefined;
+  expense.tyreNumber2 = requiresTyreDetails(cleanCategory) ? cleanTyreNumber2 : undefined;
   if (amount !== undefined) {
     const parsedAmount = parseAmount(amount);
     if (parsedAmount == null) return res.status(400).json({ error: 'amount must be a non-negative number' });

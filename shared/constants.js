@@ -90,11 +90,30 @@ export const VEHICLE_EXPENSE_CATEGORIES = Object.freeze([
   'FC',
   'Oil Service',
   'Tyre',
+  'Tyre Rebutton',
   'Paint',
   'Purging',
   'Hydro',
   'Explosive',
 ]);
+
+export const VEHICLE_TYRE_POSITIONS = Object.freeze([
+  'Front Tyre',
+  'Right Center',
+  'Left Center',
+  'Front Right Running',
+  'Front Left Running',
+  'Rear Right Running',
+  'Rear Left Running',
+]);
+
+export const VEHICLE_TYRE_POSITION_OPTIONS = Object.freeze(
+  VEHICLE_TYRE_POSITIONS.map((label) => ({ value: label, label }))
+);
+
+export function isTyreExpenseCategory(category) {
+  return ['tyre', 'tyre rebutton'].includes(String(category || '').trim().toLowerCase());
+}
 
 // Blank form state for the create/edit driver forms (web and mobile share the same fields).
 export const EMPTY_DRIVER_FORM = Object.freeze({

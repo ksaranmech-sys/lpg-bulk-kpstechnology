@@ -24,12 +24,19 @@ const {
 // body: { loadingLocation, loadingExpense, driverAdvances: [{amount,date}] }
 async function createTrip(req, res) {
   const { vehicleId } = req.params;
-  const { loadingLocation, loadingExpense, driverAdvances } = req.body;
+  const { loadingLocation, loadingExpense, driverAdvances, startOdometerKm: rawStartOdometerKm } = req.body;
+  const startOdometerKm = Number(rawStartOdometerKm);
+  if (!Number.isFinite(startOdometerKm) || startOdometerKm < 0) {
+    return res.status(400).json({ error: 'A valid non-negative start odometer reading is required' });
+  }
 
   await removeExpiredClosedTrips();
 
   const vehicle = await Vehicle.findById(vehicleId);
   if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
+  if (vehicle.lastKnownOdometer != null && startOdometerKm < vehicle.lastKnownOdometer) {
+    return res.status(400).json({ error: `Start odometer reading cannot be less than the last known reading (${vehicle.lastKnownOdometer} km)` });
+  }
 
   const driver = await findCurrentDriverForVehicle(vehicle._id);
 
@@ -75,6 +82,7 @@ async function createTrip(req, res) {
     trip = await Trip.create({
       customer: vehicle.customer,
       vehicle: vehicle._id,
+      startOdometerKm,
       ...(loadingLocation ? { loadingLocation: loadingLocation.trim() } : {}),
       loadingExpense: loadingExpense || 0,
       driverAdvances: driverAdvances || [],
@@ -90,6 +98,9 @@ async function createTrip(req, res) {
     }
     throw err;
   }
+
+  vehicle.lastKnownOdometer = startOdometerKm;
+  await vehicle.save();
 
   res.status(201).json({ trip, ...(previousTripNotice ? { message: previousTripNotice } : {}) });
 }

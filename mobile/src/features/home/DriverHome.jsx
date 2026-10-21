@@ -1,11 +1,12 @@
 import React, { useCallback, useState } from 'react';
-import { Alert, StyleSheet, Text } from 'react-native';
+import { Alert, Modal, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { formatDate } from '@kps/shared';
 import { api, errorMessage } from '../../api';
-import { Badge, Button, Card, ErrorText, Loading, Muted, NavRow, Screen } from '../../ui';
+import { Badge, Button, Card, ErrorText, Field, Input, Loading, Muted, NavRow, Screen } from '../../ui';
 import { colors, spacing } from '../../theme';
 import { reminderCounts, showReminderPopup } from '../reminders/ReminderSummary';
+import VehicleTyreDetails from '../expenses/VehicleTyreDetails';
 
 function TripRow({ trip, onPress }) {
   return (
@@ -25,6 +26,8 @@ export default function DriverHome({ user }) {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [showStartTripForm, setShowStartTripForm] = useState(false);
+  const [startOdometerKm, setStartOdometerKm] = useState('');
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -49,10 +52,16 @@ export default function DriverHome({ user }) {
 
   async function startTrip() {
     if (!vehicle) return;
+    const odometerKm = Number(startOdometerKm);
+    if (startOdometerKm === '' || !Number.isFinite(odometerKm) || odometerKm < 0) {
+      setError('Enter a valid odometer reading to start the trip.');
+      return;
+    }
     setStarting(true);
     setError('');
     try {
-      const res = await api.createTrip(vehicle._id, {});
+      const res = await api.createTrip(vehicle._id, { startOdometerKm: odometerKm });
+      setShowStartTripForm(false);
       if (res.data.message) Alert.alert('Note', res.data.message);
       router.push(`/trips/${res.data.trip._id}`);
     } catch (err) {
@@ -92,7 +101,15 @@ export default function DriverHome({ user }) {
         ) : (
           <>
             <Muted style={{ marginBottom: spacing.md }}>No trip in progress.</Muted>
-            <Button title="Start Trip" onPress={startTrip} loading={starting} disabled={!vehicle} />
+            <Button
+              title="Start Trip"
+              onPress={() => {
+                setError('');
+                setStartOdometerKm(vehicle?.lastKnownOdometer == null ? '' : String(vehicle.lastKnownOdometer));
+                setShowStartTripForm(true);
+              }}
+              disabled={!vehicle}
+            />
           </>
         )}
       </Card>
@@ -114,10 +131,45 @@ export default function DriverHome({ user }) {
           <TripRow key={trip._id} trip={trip} onPress={() => router.push(`/trips/${trip._id}`)} />
         ))}
       </Card>
+      {vehicle && <VehicleTyreDetails vehicle={vehicle} />}
+      <Modal
+        transparent
+        visible={showStartTripForm}
+        animationType="fade"
+        onRequestClose={() => setShowStartTripForm(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Muted style={{ fontSize: 18, fontWeight: '700', marginBottom: spacing.md }}>Start Trip</Muted>
+            <Field label="Starting Odometer (km)">
+              <Input
+                value={startOdometerKm}
+                onChangeText={(value) => setStartOdometerKm(value.replace(/\D/g, ''))}
+                keyboardType="number-pad"
+                autoFocus
+              />
+            </Field>
+            <ErrorText>{error}</ErrorText>
+            <View style={styles.modalButtons}>
+              <Button title="Cancel" variant="secondary" onPress={() => setShowStartTripForm(false)} style={{ flex: 1 }} />
+              <Button
+                title="Confirm Start"
+                onPress={startTrip}
+                loading={starting}
+                disabled={!startOdometerKm}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   vehicleNumber: { fontSize: 22, fontWeight: '800', color: colors.green900, marginBottom: 4 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.45)', justifyContent: 'center', padding: spacing.lg },
+  modalCard: { backgroundColor: colors.surface, borderRadius: 12, padding: spacing.lg },
+  modalButtons: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
 });

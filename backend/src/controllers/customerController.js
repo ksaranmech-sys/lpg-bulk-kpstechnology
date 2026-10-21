@@ -6,6 +6,7 @@ const Trip = require('../models/Trip');
 const VehicleExpense = require('../models/VehicleExpense');
 const { ROLES, VEHICLE_CORPORATIONS } = require('../config/constants');
 const { pickCurrentDriver } = require('../utils/driverAssignment');
+const { withTyreExpenseNumbers } = require('../utils/vehicleTyres');
 
 // POST /api/v1/customers   (super_admin only - onboards a new customer/subgroup)
 // body: { companyName, mobileNumber, email, address, adminUsername, adminPassword }
@@ -45,6 +46,10 @@ async function getCustomer(req, res) {
     Vehicle.find({ customer: customer._id }).sort('vehicleNumber'),
     User.find({ customer: customer._id }).sort('username'),
   ]);
+  const tyreExpenses = await VehicleExpense.find({
+    vehicle: { $in: vehicles.map((vehicle) => vehicle._id) },
+    tyrePosition: { $exists: true, $ne: '' },
+  }).select('vehicle category tyrePosition tyreNumber tyreNumber2 date createdAt').sort('-date -createdAt').lean();
   const safeUsers = users.map((user) => user.toSafeJSON());
   const driversByVehicle = new Map();
   safeUsers
@@ -57,6 +62,7 @@ async function getCustomer(req, res) {
     const driver = pickCurrentDriver(driversByVehicle.get(String(vehicle._id)));
     return {
       ...vehicle.toObject(),
+      tyres: withTyreExpenseNumbers(vehicle.tyres, vehicle._id, tyreExpenses),
       driverName: driver?.displayName || driver?.name || null,
       driverMobile: driver?.mobileNumber || null,
     };

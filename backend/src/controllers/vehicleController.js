@@ -6,6 +6,7 @@ const VehicleExpense = require('../models/VehicleExpense');
 const { ROLES, VEHICLE_CORPORATIONS } = require('../config/constants');
 const { sendVehicleReminderEmail } = require('../utils/mailer');
 const { pickCurrentDriver } = require('../utils/driverAssignment');
+const { withTyreExpenseNumbers } = require('../utils/vehicleTyres');
 
 const REMINDER_DEFINITIONS = {
   qTax: { label: 'QTax', reminderDays: 0 },
@@ -19,6 +20,16 @@ const REMINDER_DEFINITIONS = {
   cllInsurance: { label: 'CLL Insurance', reminderDays: 15 },
   hydroCertificate: { label: 'Hydro certificate', reminderDays: 15 },
 };
+
+function withTyreMileage(tyres = [], currentOdometer) {
+  return tyres.map((tyre) => {
+    const installedOdometerKm = tyre.installedOdometerKm ?? tyre.odometerKm ?? null;
+    const mileageKm = installedOdometerKm == null || currentOdometer == null || currentOdometer < installedOdometerKm
+      ? null
+      : currentOdometer - installedOdometerKm;
+    return { ...tyre, installedOdometerKm, mileageKm };
+  });
+}
 
 function getDocumentReminderStatus(doc, key) {
   if (!doc || !doc.expiryDate) return { due: false, status: 'Not set' };
@@ -38,7 +49,14 @@ function getDocumentReminderStatus(doc, key) {
 
 async function withVehicleDetails(vehicles) {
   const vehicleIds = vehicles.map((vehicle) => vehicle._id);
-  const drivers = await User.find({ role: ROLES.VEHICLE_USER, isActive: true, vehicle: { $in: vehicleIds } }).select('name mobileNumber vehicle joiningDate resigningDate isActive');
+  const [drivers, tyreExpenses] = await Promise.all([
+    User.find({ role: ROLES.VEHICLE_USER, isActive: true, vehicle: { $in: vehicleIds } })
+      .select('name mobileNumber vehicle joiningDate resigningDate isActive'),
+    VehicleExpense.find({ vehicle: { $in: vehicleIds }, tyrePosition: { $exists: true, $ne: '' } })
+      .select('vehicle category tyrePosition tyreNumber tyreNumber2 date createdAt')
+      .sort('-date -createdAt')
+      .lean(),
+  ]);
   const driversByVehicle = new Map();
   drivers.forEach((driver) => {
     const key = String(driver.vehicle);
@@ -60,6 +78,10 @@ async function withVehicleDetails(vehicles) {
     });
     return {
       ...result,
+      tyres: withTyreMileage(
+        withTyreExpenseNumbers(result.tyres, result._id, tyreExpenses),
+        result.lastKnownOdometer,
+      ),
       documentReminders,
       customerName: result.customer?.companyName || null,
       driverName: driver?.name || null,
@@ -136,6 +158,27 @@ async function updateVehicle(req, res) {
   res.json({ vehicle: (await withVehicleDetails([vehicle]))[0] });
 }
 
+async function updateVehicleTyres(req, res) {
+  const vehicle = await Vehicle.findById(req.params.vehicleId);
+  if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
+
+  vehicle.tyres = req.body.tyres
+    .map((tyre) => ({
+      position: Number(tyre.position),
+      tyreNumber: String(tyre.tyreNumber || '').trim(),
+      tyreNumber2: String(tyre.tyreNumber2 || '').trim(),
+      installedOdometerKm: tyre.installedOdometerKm == null || tyre.installedOdometerKm === ''
+        ? null
+        : Number(tyre.installedOdometerKm),
+      expectedMileageKm: tyre.expectedMileageKm == null || tyre.expectedMileageKm === ''
+        ? null
+        : Number(tyre.expectedMileageKm),
+    }))
+    .sort((a, b) => a.position - b.position);
+  await vehicle.save();
+  res.json({ vehicle: (await withVehicleDetails([vehicle]))[0] });
+}
+
 async function deleteVehicle(req, res) {
   const { vehicleId } = req.params;
   const vehicle = await Vehicle.findById(vehicleId);
@@ -202,4 +245,13 @@ async function sendVehicleReminder(req, res) {
   res.json({ message: 'Reminder email sent successfully', reminder: type, sentAt: reminder.lastReminderSentAt });
 }
 
-module.exports = { listVehicles, getVehicle, updateVehicle, deleteVehicle, updateVehicleReminderDates, sendVehicleReminder };
+module.exports = {
+  listVehicles,
+  getVehicle,
+  updateVehicle,
+  updateVehicleTyres,
+  deleteVehicle,
+  updateVehicleReminderDates,
+  sendVehicleReminder,
+  withTyreMileage,
+};
