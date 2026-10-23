@@ -99,6 +99,11 @@ test('orders customer admin dashboard sections as requested', async () => {
   });
   await act(async () => {});
 
+  const renderedSections = Array.from(container.querySelectorAll('[data-dashboard-section]'))
+    .map((section) => section.dataset.dashboardSection);
+  expect(renderedSections.indexOf('vehicle-driver-list')).toBeLessThan(renderedSections.indexOf('leave-entries'));
+  expect(renderedSections.indexOf('leave-entries')).toBeLessThan(renderedSections.indexOf('vehicle-expenses'));
+
   const sections = Array.from(container.querySelectorAll('[data-dashboard-section]'))
     .sort((a, b) => Number(a.parentElement.style.order) - Number(b.parentElement.style.order))
     .map((section) => section.dataset.dashboardSection);

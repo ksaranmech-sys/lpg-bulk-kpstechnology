@@ -159,20 +159,6 @@ export default function Dashboard() {
         </div>
       )}
       {user?.role === 'customer_admin' && (
-        <div style={{ order: 3 }}>
-          <div data-dashboard-section="leave-entries">
-            <AdminLeaveSection
-              leaves={leaves}
-              setLeaves={setLeaves}
-              leavesLoading={leavesLoading}
-              leaveError={leaveError}
-              setLeaveError={setLeaveError}
-              driverUsers={driverUsers}
-            />
-          </div>
-        </div>
-      )}
-      {user?.role === 'customer_admin' && (
         <div style={{ order: 2 }}>
           <div data-dashboard-section="vehicle-driver-list">
             <DriverList
@@ -183,6 +169,20 @@ export default function Dashboard() {
               setCustomerData={setCustomerData}
               driverUsers={allDriverUsers}
               vehicleExpenses={vehicleExpenses}
+            />
+          </div>
+        </div>
+      )}
+      {user?.role === 'customer_admin' && (
+        <div style={{ order: 3 }}>
+          <div data-dashboard-section="leave-entries">
+            <AdminLeaveSection
+              leaves={leaves}
+              setLeaves={setLeaves}
+              leavesLoading={leavesLoading}
+              leaveError={leaveError}
+              setLeaveError={setLeaveError}
+              driverUsers={driverUsers}
             />
           </div>
         </div>
