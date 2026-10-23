@@ -233,6 +233,28 @@ const rules = {
       })
       .withMessage('Each tyre position must include a valid tyre number and odometer value'),
   ]),
+  updateVehicleMaintenance: validate([
+    body('maintenanceComponents').isArray({ min: 1, max: 30 })
+      .withMessage('Maintenance components must contain between 1 and 30 entries')
+      .bail()
+      .custom((components) => {
+        const names = new Set();
+        for (const component of components) {
+          if (!component || typeof component !== 'object' || Array.isArray(component)) return false;
+          const name = typeof component?.name === 'string' ? component.name.trim() : '';
+          const normalizedName = name.toLowerCase();
+          if (!name || name.length > 50 || names.has(normalizedName)) return false;
+          for (const field of ['startingOdometerKm', 'expectedKm', 'reminderKm']) {
+            const value = component[field];
+            if (value !== null && value !== undefined && value !== ''
+              && (!Number.isFinite(Number(value)) || Number(value) < 0)) return false;
+          }
+          names.add(normalizedName);
+        }
+        return true;
+      })
+      .withMessage('Each maintenance component must have a unique name and non-negative kilometre values'),
+  ]),
   tripId: validate([objectId('tripId')]),
   mobileAppUrl: validate([
     body('mobileAppUrl').optional({ values: 'falsy' }).isURL({ protocols: ['http', 'https'], require_protocol: true }).withMessage('mobileAppUrl must be a full http(s) link').isLength({ max: 500 }),

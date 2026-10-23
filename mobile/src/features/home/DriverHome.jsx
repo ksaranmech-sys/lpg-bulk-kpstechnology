@@ -6,7 +6,6 @@ import { api, errorMessage } from '../../api';
 import { Badge, Button, Card, ErrorText, Field, Input, Loading, Muted, NavRow, Screen } from '../../ui';
 import { colors, spacing } from '../../theme';
 import { reminderCounts, showReminderPopup } from '../reminders/ReminderSummary';
-import VehicleTyreDetails from '../expenses/VehicleTyreDetails';
 
 function TripRow({ trip, onPress }) {
   return (
@@ -131,7 +130,6 @@ export default function DriverHome({ user }) {
           <TripRow key={trip._id} trip={trip} onPress={() => router.push(`/trips/${trip._id}`)} />
         ))}
       </Card>
-      {vehicle && <VehicleTyreDetails vehicle={vehicle} />}
       <Modal
         transparent
         visible={showStartTripForm}

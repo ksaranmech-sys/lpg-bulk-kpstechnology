@@ -22,6 +22,16 @@ const tyrePositionSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const maintenanceComponentSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true, maxlength: 50 },
+    startingOdometerKm: { type: Number, min: 0, default: null },
+    expectedKm: { type: Number, min: 0, default: null },
+    reminderKm: { type: Number, min: 0, default: null },
+  },
+  { _id: false }
+);
+
 const vehicleSchema = new mongoose.Schema(
   {
     customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true, index: true },
@@ -36,6 +46,7 @@ const vehicleSchema = new mongoose.Schema(
       type: [tyrePositionSchema],
       default: () => Array.from({ length: 7 }, (_, index) => ({ position: index + 1 })),
     },
+    maintenanceComponents: { type: [maintenanceComponentSchema], default: [] },
     documentReminders: {
       qTax: { type: reminderDocumentSchema, default: () => ({}) },
       fitness: { type: reminderDocumentSchema, default: () => ({}) },

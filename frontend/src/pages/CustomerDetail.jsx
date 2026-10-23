@@ -9,6 +9,8 @@ import CustomerTripHistory from '../features/customer/CustomerTripHistory';
 import DriversTable from '../features/customer/DriversTable';
 import VehicleExpensesSummary from '../features/customer/VehicleExpensesSummary';
 import MonthlyIncomeSection from '../features/dashboard/MonthlyIncomeSection';
+import VehicleMaintenanceSection from '../features/dashboard/VehicleMaintenanceSection';
+import MaintenanceReminderPopup from '../features/dashboard/MaintenanceReminderPopup';
 
 export default function CustomerDetail() {
   const { user } = useAuth();
@@ -66,6 +68,18 @@ export default function CustomerDetail() {
       )}
 
       <VehiclesTable customerId={customerId} data={data} setData={setData} user={user} vehicleExpenses={vehicleExpenses} />
+
+      <MaintenanceReminderPopup vehicles={data?.vehicles || []} />
+      <VehicleMaintenanceSection
+        vehicles={data?.vehicles || []}
+        loading={!data}
+        onVehicleUpdated={(updatedVehicle) => setData((current) => ({
+          ...current,
+          vehicles: current.vehicles.map((vehicle) => (
+            vehicle._id === updatedVehicle._id ? updatedVehicle : vehicle
+          )),
+        }))}
+      />
 
       <VehicleExpensesSummary expenses={vehicleExpenses} error={vehicleExpenseError} />
 

@@ -104,6 +104,26 @@ test('tyre expenses require maker, model, position, and two tyre numbers', async
   assert.equal(await run(rules.updateVehicleExpense, { category: 'Tyre Rebutton', ...tyreDetails }, params), null);
 });
 
+test('vehicle maintenance components require unique names and non-negative odometer values', async () => {
+  const validComponents = [
+    { name: 'Engine Oil', startingOdometerKm: 1000, expectedKm: 5000, reminderKm: 500 },
+    { name: 'Manual entry', startingOdometerKm: null, expectedKm: null, reminderKm: null },
+  ];
+  assert.equal(await run(rules.updateVehicleMaintenance, { maintenanceComponents: validComponents }), null);
+  assert.equal((await run(rules.updateVehicleMaintenance, {
+    maintenanceComponents: [...validComponents, { name: 'engine oil', startingOdometerKm: null, expectedKm: null }],
+  }))?.field, 'maintenanceComponents');
+  assert.equal((await run(rules.updateVehicleMaintenance, {
+    maintenanceComponents: [{ name: 'Engine Oil', startingOdometerKm: -1, expectedKm: null }],
+  }))?.field, 'maintenanceComponents');
+  assert.equal((await run(rules.updateVehicleMaintenance, {
+    maintenanceComponents: [{ name: 'Engine Oil', startingOdometerKm: null, expectedKm: null, reminderKm: -1 }],
+  }))?.field, 'maintenanceComponents');
+  assert.equal((await run(rules.updateVehicleMaintenance, {
+    maintenanceComponents: [null],
+  }))?.field, 'maintenanceComponents');
+});
+
 test('trip starts require a non-negative odometer reading', async () => {
   assert.equal(await run(rules.createTrip, { startOdometerKm: 0 }), null);
   assert.equal(await run(rules.createTrip, { startOdometerKm: '12500' }), null);

@@ -21,7 +21,8 @@ import DriverList from '../features/dashboard/DriverList';
 import MobileAppCard from '../features/dashboard/MobileAppCard';
 import VehicleExpensesSection from '../features/dashboard/VehicleExpensesSection';
 import MonthlyIncomeSection from '../features/dashboard/MonthlyIncomeSection';
-import VehicleTyreDetails from '../features/driver/VehicleTyreDetails';
+import VehicleMaintenanceSection from '../features/dashboard/VehicleMaintenanceSection';
+import MaintenanceReminderPopup from '../features/dashboard/MaintenanceReminderPopup';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -39,6 +40,9 @@ export default function Dashboard() {
   return (
     <Layout>
       <ReminderPopup user={user} vehicles={vehicles} />
+      {['super_admin', 'customer_admin'].includes(user?.role) && (
+        <MaintenanceReminderPopup vehicles={vehicles} />
+      )}
       {user?.role === 'super_admin' && (
         <>
           <MobileAppCard />
@@ -132,8 +136,14 @@ export default function Dashboard() {
           error={vehicleExpenseError}
         />
       )}
-      {user?.role === 'vehicle_user' && vehicles[0] && (
-        <VehicleTyreDetails vehicle={vehicles[0]} />
+      {['super_admin', 'customer_admin'].includes(user?.role) && (
+        <VehicleMaintenanceSection
+          vehicles={vehicles}
+          loading={loading}
+          onVehicleUpdated={(updatedVehicle) => setVehicles((current) => current.map((vehicle) => (
+            vehicle._id === updatedVehicle._id ? updatedVehicle : vehicle
+          )))}
+        />
       )}
     </Layout>
   );

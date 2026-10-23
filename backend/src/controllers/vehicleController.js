@@ -179,6 +179,26 @@ async function updateVehicleTyres(req, res) {
   res.json({ vehicle: (await withVehicleDetails([vehicle]))[0] });
 }
 
+async function updateVehicleMaintenance(req, res) {
+  const vehicle = await Vehicle.findById(req.params.vehicleId);
+  if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
+
+  vehicle.maintenanceComponents = req.body.maintenanceComponents.map((component) => ({
+    name: component.name.trim(),
+    startingOdometerKm: component.startingOdometerKm == null || component.startingOdometerKm === ''
+      ? null
+      : Number(component.startingOdometerKm),
+    expectedKm: component.expectedKm == null || component.expectedKm === ''
+      ? null
+      : Number(component.expectedKm),
+    reminderKm: component.reminderKm == null || component.reminderKm === ''
+      ? null
+      : Number(component.reminderKm),
+  }));
+  await vehicle.save();
+  res.json({ vehicle: (await withVehicleDetails([vehicle]))[0] });
+}
+
 async function deleteVehicle(req, res) {
   const { vehicleId } = req.params;
   const vehicle = await Vehicle.findById(vehicleId);
@@ -250,6 +270,7 @@ module.exports = {
   getVehicle,
   updateVehicle,
   updateVehicleTyres,
+  updateVehicleMaintenance,
   deleteVehicle,
   updateVehicleReminderDates,
   sendVehicleReminder,
