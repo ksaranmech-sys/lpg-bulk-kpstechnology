@@ -62,10 +62,11 @@ export default function Dashboard() {
         <MaintenanceReminderPopup vehicles={vehicles} />
       )}
       {['super_admin', 'customer_admin'].includes(user?.role) && (
-        <VehicleReminderEditor
-          vehicles={vehicles}
-          setVehicles={setVehicles}
-        />
+        <div style={{ order: user?.role === 'customer_admin' ? 5 : 0 }}>
+          <div data-dashboard-section="reminder-expiry">
+            <VehicleReminderEditor vehicles={vehicles} setVehicles={setVehicles} />
+          </div>
+        </div>
       )}
       {user?.role === 'super_admin' && (
         <>
@@ -78,12 +79,16 @@ export default function Dashboard() {
         </>
       )}
       {user?.role === 'customer_admin' && (
-        <OpenTripsCard
-          loading={loading}
-          vehicles={vehicles}
-          selectedVehicleId={selectedVehicleId}
-          setSelectedVehicleId={setSelectedVehicleId}
-        />
+        <div style={{ order: 4 }}>
+          <div data-dashboard-section="trip-history">
+            <OpenTripsCard
+              loading={loading}
+              vehicles={vehicles}
+              selectedVehicleId={selectedVehicleId}
+              setSelectedVehicleId={setSelectedVehicleId}
+            />
+          </div>
+        </div>
       )}
       {user?.role === 'super_admin' && (
         <VehicleFilter
@@ -98,7 +103,11 @@ export default function Dashboard() {
         <VehicleList selectedCustomerId={selectedCustomerId} loading={loading} vehicles={vehicles} />
       )}
       {canManageDashboardVehicles && (
-        <section className="card" aria-label="Vehicle management">
+        <section
+          className="card"
+          aria-label="Vehicle management"
+          style={{ order: user?.role === 'customer_admin' ? 2 : 0 }}
+        >
           <VehiclesTable
             customerId={vehicleManagementCustomerId}
             data={dashboardVehicleData}
@@ -108,8 +117,12 @@ export default function Dashboard() {
           />
         </section>
       )}
-      {loading && <p>Loading...</p>}
-      {!loading && vehicles.length === 0 && <p>No vehicles found for your account yet.</p>}
+      {(loading || vehicles.length === 0) && (
+        <div style={{ order: user?.role === 'customer_admin' ? 2 : 0 }}>
+          {loading && <p>Loading...</p>}
+          {!loading && vehicles.length === 0 && <p>No vehicles found for your account yet.</p>}
+        </div>
+      )}
       {user?.role === 'vehicle_user' && vehicles[0] && (
         <UserAccountCard user={user} vehicle={vehicles[0]} />
       )}
@@ -126,61 +139,85 @@ export default function Dashboard() {
         <ClosedTripHistory selectedVehicleId={selectedVehicleId} />
       )}
       {user?.role === 'customer_admin' && (
-        <MonthlyIncomeSection customerId={user.customer} className="customer-admin-income-section" />
+        <div style={{ order: 0 }}>
+          <div data-dashboard-section="monthly-income">
+            <MonthlyIncomeSection customerId={user.customer} className="customer-admin-income-section" />
+          </div>
+        </div>
       )}
       {user?.role === 'customer_admin' && (
-        <SalarySection
-          user={user}
-          customerData={customerData}
-          driverUsers={driverUsers}
-          leaves={leaves}
-          leavesLoading={leavesLoading}
-        />
+        <div style={{ order: 1 }}>
+          <div data-dashboard-section="salary-details">
+            <SalarySection
+              user={user}
+              customerData={customerData}
+              driverUsers={driverUsers}
+              leaves={leaves}
+              leavesLoading={leavesLoading}
+            />
+          </div>
+        </div>
       )}
       {user?.role === 'customer_admin' && (
-        <AdminLeaveSection
-          leaves={leaves}
-          setLeaves={setLeaves}
-          leavesLoading={leavesLoading}
-          leaveError={leaveError}
-          setLeaveError={setLeaveError}
-          driverUsers={driverUsers}
-        />
+        <div style={{ order: 3 }}>
+          <div data-dashboard-section="leave-entries">
+            <AdminLeaveSection
+              leaves={leaves}
+              setLeaves={setLeaves}
+              leavesLoading={leavesLoading}
+              leaveError={leaveError}
+              setLeaveError={setLeaveError}
+              driverUsers={driverUsers}
+            />
+          </div>
+        </div>
       )}
       {user?.role === 'customer_admin' && (
-        <DriverList
-          user={user}
-          vehicles={vehicles}
-          setVehicles={setVehicles}
-          customerData={customerData}
-          setCustomerData={setCustomerData}
-          driverUsers={allDriverUsers}
-          vehicleExpenses={vehicleExpenses}
-        />
+        <div style={{ order: 2 }}>
+          <div data-dashboard-section="vehicle-driver-list">
+            <DriverList
+              user={user}
+              vehicles={vehicles}
+              setVehicles={setVehicles}
+              customerData={customerData}
+              setCustomerData={setCustomerData}
+              driverUsers={allDriverUsers}
+              vehicleExpenses={vehicleExpenses}
+            />
+          </div>
+        </div>
       )}
       {['super_admin', 'customer_admin'].includes(user?.role) && (
-        <VehicleExpensesSection
-          vehicles={vehicles}
-          driverUsers={driverUsers}
-          expenses={vehicleExpenses}
-          loading={vehicleExpensesLoading}
-          error={vehicleExpenseError}
-        />
+        <div style={{ order: user?.role === 'customer_admin' ? 2 : 0 }}>
+          <VehicleExpensesSection
+            vehicles={vehicles}
+            driverUsers={driverUsers}
+            expenses={vehicleExpenses}
+            loading={vehicleExpensesLoading}
+            error={vehicleExpenseError}
+          />
+        </div>
       )}
       {canManageDashboardVehicles && (
-        <VehicleExpenseManagementSection
-          vehicles={vehicles}
-          customerId={vehicleManagementCustomerId}
-        />
+        <div style={{ order: user?.role === 'customer_admin' ? 2 : 0 }}>
+          <VehicleExpenseManagementSection
+            vehicles={vehicles}
+            customerId={vehicleManagementCustomerId}
+          />
+        </div>
       )}
       {['super_admin', 'customer_admin'].includes(user?.role) && (
-        <VehicleMaintenanceSection
-          vehicles={vehicles}
-          loading={loading}
-          onVehicleUpdated={(updatedVehicle) => setVehicles((current) => current.map((vehicle) => (
-            vehicle._id === updatedVehicle._id ? updatedVehicle : vehicle
-          )))}
-        />
+        <div style={{ order: user?.role === 'customer_admin' ? 6 : 9999 }}>
+          <div data-dashboard-section="vehicle-maintenance">
+            <VehicleMaintenanceSection
+              vehicles={vehicles}
+              loading={loading}
+              onVehicleUpdated={(updatedVehicle) => setVehicles((current) => current.map((vehicle) => (
+                vehicle._id === updatedVehicle._id ? updatedVehicle : vehicle
+              )))}
+            />
+          </div>
+        </div>
       )}
     </Layout>
   );

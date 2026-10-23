@@ -120,7 +120,7 @@ export default function VehiclesTable({
 
   return (
     <>
-      {managementEnabled && ['super_admin', 'customer_admin'].includes(user?.role) && (
+      {managementEnabled && user?.role === 'super_admin' && (
         <div className="card" style={{ marginTop: 24 }}>
           <h3 className="section-title" style={{ marginTop: 0 }}>Add Vehicle</h3>
           <form onSubmit={addVehicle} style={{ display: 'flex', alignItems: 'end', gap: 12, flexWrap: 'wrap' }}>

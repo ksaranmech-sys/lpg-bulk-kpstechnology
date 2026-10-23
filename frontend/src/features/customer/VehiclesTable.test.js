@@ -23,7 +23,7 @@ async function renderTable(props) {
   };
 }
 
-test('customer admins can add and delete vehicles from the dashboard', async () => {
+test('customer admins can delete vehicles but cannot add them', async () => {
   const view = await renderTable({
     customerId: 'customer-1',
     data: { vehicles: [vehicle] },
@@ -31,9 +31,22 @@ test('customer admins can add and delete vehicles from the dashboard', async () 
     user: { role: 'customer_admin' },
   });
 
-  expect(view.container.textContent).toContain('Add Vehicle');
+  expect(view.container.textContent).not.toContain('Add Vehicle');
   expect(view.container.textContent).toContain('Delete selected');
   expect(view.container.querySelector('input[type="checkbox"]')).not.toBeNull();
+
+  await view.unmount();
+});
+
+test('super admins can add vehicles', async () => {
+  const view = await renderTable({
+    customerId: 'customer-1',
+    data: { vehicles: [vehicle] },
+    setData: jest.fn(),
+    user: { role: 'super_admin' },
+  });
+
+  expect(view.container.textContent).toContain('Add Vehicle');
 
   await view.unmount();
 });
