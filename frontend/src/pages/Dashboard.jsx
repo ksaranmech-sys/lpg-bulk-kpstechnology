@@ -62,7 +62,7 @@ export default function Dashboard() {
         <MaintenanceReminderPopup vehicles={vehicles} />
       )}
       {['super_admin', 'customer_admin'].includes(user?.role) && (
-        <div style={{ order: user?.role === 'customer_admin' ? 5 : 0 }}>
+        <div style={{ order: user?.role === 'customer_admin' ? 6 : 0 }}>
           <div data-dashboard-section="reminder-expiry">
             <VehicleReminderEditor vehicles={vehicles} setVehicles={setVehicles} />
           </div>
@@ -79,7 +79,7 @@ export default function Dashboard() {
         </>
       )}
       {user?.role === 'customer_admin' && (
-        <div style={{ order: 4 }}>
+        <div style={{ order: 5 }}>
           <div data-dashboard-section="trip-history">
             <OpenTripsCard
               loading={loading}
@@ -188,7 +188,7 @@ export default function Dashboard() {
         </div>
       )}
       {['super_admin', 'customer_admin'].includes(user?.role) && (
-        <div style={{ order: user?.role === 'customer_admin' ? 2 : 0 }}>
+        <div style={{ order: user?.role === 'customer_admin' ? 4 : 0 }}>
           <VehicleExpensesSection
             vehicles={vehicles}
             driverUsers={driverUsers}
@@ -199,7 +199,7 @@ export default function Dashboard() {
         </div>
       )}
       {canManageDashboardVehicles && (
-        <div style={{ order: user?.role === 'customer_admin' ? 2 : 0 }}>
+        <div style={{ order: user?.role === 'customer_admin' ? 4 : 0 }}>
           <VehicleExpenseManagementSection
             vehicles={vehicles}
             customerId={vehicleManagementCustomerId}
@@ -207,7 +207,7 @@ export default function Dashboard() {
         </div>
       )}
       {['super_admin', 'customer_admin'].includes(user?.role) && (
-        <div style={{ order: user?.role === 'customer_admin' ? 6 : 9999 }}>
+        <div style={{ order: user?.role === 'customer_admin' ? 7 : 9999 }}>
           <div data-dashboard-section="vehicle-maintenance">
             <VehicleMaintenanceSection
               vehicles={vehicles}

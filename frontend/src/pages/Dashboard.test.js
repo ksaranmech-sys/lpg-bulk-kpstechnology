@@ -31,8 +31,8 @@ jest.mock('../features/dashboard/DriverList', () => () => <div>Vehicle and drive
 jest.mock('../features/dashboard/AdminLeaveSection', () => () => <div>Leave entries</div>);
 jest.mock('../features/dashboard/VehicleReminderEditor', () => () => <div>Reminder / Expiry Dates</div>);
 jest.mock('../features/dashboard/VehicleMaintenanceSection', () => () => <div>Vehicle Maintenance</div>);
-jest.mock('../features/dashboard/VehicleExpensesSection', () => () => null);
-jest.mock('../features/dashboard/VehicleExpenseManagementSection', () => () => null);
+jest.mock('../features/dashboard/VehicleExpensesSection', () => () => <div data-dashboard-section="vehicle-expenses">Vehicle Expenses</div>);
+jest.mock('../features/dashboard/VehicleExpenseManagementSection', () => () => <div data-dashboard-section="manage-vehicle-expenses">Manage Vehicle Expenses</div>);
 jest.mock('../features/dashboard/MaintenanceReminderPopup', () => () => null);
 jest.mock('../features/customer/VehiclesTable', () => () => null);
 
@@ -107,6 +107,8 @@ test('orders customer admin dashboard sections as requested', async () => {
     'salary-details',
     'vehicle-driver-list',
     'leave-entries',
+    'vehicle-expenses',
+    'manage-vehicle-expenses',
     'trip-history',
     'reminder-expiry',
     'vehicle-maintenance',
