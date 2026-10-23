@@ -70,6 +70,14 @@ export default function CustomerDetail() {
       <VehiclesTable customerId={customerId} data={data} setData={setData} user={user} vehicleExpenses={vehicleExpenses} />
 
       <MaintenanceReminderPopup vehicles={data?.vehicles || []} />
+      <VehicleExpensesSummary expenses={vehicleExpenses} error={vehicleExpenseError} />
+
+      <MonthlyIncomeSection customerId={customerId} />
+
+      <CustomerTripHistory vehicles={data?.vehicles} />
+      {user?.role === 'customer_admin' && (
+        <DriversTable customerId={customerId} data={data} setData={setData} />
+      )}
       <VehicleMaintenanceSection
         vehicles={data?.vehicles || []}
         loading={!data}
@@ -80,16 +88,6 @@ export default function CustomerDetail() {
           )),
         }))}
       />
-
-      <VehicleExpensesSummary expenses={vehicleExpenses} error={vehicleExpenseError} />
-
-      <MonthlyIncomeSection customerId={customerId} />
-
-      <CustomerTripHistory vehicles={data?.vehicles} />
-      {user?.role === 'customer_admin' && (
-        <DriversTable customerId={customerId} data={data} setData={setData} />
-      )}
-
     </Layout>
   );
 }

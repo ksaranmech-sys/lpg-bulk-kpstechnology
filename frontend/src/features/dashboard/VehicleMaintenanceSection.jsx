@@ -14,7 +14,7 @@ export default function VehicleMaintenanceSection({ vehicles, loading, onVehicle
   }, [vehicles]);
 
   return (
-    <section className="card" aria-labelledby="admin-maintenance-title">
+    <section className="card" aria-labelledby="admin-maintenance-title" style={{ order: 9999 }}>
       <h3 id="admin-maintenance-title" className="section-title" style={{ marginTop: 0 }}>
         Vehicle Maintenance
       </h3>

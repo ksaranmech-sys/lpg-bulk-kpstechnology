@@ -19,6 +19,7 @@ test('lets admins select a vehicle and displays its maintenance form', async () 
     root.render(<VehicleMaintenanceSection vehicles={vehicles} loading={false} />);
   });
   expect(container.textContent).toContain('Maintenance form for KA01AB1234');
+  expect(container.querySelector('#admin-maintenance-title').closest('section').style.order).toBe('9999');
 
   await act(async () => {
     const select = container.querySelector('#maintenance-vehicle');
