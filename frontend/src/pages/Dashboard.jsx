@@ -20,9 +20,11 @@ import AdminLeaveSection from '../features/dashboard/AdminLeaveSection';
 import DriverList from '../features/dashboard/DriverList';
 import MobileAppCard from '../features/dashboard/MobileAppCard';
 import VehicleExpensesSection from '../features/dashboard/VehicleExpensesSection';
+import VehicleExpenseManagementSection from '../features/dashboard/VehicleExpenseManagementSection';
 import MonthlyIncomeSection from '../features/dashboard/MonthlyIncomeSection';
 import VehicleMaintenanceSection from '../features/dashboard/VehicleMaintenanceSection';
 import MaintenanceReminderPopup from '../features/dashboard/MaintenanceReminderPopup';
+import VehiclesTable from '../features/customer/VehiclesTable';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -36,6 +38,22 @@ export default function Dashboard() {
     vehicleExpenses, vehicleExpensesLoading, vehicleExpenseError,
     driverUsers, allDriverUsers,
   } = useDashboardData(user);
+  const vehicleManagementCustomerId = user?.role === 'customer_admin'
+    ? user.customer
+    : selectedCustomerId && selectedCustomerId !== 'all'
+      ? selectedCustomerId
+      : '';
+  const canManageDashboardVehicles = user?.role === 'customer_admin'
+    || (user?.role === 'super_admin' && Boolean(vehicleManagementCustomerId));
+  const dashboardVehicleData = { vehicles };
+
+  function updateDashboardVehicleData(update) {
+    const nextData = typeof update === 'function' ? update(dashboardVehicleData) : update;
+    setVehicles(nextData.vehicles);
+    if (user?.role === 'customer_admin') {
+      setCustomerData((current) => current && ({ ...current, vehicles: nextData.vehicles }));
+    }
+  }
 
   return (
     <Layout>
@@ -78,6 +96,17 @@ export default function Dashboard() {
       )}
       {user?.role === 'super_admin' && (
         <VehicleList selectedCustomerId={selectedCustomerId} loading={loading} vehicles={vehicles} />
+      )}
+      {canManageDashboardVehicles && (
+        <section className="card" aria-label="Vehicle management">
+          <VehiclesTable
+            customerId={vehicleManagementCustomerId}
+            data={dashboardVehicleData}
+            setData={updateDashboardVehicleData}
+            user={user}
+            vehicleExpenses={vehicleExpenses}
+          />
+        </section>
       )}
       {loading && <p>Loading...</p>}
       {!loading && vehicles.length === 0 && <p>No vehicles found for your account yet.</p>}
@@ -129,14 +158,19 @@ export default function Dashboard() {
           vehicleExpenses={vehicleExpenses}
         />
       )}
-      {user?.role === 'customer_admin' && (
+      {['super_admin', 'customer_admin'].includes(user?.role) && (
         <VehicleExpensesSection
-          user={user}
-          vehicles={customerData?.vehicles || vehicles}
+          vehicles={vehicles}
           driverUsers={driverUsers}
           expenses={vehicleExpenses}
           loading={vehicleExpensesLoading}
           error={vehicleExpenseError}
+        />
+      )}
+      {canManageDashboardVehicles && (
+        <VehicleExpenseManagementSection
+          vehicles={vehicles}
+          customerId={vehicleManagementCustomerId}
         />
       )}
       {['super_admin', 'customer_admin'].includes(user?.role) && (

@@ -20,7 +20,7 @@ function expensePayload(state) {
   return { ...fields, amount: Number(state.amount) };
 }
 
-// Add / edit / delete running costs for this driver's vehicle; the dashboard only shows totals.
+// Add, edit, and delete running costs for a vehicle.
 export default function DriverVehicleExpenses({ customerId, vehicle, setError }) {
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);

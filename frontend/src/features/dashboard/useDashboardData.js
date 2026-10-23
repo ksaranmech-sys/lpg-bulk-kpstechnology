@@ -64,17 +64,27 @@ export function useDashboardData(user) {
   }, [user]);
 
   useEffect(() => {
-    if (user?.role !== 'customer_admin' || !user.customer) {
+    if (!['super_admin', 'customer_admin'].includes(user?.role)) {
       setVehicleExpenses([]);
+      setVehicleExpensesLoading(false);
       return;
     }
     setVehicleExpensesLoading(true);
+    setVehicleExpenseError('');
+    const customerId = user.role === 'customer_admin'
+      ? user.customer
+      : selectedCustomerId && selectedCustomerId !== 'all'
+        ? selectedCustomerId
+        : undefined;
     api
-      .listVehicleExpenses()
+      .listVehicleExpenses(customerId ? { customerId } : undefined)
       .then((res) => setVehicleExpenses(res.data.expenses || []))
-      .catch((err) => setVehicleExpenseError(err.response?.data?.error || 'Failed to load vehicle expenses'))
+      .catch((err) => {
+        setVehicleExpenses([]);
+        setVehicleExpenseError(err.response?.data?.error || 'Failed to load vehicle expenses');
+      })
       .finally(() => setVehicleExpensesLoading(false));
-  }, [user]);
+  }, [selectedCustomerId, user]);
 
   // Drivers replaced under the old "one driver per vehicle" rule were deactivated rather than
   // dated out, so the driver list needs every account - salary/leaves keep to active ones.

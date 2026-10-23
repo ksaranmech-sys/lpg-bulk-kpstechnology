@@ -15,7 +15,14 @@ function CorporationSelect({ value, onChange, required, ariaLabel }) {
   );
 }
 
-export default function VehiclesTable({ customerId, data, setData, user, vehicleExpenses = [] }) {
+export default function VehiclesTable({
+  customerId,
+  data,
+  setData,
+  user,
+  vehicleExpenses = [],
+  managementEnabled = true,
+}) {
   const [vehicleForm, setVehicleForm] = useState(EMPTY_VEHICLE_FORM);
   const [vehicleError, setVehicleError] = useState('');
   const [vehicleSaving, setVehicleSaving] = useState(false);
@@ -113,7 +120,7 @@ export default function VehiclesTable({ customerId, data, setData, user, vehicle
 
   return (
     <>
-      {user?.role === 'super_admin' && (
+      {managementEnabled && ['super_admin', 'customer_admin'].includes(user?.role) && (
         <div className="card" style={{ marginTop: 24 }}>
           <h3 className="section-title" style={{ marginTop: 0 }}>Add Vehicle</h3>
           <form onSubmit={addVehicle} style={{ display: 'flex', alignItems: 'end', gap: 12, flexWrap: 'wrap' }}>
@@ -150,17 +157,19 @@ export default function VehiclesTable({ customerId, data, setData, user, vehicle
       <div style={{ maxHeight: 300, overflowY: 'auto' }}>
         {data?.vehicles.map((vehicle) => (
           <div key={vehicle._id} className="list-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-            <input
-              type="checkbox"
-              checked={selectedVehicles.includes(vehicle._id)}
-              onChange={() => setSelectedVehicles((current) => (
-                current.includes(vehicle._id)
-                  ? current.filter((id) => id !== vehicle._id)
-                  : [...current, vehicle._id]
-              ))}
-              aria-label={`Select ${vehicle.vehicleNumber}`}
-              style={{ width: 'auto' }}
-            />
+            {managementEnabled && (
+              <input
+                type="checkbox"
+                checked={selectedVehicles.includes(vehicle._id)}
+                onChange={() => setSelectedVehicles((current) => (
+                  current.includes(vehicle._id)
+                    ? current.filter((id) => id !== vehicle._id)
+                    : [...current, vehicle._id]
+                ))}
+                aria-label={`Select ${vehicle.vehicleNumber}`}
+                style={{ width: 'auto' }}
+              />
+            )}
             {vehicleBulkEditMode && selectedVehicles.includes(vehicle._id) ? (
               <div style={{ display: 'flex', flex: 1, gap: 8, flexWrap: 'wrap' }}>
                   <input
@@ -183,26 +192,32 @@ export default function VehiclesTable({ customerId, data, setData, user, vehicle
             ) : (
               <div style={{ flex: 1, color: 'inherit' }}>
                 <strong>{vehicle.vehicleNumber} | {vehicle.corporation || 'No corporation'} | {vehicle.driverName || 'Not assigned'}</strong>
-                <div style={{ fontSize: 12, color: '#666' }}>
-                  Expenses {currentYear}: Rs {Math.round(yearExpenseByVehicle[String(vehicle._id)] || 0).toLocaleString('en-IN')}
-                </div>
+                {managementEnabled && (
+                  <div style={{ fontSize: 12, color: '#666' }}>
+                    Expenses {currentYear}: Rs {Math.round(yearExpenseByVehicle[String(vehicle._id)] || 0).toLocaleString('en-IN')}
+                  </div>
+                )}
               </div>
             )}
           </div>
         ))}
       </div>
       {vehicleEditError && <div className="error-text" style={{ marginTop: 12 }}>{vehicleEditError}</div>}
-      {user?.role === 'super_admin' && (
+      {managementEnabled && ['super_admin', 'customer_admin'].includes(user?.role) && (
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap', marginTop: 14 }}>
-          <button type="button" className="btn secondary" disabled={!selectedVehicles.length} onClick={editSelectedVehicles}>
-            Edit selected
-          </button>
+          {user?.role === 'super_admin' && (
+            <button type="button" className="btn secondary" disabled={!selectedVehicles.length} onClick={editSelectedVehicles}>
+              Edit selected
+            </button>
+          )}
           <button type="button" className="btn danger" disabled={!selectedVehicles.length || vehicleBulkSaving} onClick={deleteSelectedVehicles}>
             Delete selected
           </button>
-          <button type="button" className="btn" disabled={!vehicleBulkEditMode || vehicleBulkSaving} onClick={saveSelectedVehicles}>
-            {vehicleBulkSaving ? 'Saving...' : 'Save changes'}
-          </button>
+          {user?.role === 'super_admin' && (
+            <button type="button" className="btn" disabled={!vehicleBulkEditMode || vehicleBulkSaving} onClick={saveSelectedVehicles}>
+              {vehicleBulkSaving ? 'Saving...' : 'Save changes'}
+            </button>
+          )}
         </div>
       )}
     </>

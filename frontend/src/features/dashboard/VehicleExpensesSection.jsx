@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { formatMonthLabel, monthKey } from '@kps/shared';
 
 const cell = { padding: '8px 12px' };
@@ -8,8 +7,8 @@ function formatRs(value) {
   return `Rs ${Math.round(Number(value) || 0).toLocaleString('en-IN')}`;
 }
 
-// One row per expense month for the selected vehicle; entries are managed on the driver's page.
-export default function VehicleExpensesSection({ user, vehicles, driverUsers = [], expenses, loading, error }) {
+// One row per expense month for the selected vehicle.
+export default function VehicleExpensesSection({ vehicles, driverUsers = [], expenses, loading, error }) {
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
   const vehicleId = selectedVehicleId && vehicles.some((vehicle) => String(vehicle._id) === selectedVehicleId)
     ? selectedVehicleId
@@ -63,11 +62,7 @@ export default function VehicleExpensesSection({ user, vehicles, driverUsers = [
       </div>
       {vehicle && (
         <p style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
-          Driver:{' '}
-          {driver ? (
-            <Link to={`/drivers/${user.customer}/${driver.id || driver._id}`}>{driver.displayName || driver.name || driver.username}</Link>
-          ) : 'Unassigned'}
-          {driver && ' - add or edit expenses from the driver\'s page.'}
+          Driver: {driver?.displayName || driver?.name || driver?.username || vehicle.driverName || 'Unassigned'}
         </p>
       )}
       {error && <p className="error-text">{error}</p>}
