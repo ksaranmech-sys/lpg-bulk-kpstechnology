@@ -43,6 +43,12 @@ export default function Dashboard() {
       {['super_admin', 'customer_admin'].includes(user?.role) && (
         <MaintenanceReminderPopup vehicles={vehicles} />
       )}
+      {['super_admin', 'customer_admin'].includes(user?.role) && (
+        <VehicleReminderEditor
+          vehicles={vehicles}
+          setVehicles={setVehicles}
+        />
+      )}
       {user?.role === 'super_admin' && (
         <>
           <MobileAppCard />
@@ -77,9 +83,6 @@ export default function Dashboard() {
       {!loading && vehicles.length === 0 && <p>No vehicles found for your account yet.</p>}
       {user?.role === 'vehicle_user' && vehicles[0] && (
         <UserAccountCard user={user} vehicle={vehicles[0]} />
-      )}
-      {user?.role === 'vehicle_user' && vehicles[0] && (
-        <VehicleReminderEditor user={user} vehicles={vehicles} setVehicles={setVehicles} />
       )}
       {user?.role === 'vehicle_user' && (
         <DriverLeaveSection

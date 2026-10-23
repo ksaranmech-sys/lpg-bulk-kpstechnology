@@ -3,16 +3,30 @@ import { expiresWithin30Days, isExpired, reminderStatusText } from '@kps/shared'
 import * as api from '../../api/api';
 import { ReminderSummary } from '../../components/ReminderSummary';
 
-export default function VehicleReminderEditor({ user, vehicles, setVehicles }) {
+export default function VehicleReminderEditor({ vehicles, setVehicles }) {
+  const [selectedVehicleId, setSelectedVehicleId] = useState('');
   const [reminderDates, setReminderDates] = useState({});
   const [reminderDirty, setReminderDirty] = useState(false);
   const [reminderSaving, setReminderSaving] = useState(false);
   const [reminderMessage, setReminderMessage] = useState('');
 
-  // Seed the editable reminder date inputs from the driver's vehicle.
-  const reminderVehicle = user?.role === 'vehicle_user' ? vehicles[0] : null;
+  const reminderVehicle = vehicles.find((vehicle) => String(vehicle._id) === String(selectedVehicleId));
+
   useEffect(() => {
-    if (!reminderVehicle) return;
+    setSelectedVehicleId((currentId) => (
+      vehicles.some((vehicle) => String(vehicle._id) === String(currentId))
+        ? currentId
+        : vehicles[0]?._id || ''
+    ));
+  }, [vehicles]);
+
+  useEffect(() => {
+    if (!reminderVehicle) {
+      setReminderDates({});
+      setReminderDirty(false);
+      setReminderMessage('');
+      return;
+    }
     setReminderDates(Object.fromEntries(
       Object.entries(reminderVehicle.documentReminders || {}).map(([key, reminder]) => [
         key,
@@ -20,7 +34,8 @@ export default function VehicleReminderEditor({ user, vehicles, setVehicles }) {
       ])
     ));
     setReminderDirty(false);
-  }, [reminderVehicle?._id]); // eslint-disable-line react-hooks/exhaustive-deps
+    setReminderMessage('');
+  }, [reminderVehicle]);
 
   async function saveReminderDates(e) {
     e.preventDefault();
@@ -43,37 +58,61 @@ export default function VehicleReminderEditor({ user, vehicles, setVehicles }) {
     }
   }
 
+  if (vehicles.length === 0) return null;
+
   return (
-    <div className="card" style={{ marginTop: 24 }}>
+    <div className="card" style={{ marginTop: 24, order: 9999 }}>
       <h3 className="section-title" style={{ marginTop: 0 }}>Reminder / Expiry Dates</h3>
-      <ReminderSummary reminders={vehicles[0].documentReminders} />
-      <form className="reminder-form" onSubmit={saveReminderDates}>
-        <div style={{ display: 'grid', gap: 8 }}>
-          {Object.entries(vehicles[0].documentReminders || {}).map(([key, reminder]) => (
-            <div key={key} className="list-item" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 0, alignItems: 'center', background: isExpired(reminder.expiryDate) ? '#ffe5e5' : expiresWithin30Days(reminder.expiryDate) ? '#fff4bf' : undefined }}>
-              <strong>{reminder.label || key}</strong>
-              <input
-                type="date"
-                value={reminderDates[key] || ''}
-                onChange={(event) => {
-                  setReminderDates((current) => ({ ...current, [key]: event.target.value }));
-                  setReminderDirty(true);
-                  setReminderMessage('');
-                }}
-              />
-              <span style={{ color: isExpired(reminder.expiryDate) ? '#b42318' : '#4a5f52' }}>
-                {reminderStatusText(reminder.expiryDate)}
-              </span>
-            </div>
+      <div className="field" style={{ maxWidth: 420 }}>
+        <label htmlFor="document-reminder-vehicle">Select Vehicle</label>
+        <select
+          id="document-reminder-vehicle"
+          value={selectedVehicleId}
+          onChange={(event) => {
+            setSelectedVehicleId(event.target.value);
+            setReminderDirty(false);
+            setReminderMessage('');
+          }}
+        >
+          {vehicles.map((vehicle) => (
+            <option key={vehicle._id} value={vehicle._id}>
+              {vehicle.vehicleNumber}{vehicle.driverName ? ` | ${vehicle.driverName}` : ''}
+            </option>
           ))}
-        </div>
-        {reminderMessage && <p style={{ margin: '10px 0 0', color: reminderMessage.includes('saved') ? '#1a7f4b' : '#b42318', fontSize: 13 }}>{reminderMessage}</p>}
-        {reminderDirty && (
-          <button className="btn" type="submit" disabled={reminderSaving} style={{ marginTop: 12 }}>
-            {reminderSaving ? 'Saving...' : 'Save Reminder Dates'}
-          </button>
-        )}
-      </form>
+        </select>
+      </div>
+      {reminderVehicle && (
+        <>
+          <ReminderSummary reminders={reminderVehicle.documentReminders} />
+          <form className="reminder-form" onSubmit={saveReminderDates}>
+            <div style={{ display: 'grid', gap: 8 }}>
+              {Object.entries(reminderVehicle.documentReminders || {}).map(([key, reminder]) => (
+                <div key={key} className="list-item" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 0, alignItems: 'center', background: isExpired(reminder.expiryDate) ? '#ffe5e5' : expiresWithin30Days(reminder.expiryDate) ? '#fff4bf' : undefined }}>
+                  <strong>{reminder.label || key}</strong>
+                  <input
+                    type="date"
+                    value={reminderDates[key] || ''}
+                    onChange={(event) => {
+                      setReminderDates((current) => ({ ...current, [key]: event.target.value }));
+                      setReminderDirty(true);
+                      setReminderMessage('');
+                    }}
+                  />
+                  <span style={{ color: isExpired(reminder.expiryDate) ? '#b42318' : '#4a5f52' }}>
+                    {reminderStatusText(reminder.expiryDate)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            {reminderMessage && <p style={{ margin: '10px 0 0', color: reminderMessage.includes('saved') ? '#1a7f4b' : '#b42318', fontSize: 13 }}>{reminderMessage}</p>}
+            {reminderDirty && (
+              <button className="btn" type="submit" disabled={reminderSaving} style={{ marginTop: 12 }}>
+                {reminderSaving ? 'Saving...' : 'Save Reminder Dates'}
+              </button>
+            )}
+          </form>
+        </>
+      )}
     </div>
   );
 }

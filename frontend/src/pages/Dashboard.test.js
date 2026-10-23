@@ -56,6 +56,7 @@ test('loads the assigned vehicle open trips from the API on a fresh dashboard mo
   expect(api.listTripsForVehicle).toHaveBeenCalledWith('vehicle-1');
   expect(container.textContent).toContain('Open Trips (1)');
   expect(container.textContent).toContain('MRPL');
+  expect(container.textContent).not.toContain('Reminder / Expiry Dates');
 
   await act(async () => root.unmount());
   globalThis.IS_REACT_ACT_ENVIRONMENT = false;
