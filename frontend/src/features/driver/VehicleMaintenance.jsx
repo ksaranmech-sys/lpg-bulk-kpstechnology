@@ -121,7 +121,7 @@ export default function VehicleMaintenance({ vehicle, onVehicleUpdated }) {
       </p>
       <form onSubmit={saveMaintenance}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ minWidth: 900 }}>
+          <table style={{ minWidth: 820 }}>
             <thead>
               <tr>
                 <th scope="col">Name</th>
@@ -129,17 +129,11 @@ export default function VehicleMaintenance({ vehicle, onVehicleUpdated }) {
                 <th scope="col">Till now KM</th>
                 <th scope="col">Expected KM</th>
                 <th scope="col">Reminder KM</th>
-                <th scope="col">Status</th>
               </tr>
             </thead>
             <tbody>
               {components.map((component, index) => {
                 const tillNowKm = usedKm(component, vehicle.lastKnownOdometer);
-                const expectedKm = component.expectedKm === '' ? null : Number(component.expectedKm);
-                const reminderKm = component.reminderKm === '' ? null : Number(component.reminderKm);
-                const remainingKm = tillNowKm == null || expectedKm == null ? null : expectedKm - tillNowKm;
-                const due = remainingKm != null && remainingKm <= 0;
-                const dueSoon = remainingKm != null && reminderKm != null && remainingKm > 0 && remainingKm < reminderKm;
                 return (
                   <tr key={`${component.name}-${index}`}>
                     <td>
@@ -191,17 +185,6 @@ export default function VehicleMaintenance({ vehicle, onVehicleUpdated }) {
                         value={component.reminderKm}
                         onChange={(event) => updateComponent(index, 'reminderKm', event.target.value)}
                       />
-                    </td>
-                    <td>
-                      {tillNowKm == null || expectedKm == null
-                        ? 'Not set'
-                        : reminderKm == null
-                          ? 'Set reminder KM'
-                          : due
-                            ? 'Due'
-                            : dueSoon
-                              ? `Due in ${remainingKm} km`
-                              : 'Not due'}
                     </td>
                   </tr>
                 );
