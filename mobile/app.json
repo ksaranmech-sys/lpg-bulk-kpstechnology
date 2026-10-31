@@ -66,7 +66,7 @@
       ]
     ],
     "extra": {
-      "apiBaseUrl": "https://lpg-bulk-kpstechnology-fleet.onrender.com/api/v1",
+      "apiBaseUrl": "https://lpg-bulk.kpstechnology.in/api/v1",
       "router": {},
       "eas": {
         "projectId": "870bb448-97a7-441a-9f26-91210a364026"

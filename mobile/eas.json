@@ -14,7 +14,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://lpg-bulk-kpstechnology-fleet.onrender.com/api/v1"
+        "EXPO_PUBLIC_API_BASE_URL": "https://lpg-bulk.kpstechnology.in/api/v1"
       }
     },
     "production": {
@@ -23,7 +23,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://lpg-bulk-kpstechnology-fleet.onrender.com/api/v1"
+        "EXPO_PUBLIC_API_BASE_URL": "https://lpg-bulk.kpstechnology.in/api/v1"
       }
     }
   },
