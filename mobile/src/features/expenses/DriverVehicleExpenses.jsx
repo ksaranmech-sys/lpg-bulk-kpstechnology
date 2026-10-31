@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, Text, View } from 'react-native';
-import { VEHICLE_EXPENSE_CATEGORIES, VEHICLE_TYRE_POSITION_OPTIONS, currentMonth, formatDate, formatMonthLabel, isTyreExpenseCategory, monthKey, toDateInputValue, wholeNumberInput } from '@kps/shared';
+import { VEHICLE_EXPENSE_CATEGORIES, VEHICLE_TYRE_MAKERS, VEHICLE_TYRE_POSITION_OPTIONS, currentMonth, formatDate, formatMonthLabel, isTyreExpenseCategory, monthKey, toDateInputValue, wholeNumberInput } from '@kps/shared';
 import { api, errorMessage } from '../../api';
 import { confirm } from '../../confirm';
 import { Button, Card, DateField, Field, Input, Loading, Muted, NumberInput, Row } from '../../ui';
@@ -81,9 +81,13 @@ function ExpenseFields({ form, setForm, previousTyreNumbers, excludeExpenseId = 
       />
       {isTyreExpenseCategory(form.category) && (
         <>
-          <Field label="Maker Name">
-            <Input value={form.tyreMaker} onChangeText={(tyreMaker) => setForm({ ...form, tyreMaker })} maxLength={100} />
-          </Field>
+          <LocationPicker
+            label="Maker Name"
+            value={form.tyreMaker}
+            onChange={(tyreMaker) => setForm({ ...form, tyreMaker })}
+            options={VEHICLE_TYRE_MAKERS}
+            placeholder="Select or enter maker name"
+          />
           <Field label="Model">
             <Input value={form.tyreModel} onChangeText={(tyreModel) => setForm({ ...form, tyreModel })} maxLength={100} />
           </Field>

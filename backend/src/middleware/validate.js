@@ -219,12 +219,15 @@ const rules = {
           const tyreNumber = tyre?.tyreNumber == null ? '' : tyre.tyreNumber;
           const tyreNumber2 = tyre?.tyreNumber2 == null ? '' : tyre.tyreNumber2;
           const odometer = tyre?.installedOdometerKm;
+          const manualMileage = tyre?.manualMileageKm;
           const expectedMileage = tyre?.expectedMileageKm;
           if (!Number.isInteger(position) || position < 1 || position > 7 || positions.has(position)) return false;
           if (typeof tyreNumber !== 'string' || tyreNumber.trim().length > 50) return false;
           if (typeof tyreNumber2 !== 'string' || tyreNumber2.trim().length > 50) return false;
           if (odometer !== null && odometer !== undefined && odometer !== ''
             && (!Number.isFinite(Number(odometer)) || Number(odometer) < 0)) return false;
+          if (manualMileage !== null && manualMileage !== undefined && manualMileage !== ''
+            && (!Number.isFinite(Number(manualMileage)) || Number(manualMileage) < 0)) return false;
           if (expectedMileage !== null && expectedMileage !== undefined && expectedMileage !== ''
             && (!Number.isFinite(Number(expectedMileage)) || Number(expectedMileage) < 0)) return false;
           positions.add(position);

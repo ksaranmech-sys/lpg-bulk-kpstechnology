@@ -111,6 +111,19 @@ export const VEHICLE_TYRE_POSITION_OPTIONS = Object.freeze(
   VEHICLE_TYRE_POSITIONS.map((label) => ({ value: label, label }))
 );
 
+export const VEHICLE_TYRE_MAKERS = Object.freeze([
+  'MRF',
+  'Apollo Tyres',
+  'CEAT',
+  'JK Tyre',
+  'Bridgestone',
+  'Goodyear',
+  'Michelin',
+  'Continental',
+  'Yokohama',
+  'China Radial',
+]);
+
 export function isTyreExpenseCategory(category) {
   return ['tyre', 'tyre rebutton'].includes(String(category || '').trim().toLowerCase());
 }

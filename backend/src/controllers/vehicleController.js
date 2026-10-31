@@ -24,9 +24,11 @@ const REMINDER_DEFINITIONS = {
 function withTyreMileage(tyres = [], currentOdometer) {
   return tyres.map((tyre) => {
     const installedOdometerKm = tyre.installedOdometerKm ?? tyre.odometerKm ?? null;
-    const mileageKm = installedOdometerKm == null || currentOdometer == null || currentOdometer < installedOdometerKm
-      ? null
-      : currentOdometer - installedOdometerKm;
+    const mileageKm = tyre.manualMileageKm ?? (
+      installedOdometerKm == null || currentOdometer == null || currentOdometer < installedOdometerKm
+        ? null
+        : currentOdometer - installedOdometerKm
+    );
     return { ...tyre, installedOdometerKm, mileageKm };
   });
 }
@@ -170,6 +172,9 @@ async function updateVehicleTyres(req, res) {
       installedOdometerKm: tyre.installedOdometerKm == null || tyre.installedOdometerKm === ''
         ? null
         : Number(tyre.installedOdometerKm),
+      manualMileageKm: tyre.manualMileageKm == null || tyre.manualMileageKm === ''
+        ? null
+        : Number(tyre.manualMileageKm),
       expectedMileageKm: tyre.expectedMileageKm == null || tyre.expectedMileageKm === ''
         ? null
         : Number(tyre.expectedMileageKm),

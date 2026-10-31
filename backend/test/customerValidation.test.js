@@ -148,6 +148,9 @@ test('vehicle tyre updates require exactly seven valid positions', async () => {
     tyre.position === 7 ? { ...tyre, expectedMileageKm: -1 } : tyre
   )) }))?.field, 'tyres');
   assert.equal((await run(rules.updateVehicleTyres, { tyres: tyres.map((tyre) => (
+    tyre.position === 7 ? { ...tyre, manualMileageKm: -1 } : tyre
+  )) }))?.field, 'tyres');
+  assert.equal((await run(rules.updateVehicleTyres, { tyres: tyres.map((tyre) => (
     tyre.position === 7 ? { ...tyre, tyreNumber2: 'x'.repeat(51) } : tyre
   )) }))?.field, 'tyres');
 });
@@ -158,12 +161,13 @@ test('vehicles initialize seven tyre positions', () => {
   assert.deepEqual(vehicle.tyres.map((tyre) => tyre.position), [1, 2, 3, 4, 5, 6, 7]);
 });
 
-test('tyre mileage is calculated from the current vehicle odometer', () => {
+test('tyre mileage defaults to the current odometer and supports a manual override', () => {
   const tyres = [
     { position: 1, installedOdometerKm: 1000 },
     { position: 2, installedOdometerKm: null },
+    { position: 3, installedOdometerKm: 1000, manualMileageKm: 4000 },
   ];
-  assert.deepEqual(vehicleController.withTyreMileage(tyres, 3500).map((tyre) => tyre.mileageKm), [2500, null]);
+  assert.deepEqual(vehicleController.withTyreMileage(tyres, 3500).map((tyre) => tyre.mileageKm), [2500, null, 4000]);
   assert.equal(vehicleController.withTyreMileage(tyres, null)[0].mileageKm, null);
   assert.equal(vehicleController.withTyreMileage(tyres, 900)[0].mileageKm, null);
 });

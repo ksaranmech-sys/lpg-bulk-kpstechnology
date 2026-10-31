@@ -15,6 +15,7 @@ const tyrePositionSchema = new mongoose.Schema(
     tyreNumber: { type: String, trim: true, maxlength: 50, default: '' },
     tyreNumber2: { type: String, trim: true, maxlength: 50, default: '' },
     installedOdometerKm: { type: Number, min: 0, default: null },
+    manualMileageKm: { type: Number, min: 0, default: null },
     expectedMileageKm: { type: Number, min: 0, default: null },
     // Legacy data stored the tyre installation reading as odometerKm.
     odometerKm: { type: Number, min: 0, default: null },

@@ -15,6 +15,7 @@ function tyreRows(tyres = []) {
       installedOdometerKm: tyre.installedOdometerKm == null
         ? (tyre.odometerKm == null ? '' : String(tyre.odometerKm))
         : String(tyre.installedOdometerKm),
+      manualMileageKm: tyre.manualMileageKm == null ? '' : String(tyre.manualMileageKm),
       mileageKm: tyre.mileageKm == null ? '' : String(tyre.mileageKm),
       expectedMileageKm: tyre.expectedMileageKm == null ? '' : String(tyre.expectedMileageKm),
     };
@@ -22,6 +23,7 @@ function tyreRows(tyres = []) {
 }
 
 function mileageUntilNow(tyre, currentOdometer) {
+  if (tyre.manualMileageKm !== '') return tyre.manualMileageKm;
   if (tyre.installedOdometerKm === '' || currentOdometer == null) return '';
   const mileage = Number(currentOdometer) - Number(tyre.installedOdometerKm);
   return Number.isFinite(mileage) && mileage >= 0 ? String(mileage) : '';
@@ -51,6 +53,7 @@ export default function VehicleTyreDetails({ vehicle }) {
       await api.updateVehicleTyres(vehicle._id, tyres.map((tyre) => ({
         ...tyre,
         installedOdometerKm: tyre.installedOdometerKm === '' ? null : Number(tyre.installedOdometerKm),
+        manualMileageKm: tyre.manualMileageKm === '' ? null : Number(tyre.manualMileageKm),
         expectedMileageKm: tyre.expectedMileageKm === '' ? null : Number(tyre.expectedMileageKm),
       })));
       setMessage('Tyre details saved.');
@@ -66,7 +69,7 @@ export default function VehicleTyreDetails({ vehicle }) {
   return (
     <Card title={`Tyre Details - ${vehicle.vehicleNumber}`}>
       <Muted style={{ marginBottom: spacing.md }}>
-        Enter tyre numbers and installed odometer readings. Mileage is calculated using the vehicle's latest odometer.
+        Enter tyre numbers and odometer readings. Mileage is calculated using the vehicle's latest odometer and can be edited.
       </Muted>
       {tyres.map((tyre) => (
         <View key={tyre.position} style={{ marginBottom: spacing.md }}>
@@ -99,10 +102,10 @@ export default function VehicleTyreDetails({ vehicle }) {
             />
           </Field>
           <Field label="Mileage upto now (km)">
-            <Input
+            <NumberInput
               value={mileageUntilNow(tyre, vehicle.lastKnownOdometer)}
-              editable={false}
               placeholder="Calculated automatically"
+              onChangeText={(value) => updateTyre(tyre.position, 'manualMileageKm', value.replace(/\D/g, ''))}
             />
           </Field>
           <Field label="Expected Mileage (km)">

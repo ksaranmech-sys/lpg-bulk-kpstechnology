@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { VEHICLE_EXPENSE_CATEGORIES, VEHICLE_TYRE_POSITION_OPTIONS, currentMonth, formatMonthLabel, isTyreExpenseCategory, monthKey, wholeNumberInput } from '@kps/shared';
+import { VEHICLE_EXPENSE_CATEGORIES, VEHICLE_TYRE_MAKERS, VEHICLE_TYRE_POSITION_OPTIONS, currentMonth, formatMonthLabel, isTyreExpenseCategory, monthKey, wholeNumberInput } from '@kps/shared';
 import * as api from '../../api/api';
 import ComboBoxInput from '../../components/ComboBoxInput';
 
@@ -184,7 +184,13 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
             <>
               <div className="field">
                 <label>Maker Name</label>
-                <input value={state.tyreMaker} onChange={(e) => setState({ ...state, tyreMaker: e.target.value })} maxLength={100} required />
+                <ComboBoxInput
+                  value={state.tyreMaker}
+                  onChange={(tyreMaker) => setState({ ...state, tyreMaker })}
+                  options={VEHICLE_TYRE_MAKERS}
+                  placeholder="Select or enter maker name"
+                  required
+                />
               </div>
               <div className="field">
                 <label>Model</label>

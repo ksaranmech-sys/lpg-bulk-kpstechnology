@@ -12,6 +12,7 @@ function tyreRows(tyres = []) {
       installedOdometerKm: tyre.installedOdometerKm == null
         ? (tyre.odometerKm == null ? '' : String(tyre.odometerKm))
         : String(tyre.installedOdometerKm),
+      manualMileageKm: tyre.manualMileageKm == null ? '' : String(tyre.manualMileageKm),
       mileageKm: tyre.mileageKm == null ? '' : String(tyre.mileageKm),
       expectedMileageKm: tyre.expectedMileageKm == null ? '' : String(tyre.expectedMileageKm),
     };
@@ -19,6 +20,7 @@ function tyreRows(tyres = []) {
 }
 
 function mileageUntilNow(tyre, currentOdometer) {
+  if (tyre.manualMileageKm !== '') return tyre.manualMileageKm;
   if (tyre.installedOdometerKm === '' || currentOdometer == null) return '';
   const mileage = Number(currentOdometer) - Number(tyre.installedOdometerKm);
   return Number.isFinite(mileage) && mileage >= 0 ? String(mileage) : '';
@@ -49,6 +51,7 @@ export default function VehicleTyreDetails({ vehicle }) {
       await api.updateVehicleTyres(vehicle._id, tyres.map((tyre) => ({
         ...tyre,
         installedOdometerKm: tyre.installedOdometerKm === '' ? null : Number(tyre.installedOdometerKm),
+        manualMileageKm: tyre.manualMileageKm === '' ? null : Number(tyre.manualMileageKm),
         expectedMileageKm: tyre.expectedMileageKm === '' ? null : Number(tyre.expectedMileageKm),
       })));
       setMessage('Tyre details saved.');
@@ -65,7 +68,7 @@ export default function VehicleTyreDetails({ vehicle }) {
     <form className="card" style={{ marginTop: 24 }} onSubmit={saveTyres}>
       <h3 className="section-title" style={{ marginTop: 0 }}>Tyre Details - {vehicle.vehicleNumber}</h3>
       <p style={{ color: '#666', marginTop: -4 }}>
-        Enter tyre numbers and installed odometer readings. Mileage is calculated using the vehicle's latest odometer.
+        Enter tyre numbers and odometer readings. Mileage is calculated using the vehicle's latest odometer and can be edited.
       </p>
       <div
         style={{
@@ -114,10 +117,11 @@ export default function VehicleTyreDetails({ vehicle }) {
               <input
                 id={`tyre-mileage-${tyre.position}`}
                 type="number"
+                min="0"
+                step="1"
                 value={mileageUntilNow(tyre, vehicle.lastKnownOdometer)}
-                readOnly
-                aria-readonly="true"
                 placeholder="Calculated automatically"
+                onChange={(event) => updateTyre(tyre.position, 'manualMileageKm', event.target.value)}
               />
             </div>
             <div className="field">
