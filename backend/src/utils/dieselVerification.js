@@ -1,4 +1,5 @@
 const ExcelJS = require('exceljs');
+const { PDFParse } = require('pdf-parse');
 const { Readable } = require('stream');
 
 function normalizeHeader(value) {
@@ -100,6 +101,51 @@ function parseWorksheetRecords(worksheet, allowCsvHeaders = false) {
 }
 
 async function parseDieselRecords(buffer, format = 'xlsx') {
+  if (format === 'pdf') {
+    const parser = new PDFParse({ data: buffer });
+    let text;
+    try {
+      ({ text } = await parser.getText());
+    } catch (error) {
+      throw new Error('The PDF could not be read. Upload a valid PDF with selectable text.');
+    } finally {
+      await parser.destroy();
+    }
+
+    const lines = String(text || '').replace(/\u00a0/g, ' ').split(/\r?\n/);
+    const normalizedHeaders = normalizeHeader(lines.slice(0, 40).join(' '));
+    const hasDateHeader = normalizedHeaders.includes('date');
+    const hasQuantityHeader = /diesel(litres?|liters?|quantity|qty|volume)|quantity(litres?|liters?|qty)?|litres?|liters?|qty/.test(normalizedHeaders);
+    if (!text || !hasDateHeader || !hasQuantityHeader) {
+      throw new Error('The PDF must contain selectable text with Date and Diesel Quantity (litres) columns.');
+    }
+
+    const datePattern = /\b(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{1,2}[- ](?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[- ]\d{2,4})(?:[ T]\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)?/i;
+    const numberPattern = /-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/g;
+    const records = [];
+
+    lines.forEach((line, index) => {
+      const dateMatch = datePattern.exec(line);
+      datePattern.lastIndex = 0;
+      if (!dateMatch) return;
+
+      const date = parseDate(dateMatch[0]);
+      const values = [...line.slice(dateMatch.index + dateMatch[0].length).matchAll(numberPattern)];
+      const litresText = values.at(-1)?.[0];
+      if (!date) throw new Error(`PDF row ${index + 1} needs a valid Date.`);
+      if (litresText == null) return;
+
+      const litres = Number(litresText.replace(/,/g, ''));
+      if (!Number.isFinite(litres) || litres < 0) {
+        throw new Error(`PDF row ${index + 1} needs a non-negative Diesel (litres) value.`);
+      }
+      records.push({ date, litres });
+    });
+
+    if (!records.length) throw new Error('No dated diesel records were found in the PDF.');
+    return records;
+  }
+
   const workbook = new ExcelJS.Workbook();
   if (format === 'csv') {
     const worksheet = await workbook.csv.read(Readable.from([buffer]), {
@@ -113,7 +159,7 @@ async function parseDieselRecords(buffer, format = 'xlsx') {
     return result.records;
   }
 
-  if (format !== 'xlsx') throw new Error('Only CSV and Excel (.xlsx) files can be processed.');
+  if (format !== 'xlsx') throw new Error('Only PDF, CSV, and Excel (.xlsx) files can be processed.');
   await workbook.xlsx.load(buffer);
   const records = [];
   let hasExpectedHeaders = false;

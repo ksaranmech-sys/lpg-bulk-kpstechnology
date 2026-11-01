@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const ExcelJS = require('exceljs');
+const PDFDocument = require('pdfkit');
 const { parseDieselRecords } = require('../src/utils/dieselVerification');
 
 async function workbookBuffer(rows) {
@@ -9,6 +10,32 @@ async function workbookBuffer(rows) {
   rows.forEach((row) => worksheet.addRow(row));
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
+
+function pdfBuffer(lines) {
+  return new Promise((resolve, reject) => {
+    const document = new PDFDocument();
+    const chunks = [];
+    document.on('data', (chunk) => chunks.push(chunk));
+    document.on('end', () => resolve(Buffer.concat(chunks)));
+    document.on('error', reject);
+    lines.forEach((line) => document.text(line));
+    document.end();
+  });
+}
+
+test('parses selectable-text PDF diesel statements', async () => {
+  const buffer = await pdfBuffer([
+    'Transaction Date        Diesel Quantity (L)',
+    '10-Nov-2026 14:30        18.75',
+    '11-Nov-2026 09:00        1,250.25',
+  ]);
+
+  const records = await parseDieselRecords(buffer, 'pdf');
+  assert.deepEqual(records, [
+    { date: new Date('2026-11-10T00:00:00.000Z'), litres: 18.75 },
+    { date: new Date('2026-11-11T00:00:00.000Z'), litres: 1250.25 },
+  ]);
+});
 
 test('parses vendor diesel statement dates and litre values', async () => {
   const buffer = await workbookBuffer([

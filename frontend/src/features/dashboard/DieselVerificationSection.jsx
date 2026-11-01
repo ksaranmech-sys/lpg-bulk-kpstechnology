@@ -196,7 +196,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                 required
                 onChange={(event) => setFile(event.target.files?.[0] || null)}
               />
-              <small>Statement columns may use Settlement Date (or Date) and Quantity (or Diesel litres). CSV files can also use Transaction Date and Diesel Quantity. PDFs are saved as supporting documents.</small>
+              <small>Statement columns may use Settlement Date (or Date) and Quantity (or Diesel litres). CSV files can also use Transaction Date and Diesel Quantity. PDFs must contain selectable text with date and diesel quantity columns.</small>
             </div>
             {file && (
               <button

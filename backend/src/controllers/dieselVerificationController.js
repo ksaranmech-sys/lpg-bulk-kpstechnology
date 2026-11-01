@@ -80,6 +80,11 @@ async function createDieselVerification(req, res) {
   let dieselRecords = [];
   if (extension === 'pdf' && req.file.buffer.subarray(0, 5).toString('ascii') === '%PDF-') {
     contentType = 'application/pdf';
+    try {
+      dieselRecords = await parseDieselRecords(req.file.buffer, 'pdf');
+    } catch (parseError) {
+      return res.status(400).json({ error: parseError.message || 'The PDF could not be read' });
+    }
   } else if (extension === 'xlsx' && req.file.buffer.subarray(0, 2).toString('ascii') === 'PK') {
     contentType = EXCEL_CONTENT_TYPE;
     try {
