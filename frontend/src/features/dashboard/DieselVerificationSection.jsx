@@ -259,7 +259,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                     <th style={cellStyle}>Loading</th>
                     <th style={cellStyle}>Unloading</th>
                     <th style={cellStyle}>Unloading Date</th>
-                    <th style={cellStyle}>Diesel for trip</th>
+                    <th style={cellStyle}>Diesel added in trip</th>
                     <th style={cellStyle}>Diesel from ID</th>
                   </tr>
                 </thead>

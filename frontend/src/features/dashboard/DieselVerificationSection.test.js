@@ -59,9 +59,9 @@ test('offers vehicle and monthly file selection for diesel verification', async 
   expect(container.textContent).toContain('vendor-statement.xlsx');
   expect(container.textContent).toContain('Loading depot');
   expect(container.textContent).toContain('Customer site');
-  expect(container.textContent).toContain('Diesel for trip');
-  expect(container.textContent).toContain('20 L');
-  expect(container.textContent).not.toContain('999 L');
+  expect(container.textContent).toContain('Diesel added in trip');
+  expect(container.textContent).toContain('999 L');
+  expect(container.textContent).not.toContain('20 L');
   expect(container.textContent).toContain('18 L');
 
   const deleteButton = container.querySelector('button[aria-label="Delete vendor-statement.xlsx"]');

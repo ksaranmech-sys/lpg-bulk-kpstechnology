@@ -1,6 +1,6 @@
 import { buildDieselVerificationRows, formatVerificationDate, formatVerificationLitres } from './dieselVerificationData';
 
-test('builds monthly trip rows using the single-trip diesel settlement and uploaded statement totals', () => {
+test('builds monthly trip rows using diesel entered in each trip and uploaded statement totals', () => {
   const rows = buildDieselVerificationRows([
     {
       _id: 'trip-2',
@@ -33,19 +33,30 @@ test('builds monthly trip rows using the single-trip diesel settlement and uploa
 
   expect(rows.map((row) => row.id)).toEqual(['trip-1', 'trip-2']);
   expect(rows[0]).toMatchObject({ loading: 'Loading 1', dieselFromId: 20, tripDiesel: null });
-  expect(rows[1]).toMatchObject({ unloading: 'Unloading 2', dieselFromId: 7, tripDiesel: 55 });
+  expect(rows[1]).toMatchObject({ unloading: 'Unloading 2', dieselFromId: 7, tripDiesel: 915.5 });
 });
 
-test('uses the saved single-trip settlement when the API does not include a fresh calculation', () => {
+test('shows diesel entry totals before a trip settlement is available', () => {
   const [row] = buildDieselVerificationRows([{
-    _id: 'settled-trip',
+    _id: 'not-yet-settled-trip',
     loadingDate: '2026-09-10T00:00:00.000Z',
     unloadingDate: '2026-09-12T00:00:00.000Z',
     dieselEntries: [{ volumeLitres: 25 }, { volumeLitres: 35 }],
-    settlement: { totalDieselLitres: 48 },
   }], '2026-09', []);
 
-  expect(row.tripDiesel).toBe(48);
+  expect(row.tripDiesel).toBe(60);
+});
+
+test('shows no diesel amount when a trip has no diesel entries', () => {
+  const [row] = buildDieselVerificationRows([{
+    _id: 'trip-without-diesel',
+    loadingDate: '2026-09-10T00:00:00.000Z',
+    unloadingDate: '2026-09-12T00:00:00.000Z',
+    dieselEntries: [],
+    settlement: { totalDieselLitres: 100 },
+  }], '2026-09', []);
+
+  expect(row.tripDiesel).toBeNull();
 });
 
 test('matches statement and trip dates by calendar day and ignores their times', () => {

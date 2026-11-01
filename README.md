@@ -207,7 +207,7 @@ app automatically talks to the backend running on your PC (port 5001); set
 | GET/POST | `/diesel-verifications?vehicleId=&month=YYYY-MM` | (admins) list or upload monthly PDF / Excel `.xlsx` / CSV statements; spreadsheet dates accept `Date`, `Settlement Date`, `Transaction Date`, or `Txn Date`; quantity headers accept `Diesel (litres)`, `Diesel Quantity`, or `Quantity`; PDFs must contain selectable text |
 | GET/DELETE | `/diesel-verifications/:id/file` · `/diesel-verifications/:id` | (admins) download or delete an uploaded statement |
 
-The admin dashboard includes a vehicle/month Diesel Verification section. Its comparison rows use trip loading, unloading, and the same calculated diesel litres as the single-trip settlement; extracted statement litres are summed inclusively by calendar date from each trip's loading date through its turn date (or unloading date if no turn date is recorded), ignoring times. Text-based PDF, Excel, and CSV statements support `Date`, `Settlement Date`, `Transaction Date`, and `Txn Date` date headers.
+The admin dashboard includes a vehicle/month Diesel Verification section. Its comparison rows show the sum of diesel litres entered on each trip and extracted statement litres summed inclusively by calendar date from each trip's loading date through its turn date (or unloading date if no turn date is recorded), ignoring times. Text-based PDF, Excel, and CSV statements support `Date`, `Settlement Date`, `Transaction Date`, and `Txn Date` date headers.
 
 ## 7. Deployment
 

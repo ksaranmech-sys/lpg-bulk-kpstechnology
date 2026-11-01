@@ -33,13 +33,20 @@ export function buildDieselVerificationRows(trips, month, uploads) {
             : sum;
         }, 0)
         : null;
+      const dieselEntries = Array.isArray(trip.dieselEntries) ? trip.dieselEntries : [];
+      const dieselAdded = dieselEntries.length
+        ? dieselEntries.reduce((sum, entry) => {
+          const litres = Number(entry.volumeLitres);
+          return Number.isFinite(litres) ? sum + litres : sum;
+        }, 0)
+        : null;
 
       return {
         id: trip._id,
         loading: trip.loadingLocation || '',
         unloading: trip.unloadingLocation || '',
         unloadingDate: trip.unloadingDate || null,
-        tripDiesel: trip.settlement?.totalDieselLitres ?? null,
+        tripDiesel: dieselAdded,
         dieselFromId,
       };
     });
