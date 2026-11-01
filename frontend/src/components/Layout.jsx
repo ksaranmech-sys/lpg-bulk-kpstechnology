@@ -46,14 +46,17 @@ export default function Layout({ children }) {
 
   async function startTrip(event) {
     event.preventDefault();
-    if (!vehicleId || startOdometerKm === '' || !Number.isFinite(Number(startOdometerKm)) || Number(startOdometerKm) < 0) {
-      setStartTripError('Enter a valid odometer reading to start the trip.');
+    const hasOdometer = startOdometerKm !== '';
+    if (!vehicleId || (hasOdometer && (!Number.isFinite(Number(startOdometerKm)) || Number(startOdometerKm) < 0))) {
+      setStartTripError('Enter a valid non-negative odometer reading.');
       return;
     }
     setStartingTrip(true);
     setStartTripError('');
     try {
-      const res = await api.createTrip(vehicleId, { startOdometerKm: Number(startOdometerKm) });
+      const res = await api.createTrip(vehicleId, hasOdometer
+        ? { startOdometerKm: Number(startOdometerKm) }
+        : {});
       setShowStartTripForm(false);
       navigate(`/trips/${res.data.trip._id}`);
     } catch (err) {
@@ -123,7 +126,7 @@ export default function Layout({ children }) {
           >
             <h2 id="start-trip-title" className="section-title" style={{ marginTop: 0 }}>Start Trip</h2>
             <div className="field">
-              <label htmlFor="start-trip-odometer">Starting Odometer (km)</label>
+              <label htmlFor="start-trip-odometer">Starting Odometer (km, optional)</label>
               <input
                 id="start-trip-odometer"
                 type="number"
@@ -131,7 +134,6 @@ export default function Layout({ children }) {
                 step="1"
                 value={startOdometerKm}
                 onChange={(event) => setStartOdometerKm(event.target.value)}
-                required
                 autoFocus
               />
             </div>

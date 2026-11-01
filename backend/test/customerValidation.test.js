@@ -124,10 +124,11 @@ test('vehicle maintenance components require unique names and non-negative odome
   }))?.field, 'maintenanceComponents');
 });
 
-test('trip starts require a non-negative odometer reading', async () => {
+test('trip start odometer is optional but must be non-negative when provided', async () => {
   assert.equal(await run(rules.createTrip, { startOdometerKm: 0 }), null);
   assert.equal(await run(rules.createTrip, { startOdometerKm: '12500' }), null);
-  assert.equal((await run(rules.createTrip, {}))?.field, 'startOdometerKm');
+  assert.equal(await run(rules.createTrip, {}), null);
+  assert.equal(await run(rules.createTrip, { startOdometerKm: null }), null);
   assert.equal((await run(rules.createTrip, { startOdometerKm: -1 }))?.field, 'startOdometerKm');
 });
 

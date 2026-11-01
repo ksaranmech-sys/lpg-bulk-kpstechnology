@@ -206,8 +206,8 @@ const rules = {
   expenseId: validate([objectId('expenseId')]),
   vehicleId: validate([objectId('vehicleId')]),
   createTrip: validate([
-    body('startOdometerKm').exists().withMessage('startOdometerKm is required')
-      .bail().isFloat({ min: 0 }).withMessage('startOdometerKm must be a non-negative number'),
+    body('startOdometerKm').optional({ values: 'null' })
+      .isFloat({ min: 0 }).withMessage('startOdometerKm must be a non-negative number'),
   ]),
   updateVehicleTyres: validate([
     body('tyres').isArray({ min: 7, max: 7 }).withMessage('Exactly 7 tyre positions are required')

@@ -66,10 +66,9 @@ export default function TripDetail() {
   const unloadingDateText = formatDate(trip.unloadingDate);
 
   const routeUnloadingOptions = Array.from(new Set((meta.routeKmTable || []).map((row) => row.unloadingLocation).filter(Boolean)));
-  // The driver can no longer edit a trip they've already Trip Closed - only admins can adjust it.
-  // Customer admins can view trips but never edit the details.
+  // Drivers cannot edit trips they've already closed. Admin edits are permitted through the salary deadline.
   const lockedForDriver = user?.role === 'vehicle_user' && trip.status !== 'open';
-  const readOnly = lockedForDriver || user?.role === 'customer_admin' || trip.editWindowClosed;
+  const readOnly = lockedForDriver || trip.editWindowClosed;
 
   return (
     <Layout>
@@ -91,7 +90,7 @@ export default function TripDetail() {
           role="status"
           style={{ padding: 10, border: '1px solid #fed7aa', borderRadius: 8, background: '#fff7ed', color: '#9a3412' }}
         >
-          This trip is outside the edit window. Closed trips can only be edited during their trip month and through the 10th of the following month.
+          This trip is outside the edit window. Trip entries can only be edited during their trip month and through the 5th of the following month.
         </p>
       )}
 

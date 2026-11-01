@@ -190,15 +190,17 @@ async function getOpenTripOr404(req, res) {
     return null;
   }
 
-  if (req.user.role === ROLES.SUPER_ADMIN) {
-    if (trip.status !== TRIP_STATUS.OPEN && !isClosedTripEditable(trip.loadingDate || trip.createdAt)) {
+  const isCustomerAdminForTrip = req.user.role === ROLES.CUSTOMER_ADMIN
+    && String(trip.customer) === String(req.user.customer);
+  if (req.user.role === ROLES.SUPER_ADMIN || isCustomerAdminForTrip) {
+    if (!isClosedTripEditable(trip.loadingDate || trip.createdAt)) {
       res.status(403).json({ error: CLOSED_TRIP_EDIT_ERROR });
       return null;
     }
     return trip;
   }
   if (req.user.role === ROLES.CUSTOMER_ADMIN) {
-    res.status(403).json({ error: 'Customer admins cannot edit trip details' });
+    res.status(403).json({ error: 'Trip does not belong to your customer account' });
     return null;
   }
 

@@ -48,6 +48,23 @@ test('uses the saved single-trip settlement when the API does not include a fres
   expect(row.tripDiesel).toBe(48);
 });
 
+test('matches statement and trip dates by calendar day and ignores their times', () => {
+  const [row] = buildDieselVerificationRows([{
+    _id: 'date-only-trip',
+    loadingDate: '2026-09-10T18:45:00.000Z',
+    unloadingDate: '2026-09-12T03:15:00.000Z',
+  }], '2026-09', [{
+    dieselRecords: [
+      { date: '2026-09-10T02:00:00.000Z', litres: 12 },
+      { date: '2026-09-11T21:30:00.000Z', litres: 8 },
+      { date: '2026-09-12T23:59:00.000Z', litres: 5 },
+      { date: '2026-09-13T00:00:00.000Z', litres: 100 },
+    ],
+  }]);
+
+  expect(row.dieselFromId).toBe(25);
+});
+
 test('formats verification dates and litres for the table', () => {
   expect(formatVerificationDate('2026-09-01T00:00:00.000Z')).not.toBe('—');
   expect(formatVerificationDate(null)).toBe('—');

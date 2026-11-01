@@ -26,15 +26,15 @@ jest.mock('../api/api', () => ({
   deleteOtherExpense: jest.fn(),
 }));
 
-// Customer admins are read-only on trips; edit interactions below need an admin who can edit.
+const mockAuth = { user: { role: 'super_admin' } };
 jest.mock('../context/AuthContext', () => ({
-  useAuth: () => ({ user: { role: 'super_admin' } }),
+  useAuth: () => mockAuth,
 }));
 
 jest.mock('../components/Layout', () => ({ children }) => <>{children}</>);
 
 test('renders trip sections in order and toggles divert fields', async () => {
-  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  window.IS_REACT_ACT_ENVIRONMENT = true;
   api.getTrip.mockResolvedValue({
     data: {
       trip: {
@@ -120,11 +120,54 @@ test('renders trip sections in order and toggles divert fields', async () => {
   expect(divertFields.querySelector('input[type="date"]')).not.toBeNull();
 
   await act(async () => root.unmount());
-  globalThis.IS_REACT_ACT_ENVIRONMENT = false;
+  window.IS_REACT_ACT_ENVIRONMENT = false;
+});
+
+test('allows customer admins to edit trip entries inside the salary edit window', async () => {
+  window.IS_REACT_ACT_ENVIRONMENT = true;
+  mockAuth.user = { role: 'customer_admin' };
+  const now = new Date();
+  api.getTrip.mockResolvedValue({
+    data: {
+      trip: {
+        _id: 'admin-edit-trip',
+        status: 'closed',
+        customer: { companyName: 'Customer' },
+        loadingDate: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString(),
+        driverAdvances: [],
+        dieselEntries: [],
+        rtoEntries: [],
+        otherExpenses: [],
+      },
+    },
+  });
+  api.getMeta.mockResolvedValue({
+    data: { loadingLocations: [], unloadingLocations: [], routeKmTable: [] },
+  });
+
+  const container = document.createElement('div');
+  const root = createRoot(container);
+  await act(async () => {
+    root.render(
+      <MemoryRouter initialEntries={['/trips/admin-edit-trip']}>
+        <Routes>
+          <Route path="/trips/:tripId" element={<TripDetail />} />
+        </Routes>
+      </MemoryRouter>
+    );
+  });
+  await act(async () => {});
+
+  expect(container.querySelector('fieldset').disabled).toBe(false);
+
+  await act(async () => root.unmount());
+  mockAuth.user = { role: 'super_admin' };
+  window.IS_REACT_ACT_ENVIRONMENT = false;
 });
 
 test('shows Trip Income KM and Trip Income for admins between Load Turn Added and Single Trip', async () => {
-  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  mockAuth.user = { role: 'super_admin' };
+  window.IS_REACT_ACT_ENVIRONMENT = true;
   api.getTrip.mockResolvedValue({
     data: {
       trip: {
@@ -210,10 +253,10 @@ test('shows Trip Income KM and Trip Income for admins between Load Turn Added an
   expect(tripRoute).toContain('17.5 t');
   expect(tripRoute).toContain('18 t');
   expect(container.querySelector('fieldset').disabled).toBe(true);
-  expect(container.textContent).toContain('through the 10th of the following month');
+  expect(container.textContent).toContain('through the 5th of the following month');
   // the card is not part of the printable Single Trip area
   expect(card.closest('.trip-details-print-area')).toBeNull();
 
   await act(async () => root.unmount());
-  globalThis.IS_REACT_ACT_ENVIRONMENT = false;
+  window.IS_REACT_ACT_ENVIRONMENT = false;
 });

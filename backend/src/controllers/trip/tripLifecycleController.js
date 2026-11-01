@@ -28,16 +28,18 @@ const {
 async function createTrip(req, res) {
   const { vehicleId } = req.params;
   const { loadingLocation, loadingExpense, driverAdvances, startOdometerKm: rawStartOdometerKm } = req.body;
-  const startOdometerKm = Number(rawStartOdometerKm);
-  if (!Number.isFinite(startOdometerKm) || startOdometerKm < 0) {
-    return res.status(400).json({ error: 'A valid non-negative start odometer reading is required' });
+  const startOdometerKm = rawStartOdometerKm == null || rawStartOdometerKm === ''
+    ? null
+    : Number(rawStartOdometerKm);
+  if (startOdometerKm != null && (!Number.isFinite(startOdometerKm) || startOdometerKm < 0)) {
+    return res.status(400).json({ error: 'startOdometerKm must be a non-negative number' });
   }
 
   await removeExpiredClosedTrips();
 
   const vehicle = await Vehicle.findById(vehicleId);
   if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
-  if (vehicle.lastKnownOdometer != null && startOdometerKm < vehicle.lastKnownOdometer) {
+  if (startOdometerKm != null && vehicle.lastKnownOdometer != null && startOdometerKm < vehicle.lastKnownOdometer) {
     return res.status(400).json({ error: `Start odometer reading cannot be less than the last known reading (${vehicle.lastKnownOdometer} km)` });
   }
 
@@ -85,7 +87,7 @@ async function createTrip(req, res) {
     trip = await Trip.create({
       customer: vehicle.customer,
       vehicle: vehicle._id,
-      startOdometerKm,
+      ...(startOdometerKm != null ? { startOdometerKm } : {}),
       ...(loadingLocation ? { loadingLocation: loadingLocation.trim() } : {}),
       loadingExpense: loadingExpense || 0,
       driverAdvances: driverAdvances || [],
@@ -102,8 +104,10 @@ async function createTrip(req, res) {
     throw err;
   }
 
-  vehicle.lastKnownOdometer = startOdometerKm;
-  await vehicle.save();
+  if (startOdometerKm != null) {
+    vehicle.lastKnownOdometer = startOdometerKm;
+    await vehicle.save();
+  }
 
   res.status(201).json({ trip, ...(previousTripNotice ? { message: previousTripNotice } : {}) });
 }
@@ -204,8 +208,7 @@ async function getTrip(req, res) {
   const driver = await findCurrentDriverForVehicle(trip.vehicle._id, trip.loadingDate || trip.createdAt || new Date(), 'name temporaryDriver joiningDate');
   if (trip.status === TRIP_STATUS.CLOSED) await refreshTripSettlement(trip);
   const result = trip.toObject();
-  result.editWindowClosed = req.user?.role === ROLES.SUPER_ADMIN &&
-    trip.status !== TRIP_STATUS.OPEN &&
+  result.editWindowClosed = [ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN].includes(req.user?.role) &&
     !isClosedTripEditable(trip.loadingDate || trip.createdAt);
   result.odometerKm = trip.status === TRIP_STATUS.CLOSED && trip.settlement?.totalKm != null
     ? trip.settlement.totalKm

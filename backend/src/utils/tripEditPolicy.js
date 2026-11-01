@@ -1,5 +1,5 @@
 const CLOSED_TRIP_EDIT_ERROR =
-  'Closed trips can only be edited during their trip month and through the 10th of the following month.';
+  'Trip entries can only be edited during their trip month and through the 5th of the following month.';
 
 const indiaDateParts = new Intl.DateTimeFormat('en-US', {
   timeZone: 'Asia/Kolkata',
@@ -26,7 +26,7 @@ function isClosedTripEditable(tripDate, now = new Date()) {
   const tripMonth = tripParts.year * 12 + tripParts.month;
   const currentMonth = todayParts.year * 12 + todayParts.month;
   return tripMonth === currentMonth ||
-    (tripMonth === currentMonth - 1 && todayParts.day <= 10);
+    (tripMonth === currentMonth - 1 && todayParts.day <= 5);
 }
 
 module.exports = { CLOSED_TRIP_EDIT_ERROR, isClosedTripEditable };

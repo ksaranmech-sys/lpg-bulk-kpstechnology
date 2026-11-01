@@ -8,22 +8,29 @@ function monthOf(value) {
   return date ? `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}` : '';
 }
 
+function dateKey(value) {
+  const date = dateValue(value);
+  return date ? Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) : null;
+}
+
 export function buildDieselVerificationRows(trips, month, uploads) {
   const dieselRecords = uploads.flatMap((upload) => upload.dieselRecords || []);
 
   return trips
     .filter((trip) => monthOf(trip.loadingDate) === month)
     .sort((a, b) => (
-      new Date(a.loadingDate).getTime() - new Date(b.loadingDate).getTime()
+      dateKey(a.loadingDate) - dateKey(b.loadingDate)
       || new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     ))
     .map((trip) => {
-      const start = dateValue(trip.loadingDate);
-      const end = dateValue(trip.turnDate || trip.unloadingDate);
-      const dieselFromId = start && end && dieselRecords.length
+      const startDate = dateKey(trip.loadingDate);
+      const endDate = dateKey(trip.turnDate || trip.unloadingDate);
+      const dieselFromId = startDate != null && endDate != null && dieselRecords.length
         ? dieselRecords.reduce((sum, record) => {
-          const date = dateValue(record.date);
-          return date && date >= start && date <= end ? sum + (Number(record.litres) || 0) : sum;
+          const recordDate = dateKey(record.date);
+          return recordDate != null && recordDate >= startDate && recordDate <= endDate
+            ? sum + (Number(record.litres) || 0)
+            : sum;
         }, 0)
         : null;
 

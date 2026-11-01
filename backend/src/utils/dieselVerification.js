@@ -5,30 +5,14 @@ function normalizeHeader(value) {
   return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-function buildUtcDate(year, month, day, hour = 0, minute = 0, second = 0) {
-  const date = new Date(Date.UTC(year, month, day, hour, minute, second));
+function buildUtcDate(year, month, day) {
+  const date = new Date(Date.UTC(year, month, day));
   if (
     date.getUTCFullYear() !== year
     || date.getUTCMonth() !== month
     || date.getUTCDate() !== day
-    || date.getUTCHours() !== hour
-    || date.getUTCMinutes() !== minute
-    || date.getUTCSeconds() !== second
   ) return null;
   return date;
-}
-
-function parseClock(hourText, minuteText, secondText, meridiemText) {
-  let hour = Number(hourText || 0);
-  const minute = Number(minuteText || 0);
-  const second = Number(secondText || 0);
-  const meridiem = String(meridiemText || '').toUpperCase();
-  if (meridiem) {
-    if (hour < 1 || hour > 12) return null;
-    hour = (hour % 12) + (meridiem === 'PM' ? 12 : 0);
-  }
-  if (hour > 23 || minute > 59 || second > 59) return null;
-  return { hour, minute, second };
 }
 
 function parseDate(value) {
@@ -41,26 +25,16 @@ function parseDate(value) {
   const text = String(value || '').trim();
   const localDate = text.match(/^(\d{1,2})[/. -](\d{1,2})[/. -](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?$/i);
   if (localDate) {
-    const [, dayText, monthText, yearText, hourText, minuteText, secondText, meridiemText] = localDate;
-    const clock = parseClock(hourText, minuteText, secondText, meridiemText);
-    if (!clock) return null;
-    return buildUtcDate(
-      Number(yearText),
-      Number(monthText) - 1,
-      Number(dayText),
-      clock.hour,
-      clock.minute,
-      clock.second
-    );
+    const [, dayText, monthText, yearText] = localDate;
+    return buildUtcDate(Number(yearText), Number(monthText) - 1, Number(dayText));
   }
   const namedMonthDate = text.match(/^(\d{1,2})[- /]([a-z]{3,})[- /](\d{2,4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?$/i);
   if (namedMonthDate) {
-    const [, dayText, monthText, rawYearText, hourText, minuteText, secondText, meridiemText] = namedMonthDate;
+    const [, dayText, monthText, rawYearText] = namedMonthDate;
     const month = new Date(`${monthText.slice(0, 3)} 1, 2000`).getMonth();
     const year = Number(rawYearText.length === 2 ? `20${rawYearText}` : rawYearText);
-    const clock = parseClock(hourText, minuteText, secondText, meridiemText);
-    if (!Number.isFinite(month) || !clock) return null;
-    return buildUtcDate(year, month, Number(dayText), clock.hour, clock.minute, clock.second);
+    if (!Number.isFinite(month)) return null;
+    return buildUtcDate(year, month, Number(dayText));
   }
   const date = new Date(text);
   if (Number.isNaN(date.getTime())) return null;

@@ -34,21 +34,21 @@ test('parses CSV statements with quoted values, comma-formatted litres, and a UT
   ]);
 });
 
-test('parses vendor CSV transaction date and diesel quantity headers', async () => {
+test('parses vendor CSV transaction date and diesel quantity headers while ignoring time', async () => {
   const csv = 'Transaction Date,Diesel Quantity (L)\r\n10-Nov-2026 14:30,18.75\r\n';
   const records = await parseDieselRecords(Buffer.from(csv), 'csv');
 
   assert.deepEqual(records, [
-    { date: new Date('2026-11-10T14:30:00.000Z'), litres: 18.75 },
+    { date: new Date('2026-11-10T00:00:00.000Z'), litres: 18.75 },
   ]);
 });
 
-test('parses vendor dates with two-digit years and 12-hour timestamps', async () => {
+test('parses vendor dates with two-digit years and ignores 12-hour timestamps', async () => {
   const csv = 'Transaction Date,Diesel Quantity (L)\r\n10-Nov-26 02:30:45 PM,18.75\r\n';
   const records = await parseDieselRecords(Buffer.from(csv), 'csv');
 
   assert.deepEqual(records, [
-    { date: new Date('2026-11-10T14:30:45.000Z'), litres: 18.75 },
+    { date: new Date('2026-11-10T00:00:00.000Z'), litres: 18.75 },
   ]);
 });
 

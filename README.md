@@ -193,8 +193,8 @@ app automatically talks to the backend running on your PC (port 5001); set
 | GET | `/customers/:id/users/:userId/monthly-summary` | salary PDF |
 | GET | `/vehicles` | vehicles visible to the current user |
 | PATCH | `/vehicles/:id/document-reminders` | RC/insurance/permit expiry dates |
-| GET/POST | `/vehicles/:id/trips` | list / start trips |
-| GET/DELETE | `/trips/:id` | trip detail (with settlement; `tripIncome` KM/income breakdown for admins - routes missing from the KM table use Manual KM x 2 and the corporation with the most KM-table routes from the loading location); super admins can edit closed trips in their loading month and through the 10th of the following month (India time) / delete |
+| GET/POST | `/vehicles/:id/trips` | list / start trips (`startOdometerKm` is optional) |
+| GET/DELETE | `/trips/:id` | trip detail (with settlement; `tripIncome` KM/income breakdown for admins - routes missing from the KM table use Manual KM x 2 and the corporation with the most KM-table routes from the loading location); customer admins and super admins can edit trip entries during the trip month and through the 5th of the following month (India time) / delete |
 | POST/PATCH/DELETE | `/trips/:id/advances[/:i]` | driver advances |
 | POST/PATCH/DELETE | `/trips/:id/diesel[/:i]` | multipart: volume (> 5 L), total (> Rs 50 / L), odometer, photo, `lat`/`lng` (required) |
 | POST/PATCH | `/trips/:id/rto[/:i]` | multipart: amount, date, photo |
@@ -207,7 +207,7 @@ app automatically talks to the backend running on your PC (port 5001); set
 | GET/POST | `/diesel-verifications?vehicleId=&month=YYYY-MM` | (admins) list or upload monthly PDF / Excel `.xlsx` / CSV statements; both accept `Date` or `Settlement Date` and `Diesel (litres)` or `Quantity`; CSV additionally accepts transaction-date and diesel quantity/volume headers |
 | GET/DELETE | `/diesel-verifications/:id/file` · `/diesel-verifications/:id` | (admins) download or delete an uploaded statement |
 
-The admin dashboard includes a vehicle/month Diesel Verification section. Its comparison rows use trip loading, unloading, and the same calculated diesel litres as the single-trip settlement; Excel and CSV statement litres are summed inclusively from each trip's loading date through its turn date (or unloading date if no turn date is recorded). Statement date columns may be named `Date` or `Settlement Date`, and volume columns may be named `Diesel (litres)` or `Quantity`. PDF uploads are retained as supporting documents and are not parsed.
+The admin dashboard includes a vehicle/month Diesel Verification section. Its comparison rows use trip loading, unloading, and the same calculated diesel litres as the single-trip settlement; Excel and CSV statement litres are summed inclusively by calendar date from each trip's loading date through its turn date (or unloading date if no turn date is recorded), ignoring times. Statement date columns may be named `Date` or `Settlement Date`, and volume columns may be named `Diesel (litres)` or `Quantity`. PDF uploads are retained as supporting documents and are not parsed.
 
 ## 7. Deployment
 
