@@ -3,6 +3,7 @@ import * as api from '../../api/api';
 import { buildDieselVerificationRows, formatVerificationDate, formatVerificationLitres } from './dieselVerificationData';
 
 const cellStyle = { padding: '8px 10px', textAlign: 'left', borderBottom: '1px solid var(--border)' };
+const REFRESH_INTERVAL_MS = 30_000;
 
 function currentMonth() {
   const date = new Date();
@@ -53,27 +54,49 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
     }
 
     let active = true;
-    setDataLoading(true);
-    setError('');
+    let requestInFlight = false;
     setUploads([]);
     setTrips([]);
-    Promise.all([
-      api.listDieselVerifications({ vehicleId, month }),
-      api.listTripsForVehicle(vehicleId),
-    ])
-      .then(([uploadResponse, tripResponse]) => {
-        if (!active) return;
-        setUploads(uploadResponse.data.uploads || []);
-        setTrips(tripResponse.data.trips || []);
-      })
-      .catch((requestError) => {
-        if (active) setError(errorMessage(requestError, 'Failed to load diesel verification data'));
-      })
-      .finally(() => {
-        if (active) setDataLoading(false);
-      });
 
-    return () => { active = false; };
+    async function refreshData(initialLoad = false) {
+      if (!active || requestInFlight || document.visibilityState === 'hidden') return;
+      requestInFlight = true;
+      if (initialLoad) {
+        setDataLoading(true);
+        setError('');
+      }
+
+      try {
+        const [uploadResponse, tripResponse] = await Promise.all([
+          api.listDieselVerifications({ vehicleId, month }),
+          api.listTripsForVehicle(vehicleId),
+        ]);
+        if (active) {
+          setUploads(uploadResponse.data.uploads || []);
+          setTrips(tripResponse.data.trips || []);
+          setError('');
+        }
+      } catch (requestError) {
+        if (active) setError(errorMessage(requestError, 'Failed to load diesel verification data'));
+      } finally {
+        requestInFlight = false;
+        if (active) setDataLoading(false);
+      }
+    }
+
+    function refreshOnFocus() {
+      refreshData();
+    }
+
+    refreshData(true);
+    const intervalId = window.setInterval(() => refreshData(), REFRESH_INTERVAL_MS);
+    window.addEventListener('focus', refreshOnFocus);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', refreshOnFocus);
+    };
   }, [vehicleId, month]);
 
   const rows = useMemo(() => buildDieselVerificationRows(trips, month, uploads), [trips, month, uploads]);
@@ -248,6 +271,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
           )}
 
           <h4 style={{ margin: '0 0 8px' }}>Trip comparison — {selectedVehicle?.vehicleNumber}</h4>
+          <small>Trip and statement data refresh automatically every 30 seconds while this page is open.</small>
           {dataLoading ? <p>Loading trips and statements...</p> : rows.length === 0 ? (
             <p style={{ color: '#666' }}>No trips found for this vehicle in {month}.</p>
           ) : (

@@ -97,3 +97,51 @@ test('offers vehicle and monthly file selection for diesel verification', async 
   delete window.confirm;
   delete window.IS_REACT_ACT_ENVIRONMENT;
 });
+
+test('refreshes trip diesel automatically and when the page regains focus', async () => {
+  window.IS_REACT_ACT_ENVIRONMENT = true;
+  jest.useFakeTimers();
+  const date = new Date();
+  const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+  const tripFor = (litres) => ({
+    _id: 'trip-live',
+    loadingDate: `${month}-01T00:00:00.000Z`,
+    unloadingDate: `${month}-03T00:00:00.000Z`,
+    dieselEntries: [{ volumeLitres: litres }],
+  });
+  api.listDieselVerifications.mockResolvedValue({ data: { uploads: [] } });
+  api.listTripsForVehicle.mockResolvedValue({ data: { trips: [tripFor(10)] } });
+
+  const container = document.createElement('div');
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(
+      <DieselVerificationSection vehicles={[{ _id: 'vehicle-1', vehicleNumber: 'KA01AB1234' }]} loading={false} />
+    ));
+    expect(container.textContent).toContain('10 L');
+
+    api.listTripsForVehicle.mockResolvedValue({ data: { trips: [tripFor(42)] } });
+    api.listTripsForVehicle.mockClear();
+    await act(async () => {
+      jest.advanceTimersByTime(30_000);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(api.listTripsForVehicle).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain('42 L');
+
+    api.listTripsForVehicle.mockResolvedValue({ data: { trips: [tripFor(55)] } });
+    api.listTripsForVehicle.mockClear();
+    await act(async () => {
+      window.dispatchEvent(new Event('focus'));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(api.listTripsForVehicle).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain('55 L');
+  } finally {
+    await act(async () => root.unmount());
+    jest.useRealTimers();
+    delete window.IS_REACT_ACT_ENVIRONMENT;
+  }
+});
