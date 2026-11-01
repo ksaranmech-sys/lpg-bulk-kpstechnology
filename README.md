@@ -204,10 +204,10 @@ app automatically talks to the backend running on your PC (port 5001); set
 | GET / POST | `/trips/:id/report` · `/send-report` | settlement PDF / email it |
 | GET/POST/PATCH/DELETE | `/leaves[/:id]` | driver leave entries |
 | GET/POST/PATCH/DELETE | `/vehicle-expenses[/:id]` | (admins) vehicle running costs; JSON or multipart with an optional `photo` receipt (PATCH `removePhoto: true` clears it) |
-| GET/POST | `/diesel-verifications?vehicleId=&month=YYYY-MM` | (admins) list or upload monthly PDF / Excel `.xlsx` / CSV statements; both accept `Date` or `Settlement Date` and `Diesel (litres)` or `Quantity`; CSV additionally accepts transaction-date and diesel quantity/volume headers |
+| GET/POST | `/diesel-verifications?vehicleId=&month=YYYY-MM` | (admins) list or upload monthly PDF / Excel `.xlsx` / CSV statements; spreadsheet dates accept `Date`, `Settlement Date`, `Transaction Date`, or `Txn Date`; quantity headers accept `Diesel (litres)`, `Diesel Quantity`, or `Quantity`; PDFs must contain selectable text |
 | GET/DELETE | `/diesel-verifications/:id/file` · `/diesel-verifications/:id` | (admins) download or delete an uploaded statement |
 
-The admin dashboard includes a vehicle/month Diesel Verification section. Its comparison rows use trip loading, unloading, and the same calculated diesel litres as the single-trip settlement; Excel and CSV statement litres are summed inclusively by calendar date from each trip's loading date through its turn date (or unloading date if no turn date is recorded), ignoring times. Statement date columns may be named `Date` or `Settlement Date`, and volume columns may be named `Diesel (litres)` or `Quantity`. PDF uploads are retained as supporting documents and are not parsed.
+The admin dashboard includes a vehicle/month Diesel Verification section. Its comparison rows use trip loading, unloading, and the same calculated diesel litres as the single-trip settlement; extracted statement litres are summed inclusively by calendar date from each trip's loading date through its turn date (or unloading date if no turn date is recorded), ignoring times. Text-based PDF, Excel, and CSV statements support `Date`, `Settlement Date`, `Transaction Date`, and `Txn Date` date headers.
 
 ## 7. Deployment
 

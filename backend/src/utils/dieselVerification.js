@@ -58,8 +58,19 @@ function findHeader(worksheet, allowCsvHeaders = false) {
     row.eachCell({ includeEmpty: false }, (cell, columnNumber) => {
       const header = normalizeHeader(getCellValue(cell));
       if (
-        ['date', 'settlementdate', 'settlementdatetime'].includes(header)
-        || (allowCsvHeaders && ['transactiondate', 'transactiondatetime', 'transactiontimestamp', 'txndate', 'postingdate', 'dateandtime'].includes(header))
+        [
+          'date',
+          'settlementdate',
+          'settlementdatetime',
+          'transactiondate',
+          'transactiondatetime',
+          'transactiontimestamp',
+          'txndate',
+          'txndatetime',
+          'txntimestamp',
+          'postingdate',
+          'dateandtime',
+        ].includes(header)
       ) dateColumn = columnNumber;
       if (
         ['diesellitres', 'diesellitre', 'quantity', 'qty', 'volume', 'dieselquantity', 'dieselqty'].includes(header)

@@ -25,7 +25,7 @@ function pdfBuffer(lines) {
 
 test('parses selectable-text PDF diesel statements', async () => {
   const buffer = await pdfBuffer([
-    'Transaction Date        Diesel Quantity (L)',
+    'Txn Date        Diesel Quantity (L)',
     '10-Nov-2026 14:30        18.75',
     '11-Nov-2026 09:00        1,250.25',
   ]);
@@ -68,6 +68,18 @@ test('parses vendor CSV transaction date and diesel quantity headers while ignor
   assert.deepEqual(records, [
     { date: new Date('2026-11-10T00:00:00.000Z'), litres: 18.75 },
   ]);
+});
+
+test('accepts Txn Date in Excel and CSV statements', async () => {
+  const workbook = await workbookBuffer([
+    ['Txn Date', 'Quantity'],
+    ['10-Nov-2026 14:30', 18.75],
+  ]);
+  const csv = Buffer.from('Txn Date,Diesel Quantity (L)\r\n10-Nov-2026 14:30,18.75\r\n');
+  const expected = [{ date: new Date('2026-11-10T00:00:00.000Z'), litres: 18.75 }];
+
+  assert.deepEqual(await parseDieselRecords(workbook), expected);
+  assert.deepEqual(await parseDieselRecords(csv, 'csv'), expected);
 });
 
 test('parses vendor dates with two-digit years and ignores 12-hour timestamps', async () => {
