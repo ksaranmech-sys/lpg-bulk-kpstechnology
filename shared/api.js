@@ -192,5 +192,13 @@ export function createEndpoints(api) {
       ? api.patch(`/vehicle-expenses/${expenseId}`, buildFormData(data, file), multipart)
       : api.patch(`/vehicle-expenses/${expenseId}`, data)),
     deleteVehicleExpense: (expenseId) => api.delete(`/vehicle-expenses/${expenseId}`),
+
+    // ---- Monthly diesel verification ----
+    listDieselVerifications: (params) => api.get('/diesel-verifications', { params }),
+    createDieselVerification: (data, file) =>
+      api.post('/diesel-verifications', buildFormData(data, file, 'file'), multipart),
+    downloadDieselVerificationFile: (verificationId) =>
+      api.get(`/diesel-verifications/${verificationId}/file`, { responseType: 'blob' }),
+    deleteDieselVerification: (verificationId) => api.delete(`/diesel-verifications/${verificationId}`),
   };
 }

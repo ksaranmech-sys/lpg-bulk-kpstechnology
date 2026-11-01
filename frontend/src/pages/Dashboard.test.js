@@ -31,6 +31,7 @@ jest.mock('../features/dashboard/DriverList', () => () => <div>Vehicle and drive
 jest.mock('../features/dashboard/AdminLeaveSection', () => () => <div>Leave entries</div>);
 jest.mock('../features/dashboard/VehicleReminderEditor', () => () => <div>Reminder / Expiry Dates</div>);
 jest.mock('../features/dashboard/VehicleMaintenanceSection', () => () => <div>Vehicle Maintenance</div>);
+jest.mock('../features/dashboard/DieselVerificationSection', () => () => <div>Diesel Verification</div>);
 jest.mock('../features/dashboard/VehicleExpensesSection', () => () => <div data-dashboard-section="vehicle-expenses">Vehicle Expenses</div>);
 jest.mock('../features/dashboard/VehicleExpenseManagementSection', () => () => <div data-dashboard-section="manage-vehicle-expenses">Manage Vehicle Expenses</div>);
 jest.mock('../features/dashboard/MaintenanceReminderPopup', () => () => null);
@@ -117,6 +118,7 @@ test('orders customer admin dashboard sections as requested', async () => {
     'trip-history',
     'reminder-expiry',
     'vehicle-maintenance',
+    'diesel-verification',
   ]);
 
   await act(async () => root.unmount());

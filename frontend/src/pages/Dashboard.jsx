@@ -24,6 +24,7 @@ import VehicleExpenseManagementSection from '../features/dashboard/VehicleExpens
 import MonthlyIncomeSection from '../features/dashboard/MonthlyIncomeSection';
 import VehicleMaintenanceSection from '../features/dashboard/VehicleMaintenanceSection';
 import MaintenanceReminderPopup from '../features/dashboard/MaintenanceReminderPopup';
+import DieselVerificationSection from '../features/dashboard/DieselVerificationSection';
 import VehiclesTable from '../features/customer/VehiclesTable';
 
 export default function Dashboard() {
@@ -216,6 +217,13 @@ export default function Dashboard() {
                 vehicle._id === updatedVehicle._id ? updatedVehicle : vehicle
               )))}
             />
+          </div>
+        </div>
+      )}
+      {['super_admin', 'customer_admin'].includes(user?.role) && (
+        <div style={{ order: user?.role === 'customer_admin' ? 8 : 9999 }}>
+          <div data-dashboard-section="diesel-verification">
+            <DieselVerificationSection vehicles={vehicles} loading={loading} />
           </div>
         </div>
       )}

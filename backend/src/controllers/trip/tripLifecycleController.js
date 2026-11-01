@@ -2,7 +2,10 @@
 const Trip = require('../../models/Trip');
 const Vehicle = require('../../models/Vehicle');
 const { saveUploadedFile } = require('../../middleware/upload');
-const { computeTripSettlement, calculateTripKm } = require('../../utils/tripCalculations');
+const {
+  computeTripSettlement,
+  calculateTripKm,
+} = require('../../utils/tripCalculations');
 const { TRIP_STATUS, ROLES } = require('../../config/constants');
 const { removeExpiredClosedTrips } = require('../../utils/tripRetention');
 const { findCurrentDriverForVehicle } = require('../../utils/driverAssignment');

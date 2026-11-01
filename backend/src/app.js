@@ -15,6 +15,7 @@ const tripRoutes = require('./routes/tripRoutes');
 const metaRoutes = require('./routes/metaRoutes');
 const leaveRoutes = require('./routes/leaveRoutes');
 const vehicleExpenseRoutes = require('./routes/vehicleExpenseRoutes');
+const dieselVerificationRoutes = require('./routes/dieselVerificationRoutes');
 const dieselPriceRoutes = require('./routes/dieselPriceRoutes');
 const rateTableRoutes = require('./routes/rateTableRoutes');
 
@@ -56,6 +57,7 @@ app.use('/api/v1/trips', tripRoutes);
 app.use('/api/v1/meta', requireAuth, metaRoutes);
 app.use('/api/v1/leaves', leaveRoutes);
 app.use('/api/v1/vehicle-expenses', vehicleExpenseRoutes);
+app.use('/api/v1/diesel-verifications', dieselVerificationRoutes);
 app.use('/api/v1/diesel-prices', dieselPriceRoutes);
 app.use('/api/v1/rate-tables', rateTableRoutes);
 
@@ -85,7 +87,9 @@ app.use((err, req, res, next) => {
     });
   }
   if (err.name === 'MulterError') {
-    return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? 'Photo must be smaller than 10MB' : err.message });
+    const isDieselVerification = req.originalUrl.startsWith('/api/v1/diesel-verifications');
+    const fileLabel = isDieselVerification ? 'File' : 'Photo';
+    return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? `${fileLabel} must be smaller than 10MB` : err.message });
   }
   if (err.name === 'CastError') {
     return res.status(400).json({ error: `Invalid ${err.path || 'id'}` });

@@ -10,6 +10,7 @@ import DriversTable from '../features/customer/DriversTable';
 import MonthlyIncomeSection from '../features/dashboard/MonthlyIncomeSection';
 import VehicleMaintenanceSection from '../features/dashboard/VehicleMaintenanceSection';
 import MaintenanceReminderPopup from '../features/dashboard/MaintenanceReminderPopup';
+import DieselVerificationSection from '../features/dashboard/DieselVerificationSection';
 
 export default function CustomerDetail() {
   const { user } = useAuth();
@@ -80,6 +81,7 @@ export default function CustomerDetail() {
           )),
         }))}
       />
+      <DieselVerificationSection vehicles={data?.vehicles || []} loading={!data} />
     </Layout>
   );
 }

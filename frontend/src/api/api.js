@@ -77,6 +77,8 @@ export const {
   bulkUpdateVehicleUsers, bulkDeleteVehicleUsers,
   listLeaves, createLeave, updateLeave, deleteLeave,
   listVehicleExpenses, deleteVehicleExpense,
+  listDieselVerifications, createDieselVerification, downloadDieselVerificationFile,
+  deleteDieselVerification,
 } = client;
 
 // Helper: grab the browser's current GPS position (used before RTO/diesel/expense uploads)

@@ -10,7 +10,10 @@ const { ROUTE_KM_TABLE, LOADING_LOCATIONS, UNLOADING_LOCATIONS } = require('../s
 const User = require('../src/models/User');
 const Trip = require('../src/models/Trip');
 const metaRoutes = require('../src/routes/metaRoutes');
-const { calculateTripKm, computeTripSettlement } = require('../src/utils/tripCalculations');
+const {
+  calculateTripKm,
+  computeTripSettlement,
+} = require('../src/utils/tripCalculations');
 const { getCorporationKmDetails } = require('../src/utils/corporationKm');
 
 test('tripController exposes a closeTrip endpoint', () => {
@@ -37,6 +40,48 @@ test('trip close requires loading and unloading location and date', () => {
     loadingDate: new Date('2026-08-01'),
     unloadingLocation: 'Trichy',
   }), ['loading location', 'unloading date']);
+});
+
+test('single-trip settlement diesel includes this trip fills and the next-trip boundary fill', () => {
+  const result = computeTripSettlement(
+    {
+      dieselEntries: [
+        { volumeLitres: 100 },
+        { volumeLitres: 25 },
+        { volumeLitres: 900 },
+      ],
+    },
+    { dieselEntries: [{ volumeLitres: 35 }] },
+  );
+
+  assert.equal(result.settlement.totalDieselLitres, 960);
+});
+
+test('vehicle trip listing returns the saved single-trip diesel settlement unchanged', async () => {
+  const savedTrips = [
+    { _id: 'trip-older', settlement: { totalDieselLitres: 300 } },
+    { _id: 'trip-newer', settlement: { totalDieselLitres: 60 } },
+  ];
+  const originalFind = Trip.find;
+  let response;
+  Trip.find = (filter) => {
+    assert.deepEqual(filter, { vehicle: 'vehicle-1' });
+    return { sort: async (order) => {
+      assert.equal(order, '-createdAt');
+      return savedTrips;
+    } };
+  };
+
+  try {
+    await tripController.listTripsForVehicle(
+      { params: { vehicleId: 'vehicle-1' }, query: {} },
+      { json: (body) => { response = body; } },
+    );
+  } finally {
+    Trip.find = originalFind;
+  }
+
+  assert.deepEqual(response.trips, savedTrips);
 });
 
 test('closed trip month uses the closing diesel filled date', () => {
