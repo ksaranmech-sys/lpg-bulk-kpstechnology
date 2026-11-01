@@ -209,7 +209,7 @@ async function getTrip(req, res) {
   if (trip.status === TRIP_STATUS.CLOSED) await refreshTripSettlement(trip);
   const result = trip.toObject();
   result.editWindowClosed = [ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN].includes(req.user?.role) &&
-    !isClosedTripEditable(trip.loadingDate || trip.createdAt);
+    !isClosedTripEditable(trip);
   result.odometerKm = trip.status === TRIP_STATUS.CLOSED && trip.settlement?.totalKm != null
     ? trip.settlement.totalKm
     : calculateTripKm(trip, nextTrip);

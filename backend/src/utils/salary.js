@@ -7,6 +7,7 @@ const { formatMonth } = require('./pdfGenerator');
 const { findRouteKm, getCorporationKmDetails } = require('./corporationKm');
 const settings = require('./settings');
 const { isDriverAssignedOn } = require('./driverAssignment');
+const { getTripClosedDate, getTripSalaryDate } = require('./tripSalaryDate');
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -215,41 +216,6 @@ function getClosedTripsMonthFilter(monthStart, monthEnd) {
   // Keep open trips with a Load Turn available; salary calculation later excludes trips
   // that have not completed the Load Turn.
   return { status: { $in: ['open', 'pending_close', 'closed'] } };
-}
-
-function getTripClosedDate(trip) {
-  const turnDate = trip.turnDate ? new Date(trip.turnDate) : null;
-  if (turnDate && !Number.isNaN(turnDate.getTime())) return turnDate;
-
-  const entries = trip.dieselEntries || [];
-  const filledAt = entries[entries.length - 1]?.filledAt ? new Date(entries[entries.length - 1].filledAt) : null;
-  if (filledAt && !Number.isNaN(filledAt.getTime())) return filledAt;
-
-  const closedAt = trip.closedAt ? new Date(trip.closedAt) : null;
-  if (closedAt && !Number.isNaN(closedAt.getTime())) return closedAt;
-
-  // Still-open trips have no close-related date yet - fall back to the loading date so they
-  // still show up (with a checkbox to manually close them) in the month they were started.
-  const loadingDate = trip.loadingDate ? new Date(trip.loadingDate) : null;
-  return loadingDate && !Number.isNaN(loadingDate.getTime()) ? loadingDate : null;
-}
-
-// A trip belongs to the salary month it was CLOSED in, unless its loading / unloading /
-// unloading turn / load turn date was entered in a later month - then it moves to that month.
-// In practice this is the latest of those dates.
-function getTripSalaryDate(trip) {
-  const candidates = [
-    getTripClosedDate(trip),
-    trip.loadingDate,
-    trip.unloadingDate,
-    trip.unTurnDate,
-    trip.turnDate,
-  ]
-    .filter(Boolean)
-    .map((value) => new Date(value))
-    .filter((date) => !Number.isNaN(date.getTime()));
-  if (!candidates.length) return null;
-  return candidates.reduce((latest, date) => (date > latest ? date : latest));
 }
 
 function isTripInSalaryMonth(trip, monthStart, monthEnd) {

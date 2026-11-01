@@ -193,7 +193,7 @@ async function getOpenTripOr404(req, res) {
   const isCustomerAdminForTrip = req.user.role === ROLES.CUSTOMER_ADMIN
     && String(trip.customer) === String(req.user.customer);
   if (req.user.role === ROLES.SUPER_ADMIN || isCustomerAdminForTrip) {
-    if (!isClosedTripEditable(trip.loadingDate || trip.createdAt)) {
+    if (!isClosedTripEditable(trip)) {
       res.status(403).json({ error: CLOSED_TRIP_EDIT_ERROR });
       return null;
     }

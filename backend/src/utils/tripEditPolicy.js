@@ -1,5 +1,7 @@
+const { getTripSalaryDate } = require('./tripSalaryDate');
+
 const CLOSED_TRIP_EDIT_ERROR =
-  'Trip entries can only be edited during their trip month and through the 5th of the following month.';
+  'Trip entries can only be edited during their salary month and through the 5th of the following month.';
 
 const indiaDateParts = new Intl.DateTimeFormat('en-US', {
   timeZone: 'Asia/Kolkata',
@@ -18,8 +20,9 @@ function getIndiaCalendarParts(value) {
   return { year: parts.year, month: parts.month, day: parts.day };
 }
 
-function isClosedTripEditable(tripDate, now = new Date()) {
-  const tripParts = getIndiaCalendarParts(tripDate);
+function isClosedTripEditable(trip, now = new Date()) {
+  const tripSalaryDate = getTripSalaryDate(trip) || trip?.createdAt;
+  const tripParts = getIndiaCalendarParts(tripSalaryDate);
   const todayParts = getIndiaCalendarParts(now);
   if (!tripParts || !todayParts) return false;
 

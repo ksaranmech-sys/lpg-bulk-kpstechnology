@@ -50,6 +50,33 @@ test('customer admin can edit their own customer trip during its trip month', as
   assert.equal(result.responseStatus, undefined);
 });
 
+test('customer admin can edit a cross-month trip during its salary month', async () => {
+  const monthParts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Kolkata',
+      year: 'numeric',
+      month: 'numeric',
+    }).formatToParts(new Date())
+      .map(({ type, value }) => [type, Number(value)])
+  );
+  const previousMonthEnd = new Date(Date.UTC(monthParts.year, monthParts.month - 1, 0, 6));
+  const currentMonthStart = new Date(Date.UTC(monthParts.year, monthParts.month - 1, 1, 6));
+  const result = await runScope(
+    { id: 'admin-1', role: ROLES.CUSTOMER_ADMIN, customer: 'customer-1' },
+    {
+      customer: 'customer-1',
+      vehicle: 'vehicle-1',
+      status: TRIP_STATUS.CLOSED,
+      loadingDate: previousMonthEnd,
+      unloadingDate: currentMonthStart,
+      turnDate: currentMonthStart,
+    },
+  );
+
+  assert.equal(result.nextCalled, true);
+  assert.equal(result.responseStatus, undefined);
+});
+
 test('customer admin cannot edit another customer trip', async () => {
   const result = await runScope(
     { id: 'admin-1', role: ROLES.CUSTOMER_ADMIN, customer: 'customer-1' },

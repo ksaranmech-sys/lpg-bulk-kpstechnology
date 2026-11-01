@@ -90,7 +90,7 @@ export default function TripDetail() {
           role="status"
           style={{ padding: 10, border: '1px solid #fed7aa', borderRadius: 8, background: '#fff7ed', color: '#9a3412' }}
         >
-          This trip is outside the edit window. Trip entries can only be edited during their trip month and through the 5th of the following month.
+          This trip is outside the edit window. Trip entries can only be edited during their salary month and through the 5th of the following month.
         </p>
       )}
 

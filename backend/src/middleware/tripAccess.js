@@ -22,7 +22,7 @@ async function scopeToOpenTripForUser(req, res, next) {
   if (!trip) return;
 
   if (hasAdministrativeTripAccess(req, trip)) {
-    if (!isClosedTripEditable(trip.loadingDate || trip.createdAt)) {
+    if (!isClosedTripEditable(trip)) {
       return res.status(403).json({ error: CLOSED_TRIP_EDIT_ERROR });
     }
     return next();

@@ -194,7 +194,7 @@ app automatically talks to the backend running on your PC (port 5001); set
 | GET | `/vehicles` | vehicles visible to the current user |
 | PATCH | `/vehicles/:id/document-reminders` | RC/insurance/permit expiry dates |
 | GET/POST | `/vehicles/:id/trips` | list / start trips (`startOdometerKm` is optional) |
-| GET/DELETE | `/trips/:id` | trip detail (with settlement; `tripIncome` KM/income breakdown for admins - routes missing from the KM table use Manual KM x 2 and the corporation with the most KM-table routes from the loading location); customer admins and super admins can edit trip entries during the trip month and through the 5th of the following month (India time) / delete |
+| GET/DELETE | `/trips/:id` | trip detail (with settlement; `tripIncome` KM/income breakdown for admins - routes missing from the KM table use Manual KM x 2 and the corporation with the most KM-table routes from the loading location); customer admins and super admins can edit trip entries during the trip's salary month and through the 5th of the following month (India time) / delete |
 | POST/PATCH/DELETE | `/trips/:id/advances[/:i]` | driver advances |
 | POST/PATCH/DELETE | `/trips/:id/diesel[/:i]` | multipart: volume (> 5 L), total (> Rs 50 / L), odometer, photo, `lat`/`lng` (required) |
 | POST/PATCH | `/trips/:id/rto[/:i]` | multipart: amount, date, photo |
