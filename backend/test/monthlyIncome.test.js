@@ -239,6 +239,37 @@ test('unloadings are split by vehicle corporation, then by route state, with tot
   assert.deepEqual(result.groups[0].totals, result.totals);
 });
 
+test('monthly income includes trips from every route state represented in the KM table', () => {
+  const allStateRoutes = [
+    { loadingLocation: 'Andhra loading', corporation: 'IOC-AP', unloadingLocation: 'Andhra destination', km: 60 },
+    { loadingLocation: 'Kerala loading', corporation: 'IOC-KL', unloadingLocation: 'Kerala destination', km: 70 },
+    { loadingLocation: 'Karnataka loading', corporation: 'IOC-KA', unloadingLocation: 'Karnataka destination', km: 80 },
+  ];
+  const stateTrips = allStateRoutes.map((route, index) => ({
+    _id: `state-trip-${index}`,
+    vehicle: { vehicleNumber: `V-${index}`, corporation: 'IOC' },
+    status: 'closed',
+    loadingLocation: route.loadingLocation,
+    unloadingLocation: route.unloadingLocation,
+    loadingWeightTons: 18,
+    unloadingWeightTons: 18,
+    loadingDate: new Date('2026-09-10T03:00:00Z'),
+    unloadingDate: new Date('2026-09-20T09:00:00Z'),
+  }));
+  const result = monthlyIncome.buildMonthlyIncome(stateTrips, '2026-09', allStateRoutes, opts);
+  const period = result.groups[0].periods.find((item) => item.key === 'second-half');
+
+  assert.deepEqual(period.states.map((state) => state.state), ['AP', 'KA', 'KL']);
+  assert.deepEqual(period.states.flatMap((state) => state.rows.map((row) => row.tripId)).sort(), [
+    'state-trip-0',
+    'state-trip-1',
+    'state-trip-2',
+  ]);
+  assert.equal(period.totals.trips, 3);
+  assert.equal(period.totals.pricedTrips, 3);
+  assert.equal(result.totals.trips, 3);
+});
+
 test('a diverted trip\'s Divert leg is billed in the month of the new unloading, from the first unloading point', () => {
   const result = monthlyIncome.buildMonthlyIncome(trips, '2026-10', routeKmTable, opts);
   const tn = result.groups[0].periods[0].states.find((s) => s.state === 'TN');
