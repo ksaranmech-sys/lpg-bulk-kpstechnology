@@ -59,6 +59,11 @@ function normalizeVehicleNumber(value) {
   return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
 
+function getVehicleNumber(value) {
+  const match = String(value || '').toUpperCase().match(/\b[A-Z]{2}\s*\d{2}\s*[A-Z]{1,3}\s*\d{4}\b/);
+  return match ? normalizeVehicleNumber(match[0]) : '';
+}
+
 function findHeader(worksheet, allowCsvHeaders = false) {
   const maxRow = Math.min(worksheet.rowCount, 20);
   for (let rowNumber = 1; rowNumber <= maxRow; rowNumber += 1) {
@@ -90,7 +95,17 @@ function findHeader(worksheet, allowCsvHeaders = false) {
           || (header.includes('diesel') && /(litre|liter|ltr|qty|quantity|volume)/.test(header))
         ))
       ) litresColumn = columnNumber;
-      if (['vehicle', 'vehiclenumber', 'registrationnumber', 'trucknumber'].includes(header)) {
+      if ([
+        'vehicle',
+        'vehicleno',
+        'vehiclenumber',
+        'vehicleregistration',
+        'registrationno',
+        'registrationnumber',
+        'regno',
+        'truckno',
+        'trucknumber',
+      ].includes(header)) {
         vehicleColumn = columnNumber;
       }
     });
@@ -113,7 +128,6 @@ function parseWorksheetRecords(worksheet, allowCsvHeaders = false, targetVehicle
       ? normalizeVehicleNumber(getCellValue(row.getCell(header.vehicleColumn)))
       : '';
     if ((dateValue == null || dateValue === '') && (litresValue == null || litresValue === '')) continue;
-    if (normalizedTargetVehicle && rowVehicleNumber && rowVehicleNumber !== normalizedTargetVehicle) continue;
 
     const date = parseDate(dateValue);
     if (!date) continue;
@@ -125,7 +139,12 @@ function parseWorksheetRecords(worksheet, allowCsvHeaders = false, targetVehicle
     if (!Number.isFinite(litres) || litres < 0) {
       throw new Error(`Row ${rowNumber} in "${worksheet.name}" needs a non-negative Diesel (litres) value.`);
     }
-    records.push({ date, litres });
+    const vehicleNumber = rowVehicleNumber || normalizedTargetVehicle;
+    records.push({
+      date,
+      litres,
+      ...(vehicleNumber ? { vehicleNumber } : {}),
+    });
   }
   return { foundHeaders: true, records };
 }
@@ -153,18 +172,17 @@ async function parseDieselRecords(buffer, format = 'xlsx', targetVehicleNumber =
     const datePattern = /\b(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{1,2}[- ](?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[- ]\d{2,4})(?:[ T]\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)?/i;
     const numberPattern = /-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/g;
     const dieselVolumePattern = /DIESEL\s*,?\s*CCMS\s+[\d,]+(?:\.\d+)?\s+([\d,]+(?:\.\d+)?)/i;
-    const normalizedTargetVehicle = normalizeVehicleNumber(targetVehicleNumber);
+    const defaultVehicleNumber = normalizeVehicleNumber(targetVehicleNumber);
     const records = [];
 
     lines.forEach((line, index) => {
+      if (/\boffline\b/i.test(line)) return;
       const dateMatch = datePattern.exec(line);
       datePattern.lastIndex = 0;
       if (!dateMatch) return;
 
       const date = parseDate(dateMatch[0]);
       if (!date) return;
-      if (normalizedTargetVehicle && !normalizeVehicleNumber(line).includes(normalizedTargetVehicle)) return;
-
       const transactionLines = [line];
       for (let nextIndex = index + 1; nextIndex < Math.min(lines.length, index + 6); nextIndex += 1) {
         if (datePattern.test(lines[nextIndex]) || /^\d+\s+\d{10}\b/.test(lines[nextIndex])) break;
@@ -173,7 +191,7 @@ async function parseDieselRecords(buffer, format = 'xlsx', targetVehicleNumber =
       const transactionText = transactionLines.join(' ');
       const dieselMatch = transactionText.match(dieselVolumePattern);
       let litresText = dieselMatch?.[1];
-      if (litresText == null && !normalizedTargetVehicle) {
+      if (litresText == null) {
         const values = [...line.slice(dateMatch.index + dateMatch[0].length).matchAll(numberPattern)];
         litresText = values.at(-1)?.[0];
       }
@@ -183,7 +201,12 @@ async function parseDieselRecords(buffer, format = 'xlsx', targetVehicleNumber =
       if (!Number.isFinite(litres) || litres < 0) {
         throw new Error(`PDF row ${index + 1} needs a non-negative Diesel (litres) value.`);
       }
-      records.push({ date, litres });
+      const vehicleNumber = getVehicleNumber(line) || defaultVehicleNumber;
+      records.push({
+        date,
+        litres,
+        ...(vehicleNumber ? { vehicleNumber } : {}),
+      });
     });
 
     if (!records.length) throw new Error('No dated diesel records were found in the PDF.');

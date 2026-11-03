@@ -19,8 +19,8 @@ function errorMessage(error, fallback) {
   return error.response?.data?.error || fallback;
 }
 
-async function loadComparisonUploads(vehicleId, trips, month, monthUploads = []) {
-  const dateRange = getDieselVerificationDateRange(trips, month, monthUploads);
+async function loadComparisonUploads(vehicleId, vehicleNumber, trips, month, monthUploads = []) {
+  const dateRange = getDieselVerificationDateRange(trips, month, monthUploads, vehicleNumber);
   if (!dateRange) return monthUploads;
   const response = await api.listDieselVerifications({ vehicleId, ...dateRange });
   const uploadsById = new Map(
@@ -53,6 +53,8 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
     ? selectedVehicleId
     : String(vehicles[0]?._id || '');
   const selectedVehicle = vehicles.find((vehicle) => String(vehicle._id) === vehicleId);
+  const selectedVehicleNumberRef = useRef(selectedVehicle?.vehicleNumber || '');
+  selectedVehicleNumberRef.current = selectedVehicle?.vehicleNumber || '';
 
   useEffect(() => {
     setSelectedVehicleId((currentId) => (
@@ -91,7 +93,13 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
         ]);
         const nextTrips = tripResponse.data.trips || [];
         const monthUploads = uploadResponse.data.uploads || [];
-        const nextComparisonUploads = await loadComparisonUploads(vehicleId, nextTrips, month, monthUploads);
+        const nextComparisonUploads = await loadComparisonUploads(
+          vehicleId,
+          selectedVehicleNumberRef.current,
+          nextTrips,
+          month,
+          monthUploads
+        );
         if (active) {
           setUploads(monthUploads);
           setComparisonUploads(nextComparisonUploads);
@@ -122,8 +130,8 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
   }, [vehicleId, month]);
 
   const rows = useMemo(
-    () => buildDieselVerificationRows(trips, month, comparisonUploads),
-    [trips, month, comparisonUploads]
+    () => buildDieselVerificationRows(trips, month, comparisonUploads, selectedVehicle?.vehicleNumber),
+    [trips, month, comparisonUploads, selectedVehicle?.vehicleNumber]
   );
 
   async function handleUpload(event) {
@@ -140,7 +148,13 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
       try {
         const uploadResponse = await api.listDieselVerifications({ vehicleId, month });
         const monthUploads = uploadResponse.data.uploads || [];
-        const nextComparisonUploads = await loadComparisonUploads(vehicleId, trips, month, monthUploads);
+        const nextComparisonUploads = await loadComparisonUploads(
+          vehicleId,
+          selectedVehicle?.vehicleNumber,
+          trips,
+          month,
+          monthUploads
+        );
         setUploads(monthUploads);
         setComparisonUploads(nextComparisonUploads);
       } catch (refreshError) {
@@ -248,7 +262,8 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                 required
                 onChange={(event) => setFile(event.target.files?.[0] || null)}
               />
-              <small>Statement date columns may be Date, Settlement Date, Transaction Date, or Txn Date; quantity columns may be Quantity or Diesel Quantity (litres). PDFs must contain selectable text.</small>
+              <small>              One customer statement can include multiple vehicles. Upload each distinct file once; exact duplicate files are rejected.
+              Statement date columns may be Date, Settlement Date, Transaction Date, or Txn Date; quantity columns may be Quantity or Diesel Quantity (litres). PDFs must contain selectable text.</small>
             </div>
             {file && (
               <button
@@ -268,7 +283,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
           {error && <p className="error-text" role="alert">{error}</p>}
           {message && <p role="status" style={{ color: '#257044' }}>{message}</p>}
 
-          <h4 style={{ margin: '0 0 8px' }}>Uploaded statements — {month}</h4>
+          <h4 style={{ margin: '0 0 8px' }}>Customer statements — {month}</h4>
           {uploads.length === 0 ? (
             <p style={{ color: '#666' }}>No statements uploaded for {selectedVehicle?.vehicleNumber} in this month.</p>
           ) : (

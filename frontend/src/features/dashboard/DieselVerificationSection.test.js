@@ -20,6 +20,7 @@ test('offers vehicle and monthly file selection for diesel verification', async 
       uploads: [{
         _id: 'upload-1',
         originalName: 'vendor-statement.xlsx',
+        defaultVehicleNumber: 'KA01AB1234',
         createdAt: `${month}-04T00:00:00.000Z`,
         dieselRecords: [{ date: `${month}-02T00:00:00.000Z`, litres: 18 }],
       }],

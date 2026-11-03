@@ -4,6 +4,7 @@ const dieselRecordSchema = new mongoose.Schema(
   {
     date: { type: Date, required: true },
     litres: { type: Number, required: true, min: 0 },
+    vehicleNumber: { type: String, trim: true, uppercase: true, default: null },
   },
   { _id: false }
 );
@@ -26,6 +27,7 @@ const dieselVerificationSchema = new mongoose.Schema(
     fileData: { type: Buffer, required: true, select: false },
     dieselRecords: { type: [dieselRecordSchema], default: [] },
     recordsParserVersion: { type: Number, default: 0 },
+    fileHash: { type: String, default: null, index: true },
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { timestamps: true }

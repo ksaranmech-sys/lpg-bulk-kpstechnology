@@ -53,19 +53,35 @@ test('parses ISO year-first dates in selectable-text PDF diesel statements', asy
   ]);
 });
 
-test('parses multi-line PDF diesel transactions for the selected vehicle only', async () => {
+test('parses multi-line PDF diesel transactions for all vehicles in the statement', async () => {
   const buffer = await pdfBuffer([
     'Transaction Date Vehicle No Diesel Quantity',
     '7135016158340033 KA01AH6269 1408744200 29/10/2026',
     "07:38:40 Sale 'DIESEL, CCMS 98.00 301.87 29583.00",
     '29/10/2026 07:38:13 - 0 Offline',
-    '10 4000400001 OTHER VEHICLE 7135016158999999',
-    '7135016158999999 1408744201 29/10/2026',
+    '10 4000400001 OTHER VEHICLE',
+    '7135016158999999 KA02AB1234 1408744201 29/10/2026',
     "08:00:00 Sale 'DIESEL, CCMS 100.00 500.00 50000.00",
   ]);
 
   assert.deepEqual(await parseDieselRecords(buffer, 'pdf', 'KA01AH6269'), [
-    { date: new Date('2026-10-29T00:00:00.000Z'), litres: 301.87 },
+    { date: new Date('2026-10-29T00:00:00.000Z'), litres: 301.87, vehicleNumber: 'KA01AH6269' },
+    { date: new Date('2026-10-29T00:00:00.000Z'), litres: 500, vehicleNumber: 'KA02AB1234' },
+  ]);
+});
+
+test('parses vehicle-specific spreadsheet records and assigns rows without a vehicle to upload selection', async () => {
+  const buffer = await workbookBuffer([
+    ['Date', 'Diesel Quantity', 'Vehicle No'],
+    ['10/10/2026', 20, 'KA01AH6269'],
+    ['10/10/2026', 30, 'KA02AB1234'],
+    ['11/10/2026', 15, ''],
+  ]);
+
+  assert.deepEqual(await parseDieselRecords(buffer, 'xlsx', 'KA01AH6269'), [
+    { date: new Date('2026-10-10T00:00:00.000Z'), litres: 20, vehicleNumber: 'KA01AH6269' },
+    { date: new Date('2026-10-10T00:00:00.000Z'), litres: 30, vehicleNumber: 'KA02AB1234' },
+    { date: new Date('2026-10-11T00:00:00.000Z'), litres: 15, vehicleNumber: 'KA01AH6269' },
   ]);
 });
 

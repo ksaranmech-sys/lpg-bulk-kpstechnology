@@ -117,7 +117,7 @@ test('counts each statement date in only one trip row while summing same-day fil
   expect(rows.map((row) => row.dieselFromDocument)).toEqual([20, 12]);
 });
 
-test('does not count an exact duplicate statement transaction twice', () => {
+test('sums distinct fills with the same date from the same statement', () => {
   const rows = buildDieselVerificationRows([{
     _id: 'current-trip',
     loadingDate: '2026-10-09T00:00:00.000Z',
@@ -129,7 +129,41 @@ test('does not count an exact duplicate statement transaction twice', () => {
     ],
   }]);
 
-  expect(rows[0].dieselFromDocument).toBe(310);
+  expect(rows[0].dieselFromDocument).toBe(620);
+});
+
+test('uses customer statements for all vehicles but assigns unnumbered rows to the uploader vehicle', () => {
+  const trips = [{
+    _id: 'selected-trip',
+    loadingDate: '2026-10-01T00:00:00.000Z',
+    turnDate: '2026-10-10T00:00:00.000Z',
+  }];
+  const uploads = [{
+    defaultVehicleNumber: 'KA01AH6269',
+    dieselRecords: [
+      { date: '2026-10-05T00:00:00.000Z', litres: 20, vehicleNumber: 'KA01AH6269' },
+      { date: '2026-10-06T00:00:00.000Z', litres: 30, vehicleNumber: 'KA02AB1234' },
+      { date: '2026-10-07T00:00:00.000Z', litres: 15 },
+    ],
+  }];
+
+  expect(buildDieselVerificationRows(trips, '2026-10', uploads, 'KA01AH6269')[0].dieselFromDocument).toBe(35);
+  expect(buildDieselVerificationRows(trips, '2026-10', uploads, 'KA02AB1234')[0].dieselFromDocument).toBe(30);
+});
+
+test('sums statement records across distinct customer uploads', () => {
+  const trips = [{
+    _id: 'selected-trip',
+    loadingDate: '2026-10-01T00:00:00.000Z',
+    turnDate: '2026-10-10T00:00:00.000Z',
+  }];
+  const uploads = [{
+    dieselRecords: [{ date: '2026-10-05T00:00:00.000Z', litres: 20, vehicleNumber: 'KA01AH6269' }],
+  }, {
+    dieselRecords: [{ date: '2026-10-06T00:00:00.000Z', litres: 30, vehicleNumber: 'KA01AH6269' }],
+  }];
+
+  expect(buildDieselVerificationRows(trips, '2026-10', uploads, 'KA01AH6269')[0].dieselFromDocument).toBe(50);
 });
 
 test('loads document records across months for each consecutive trip load-turn interval', () => {

@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const mongoose = require('mongoose');
 const DieselVerification = require('../models/DieselVerification');
 const Vehicle = require('../models/Vehicle');
@@ -8,7 +9,7 @@ const EXCEL_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spread
 const CSV_CONTENT_TYPE = 'text/csv';
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const RECORDS_PARSER_VERSION = 1;
+const RECORDS_PARSER_VERSION = 2;
 
 function safeFileName(value) {
   return String(value || 'diesel-report')
@@ -40,6 +41,10 @@ function publicUpload(upload) {
   const result = upload.toObject();
   delete result.fileData;
   delete result.recordsParserVersion;
+  delete result.fileHash;
+  if (result.vehicle && typeof result.vehicle === 'object') {
+    result.defaultVehicleNumber = result.vehicle.vehicleNumber || '';
+  }
   return result;
 }
 
@@ -55,18 +60,20 @@ async function getAuthorizedVehicle(user, vehicleId) {
   return { vehicle };
 }
 
-async function reprocessLegacyUploads(vehicle, month) {
+async function reprocessLegacyUploads(customerId, month) {
   const filter = {
-    vehicle: vehicle._id,
+    customer: customerId,
     $or: [
       { recordsParserVersion: { $lt: RECORDS_PARSER_VERSION } },
       { recordsParserVersion: { $exists: false } },
+      { fileHash: null },
     ],
   };
   if (month) filter.month = month;
 
   const uploads = await DieselVerification.find(filter)
     .select('+fileData')
+    .populate('vehicle', 'vehicleNumber')
     .sort({ createdAt: 1, _id: 1 });
   for (const upload of uploads) {
     const format = upload.contentType === 'application/pdf'
@@ -75,9 +82,10 @@ async function reprocessLegacyUploads(vehicle, month) {
     upload.dieselRecords = await parseDieselRecords(
       upload.fileData,
       format,
-      vehicle.vehicleNumber
+      upload.vehicle?.vehicleNumber || ''
     );
     upload.recordsParserVersion = RECORDS_PARSER_VERSION;
+    upload.fileHash ||= crypto.createHash('sha256').update(upload.fileData).digest('hex');
     await upload.save();
   }
 }
@@ -90,7 +98,7 @@ async function listDieselVerifications(req, res) {
     : !MONTH_PATTERN.test(String(month || '')))) {
     return res.status(400).json({ error: 'vehicleId and either a valid month (YYYY-MM) or date range (fromDate and toDate) are required' });
   }
-  const filter = { vehicle: vehicleId };
+  const filter = { customer: null };
   if (hasDateRange) {
     const start = new Date(`${fromDate}T00:00:00.000Z`);
     const end = new Date(`${toDate}T00:00:00.000Z`);
@@ -110,11 +118,19 @@ async function listDieselVerifications(req, res) {
   const { vehicle, error } = await getAuthorizedVehicle(req.user, vehicleId);
   if (error) return res.status(error.status).json({ error: error.message });
 
-  filter.vehicle = vehicle._id;
-  await reprocessLegacyUploads(vehicle, hasDateRange ? undefined : month);
+  filter.customer = vehicle.customer;
+  await reprocessLegacyUploads(vehicle.customer, hasDateRange ? undefined : month);
   const uploads = await DieselVerification.find(filter)
+    .populate('vehicle', 'vehicleNumber')
     .sort({ createdAt: 1, _id: 1 });
-  res.json({ uploads: uploads.map(publicUpload) });
+  const seenFileHashes = new Set();
+  const uniqueUploads = uploads.filter((upload) => {
+    if (!upload.fileHash) return true;
+    if (seenFileHashes.has(upload.fileHash)) return false;
+    seenFileHashes.add(upload.fileHash);
+    return true;
+  });
+  res.json({ uploads: uniqueUploads.map(publicUpload) });
 }
 
 async function createDieselVerification(req, res) {
@@ -126,6 +142,15 @@ async function createDieselVerification(req, res) {
 
   const { vehicle, error } = await getAuthorizedVehicle(req.user, vehicleId);
   if (error) return res.status(error.status).json({ error: error.message });
+
+  const fileHash = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
+  const existingUpload = await DieselVerification.findOne({
+    customer: vehicle.customer,
+    fileHash,
+  });
+  if (existingUpload) {
+    return res.status(409).json({ error: 'This exact statement file has already been uploaded for this customer.' });
+  }
 
   const extension = req.file.originalname.toLowerCase().split('.').pop();
   let contentType;
@@ -164,6 +189,7 @@ async function createDieselVerification(req, res) {
     fileData: req.file.buffer,
     dieselRecords,
     recordsParserVersion: RECORDS_PARSER_VERSION,
+    fileHash,
     uploadedBy: req.user.id,
   });
   res.status(201).json({ upload: publicUpload(upload) });

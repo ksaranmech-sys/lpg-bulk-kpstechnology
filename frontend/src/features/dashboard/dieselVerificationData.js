@@ -13,6 +13,17 @@ function dateKey(value) {
   return date ? Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) : null;
 }
 
+function normalizeVehicleNumber(value) {
+  return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+function recordsForVehicle(uploads, vehicleNumber) {
+  const targetVehicleNumber = normalizeVehicleNumber(vehicleNumber);
+  return uploads.flatMap((upload) => (upload.dieselRecords || [])
+    .filter((record) => !targetVehicleNumber
+      || normalizeVehicleNumber(record.vehicleNumber || upload.defaultVehicleNumber) === targetVehicleNumber));
+}
+
 function orderedTrips(trips) {
   return [...trips].sort((a, b) => {
     const loadingDateDifference = (dateKey(a.loadingDate) ?? Number.MAX_SAFE_INTEGER)
@@ -41,8 +52,8 @@ function tripDocumentIntervals(trips, month, dieselRecords = []) {
     .filter(Boolean);
 }
 
-export function getDieselVerificationDateRange(trips, month, uploads = []) {
-  const dieselRecords = uploads.flatMap((upload) => upload.dieselRecords || []);
+export function getDieselVerificationDateRange(trips, month, uploads = [], vehicleNumber = '') {
+  const dieselRecords = recordsForVehicle(uploads, vehicleNumber);
   const intervals = tripDocumentIntervals(trips, month, dieselRecords);
   if (!intervals.length) return null;
   const fromDate = Math.min(...intervals.map((interval) => interval.previousTurnDate));
@@ -53,13 +64,12 @@ export function getDieselVerificationDateRange(trips, month, uploads = []) {
   };
 }
 
-export function buildDieselVerificationRows(trips, month, uploads) {
-  const dieselRecords = uploads.flatMap((upload) => upload.dieselRecords || []);
+export function buildDieselVerificationRows(trips, month, uploads, vehicleNumber = '') {
+  const dieselRecords = recordsForVehicle(uploads, vehicleNumber);
   const intervalsByTrip = new Map(
     tripDocumentIntervals(trips, month, dieselRecords).map((interval) => [interval.trip._id, interval])
   );
   const countedStatementDates = new Set();
-  const countedStatementTransactions = new Set();
 
   return trips
     .filter((trip) => monthOf(trip.loadingDate) === month)
@@ -73,17 +83,12 @@ export function buildDieselVerificationRows(trips, month, uploads) {
       const matchingRecords = interval
         ? dieselRecords.filter((record) => {
           const recordDate = dateKey(record.date);
-          const transactionKey = recordDate == null
-            ? ''
-            : `${recordDate}:${Number(record.litres)}`;
           if (
             recordDate == null
             || recordDate < interval.previousTurnDate
             || recordDate > interval.currentTurnDate
             || countedStatementDates.has(recordDate)
-            || countedStatementTransactions.has(transactionKey)
           ) return false;
-          countedStatementTransactions.add(transactionKey);
           return true;
         })
         : [];
