@@ -149,6 +149,7 @@ function unloadingRows(trip, income, shortageRatePerKg) {
     vehicleCorporation,
     cutoffDay: cutoffDayFor(vehicleCorporation),
     loadingDate: trip.loadingDate || null,
+    loadingWeightTons: Number.isFinite(trip.loadingWeightTons) ? trip.loadingWeightTons : null,
     status: trip.status,
     corporation: income.corporation || null,
     state: corporationStateCode(income.corporation) || null,

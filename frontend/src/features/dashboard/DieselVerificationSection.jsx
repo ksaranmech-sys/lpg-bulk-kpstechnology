@@ -1,6 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as api from '../../api/api';
-import { buildDieselVerificationRows, formatVerificationDate, formatVerificationLitres } from './dieselVerificationData';
+import {
+  buildDieselVerificationRows,
+  formatVerificationDate,
+  formatVerificationLitres,
+  getDieselVerificationDateRange,
+} from './dieselVerificationData';
 
 const cellStyle = { padding: '8px 10px', textAlign: 'left', borderBottom: '1px solid var(--border)' };
 const REFRESH_INTERVAL_MS = 30_000;
@@ -14,11 +19,22 @@ function errorMessage(error, fallback) {
   return error.response?.data?.error || fallback;
 }
 
+async function loadComparisonUploads(vehicleId, trips, month, monthUploads = []) {
+  const dateRange = getDieselVerificationDateRange(trips, month, monthUploads);
+  if (!dateRange) return monthUploads;
+  const response = await api.listDieselVerifications({ vehicleId, ...dateRange });
+  const uploadsById = new Map(
+    [...monthUploads, ...(response.data.uploads || [])].map((upload) => [upload._id, upload])
+  );
+  return [...uploadsById.values()];
+}
+
 export default function DieselVerificationSection({ vehicles, loading: vehiclesLoading }) {
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
   const [month, setMonth] = useState(currentMonth);
   const [file, setFile] = useState(null);
   const [uploads, setUploads] = useState([]);
+  const [comparisonUploads, setComparisonUploads] = useState([]);
   const [trips, setTrips] = useState([]);
   const [dataLoading, setDataLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -49,6 +65,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
   useEffect(() => {
     if (!vehicleId || !month) {
       setUploads([]);
+      setComparisonUploads([]);
       setTrips([]);
       return undefined;
     }
@@ -56,6 +73,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
     let active = true;
     let requestInFlight = false;
     setUploads([]);
+    setComparisonUploads([]);
     setTrips([]);
 
     async function refreshData(initialLoad = false) {
@@ -71,9 +89,13 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
           api.listDieselVerifications({ vehicleId, month }),
           api.listTripsForVehicle(vehicleId),
         ]);
+        const nextTrips = tripResponse.data.trips || [];
+        const monthUploads = uploadResponse.data.uploads || [];
+        const nextComparisonUploads = await loadComparisonUploads(vehicleId, nextTrips, month, monthUploads);
         if (active) {
-          setUploads(uploadResponse.data.uploads || []);
-          setTrips(tripResponse.data.trips || []);
+          setUploads(monthUploads);
+          setComparisonUploads(nextComparisonUploads);
+          setTrips(nextTrips);
           setError('');
         }
       } catch (requestError) {
@@ -99,7 +121,10 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
     };
   }, [vehicleId, month]);
 
-  const rows = useMemo(() => buildDieselVerificationRows(trips, month, uploads), [trips, month, uploads]);
+  const rows = useMemo(
+    () => buildDieselVerificationRows(trips, month, comparisonUploads),
+    [trips, month, comparisonUploads]
+  );
 
   async function handleUpload(event) {
     event.preventDefault();
@@ -113,8 +138,11 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
       clearSelectedFile();
       setMessage('Monthly diesel statement uploaded.');
       try {
-        const response = await api.listDieselVerifications({ vehicleId, month });
-        setUploads(response.data.uploads || []);
+        const uploadResponse = await api.listDieselVerifications({ vehicleId, month });
+        const monthUploads = uploadResponse.data.uploads || [];
+        const nextComparisonUploads = await loadComparisonUploads(vehicleId, trips, month, monthUploads);
+        setUploads(monthUploads);
+        setComparisonUploads(nextComparisonUploads);
       } catch (refreshError) {
         setError(`The statement was uploaded, but its list could not be refreshed: ${errorMessage(refreshError, 'Request failed')}`);
       }
@@ -154,6 +182,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
     try {
       await api.deleteDieselVerification(upload._id);
       setUploads((current) => current.filter((entry) => entry._id !== upload._id));
+      setComparisonUploads((current) => current.filter((entry) => entry._id !== upload._id));
       setMessage('Diesel statement deleted.');
     } catch (deleteError) {
       setError(errorMessage(deleteError, 'Failed to delete diesel statement'));
@@ -271,20 +300,24 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
           )}
 
           <h4 style={{ margin: '0 0 8px' }}>Trip comparison — {selectedVehicle?.vehicleNumber}</h4>
-          <small>Trip and statement data refresh automatically every 30 seconds while this page is open.</small>
+          <small>
+            Diesel from document is summed from the previous trip&apos;s Load Turn date through this trip&apos;s Load Turn date.
+            Trip and statement data refresh automatically every 30 seconds while this page is open.
+          </small>
           {dataLoading ? <p>Loading trips and statements...</p> : rows.length === 0 ? (
             <p style={{ color: '#666' }}>No trips found for this vehicle in {month}.</p>
           ) : (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', minWidth: 820, borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', minWidth: 940, borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
                     <th style={cellStyle}>S.No</th>
                     <th style={cellStyle}>Loading</th>
+                    <th style={cellStyle}>Load Weight (tons)</th>
                     <th style={cellStyle}>Unloading</th>
                     <th style={cellStyle}>Unloading Date</th>
                     <th style={cellStyle}>Diesel added in trip</th>
-                    <th style={cellStyle}>Diesel from ID</th>
+                    <th style={cellStyle}>Diesel from Document</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -292,10 +325,13 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                     <tr key={row.id}>
                       <td style={cellStyle}>{index + 1}</td>
                       <td style={cellStyle}>{row.loading || '—'}</td>
+                      <td style={cellStyle}>{row.loadingWeightTons == null
+                        ? '—'
+                        : `${Number(row.loadingWeightTons).toLocaleString('en-IN', { maximumFractionDigits: 2 })} t`}</td>
                       <td style={cellStyle}>{row.unloading || '—'}</td>
                       <td style={cellStyle}>{formatVerificationDate(row.unloadingDate)}</td>
                       <td style={cellStyle}>{formatVerificationLitres(row.tripDiesel)}</td>
-                      <td style={cellStyle}>{formatVerificationLitres(row.dieselFromId)}</td>
+                      <td style={cellStyle}>{formatVerificationLitres(row.dieselFromDocument)}</td>
                     </tr>
                   ))}
                 </tbody>

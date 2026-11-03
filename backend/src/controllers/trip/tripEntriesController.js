@@ -1,5 +1,4 @@
 // Trip entry handlers: driver advances, diesel fills, RTO expenses, other expenses.
-const Vehicle = require('../../models/Vehicle');
 const { saveUploadedFile } = require('../../middleware/upload');
 const {
   validateEntryDate,
@@ -8,6 +7,7 @@ const {
   dieselEntryError,
   tryCloseVehiclePreviousTrip,
   refreshRelatedSettlements,
+  refreshVehicleLastKnownOdometer,
   getOpenTripOr404,
 } = require('./tripHelpers');
 
@@ -119,9 +119,7 @@ async function addDieselEntry(req, res) {
   });
   await trip.save();
 
-  if (odometer != null) {
-    await Vehicle.findByIdAndUpdate(trip.vehicle, { lastKnownOdometer: odometer });
-  }
+  if (odometer != null) await refreshVehicleLastKnownOdometer(trip.vehicle);
 
   // This diesel fill might be the FIRST fill of a brand-new trip, which is
   // exactly the event that closes the vehicle's previous open trip. Try to
@@ -174,11 +172,8 @@ async function updateDieselEntry(req, res) {
     entry.filledAt = filledAt;
   }
   await trip.save();
+  await refreshVehicleLastKnownOdometer(trip.vehicle);
   await refreshRelatedSettlements(trip);
-
-  if (odometerKm != null) {
-    await Vehicle.findByIdAndUpdate(trip.vehicle, { lastKnownOdometer: Number(odometerKm) });
-  }
 
   res.json({ trip });
 }
@@ -194,6 +189,7 @@ async function deleteDieselEntry(req, res) {
 
   trip.dieselEntries.splice(index, 1);
   await trip.save();
+  await refreshVehicleLastKnownOdometer(trip.vehicle);
   await refreshRelatedSettlements(trip);
   res.json({ trip });
 }

@@ -7,6 +7,8 @@ const { parseDieselRecords } = require('../utils/dieselVerification');
 const EXCEL_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const CSV_CONTENT_TYPE = 'text/csv';
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const RECORDS_PARSER_VERSION = 1;
 
 function safeFileName(value) {
   return String(value || 'diesel-report')
@@ -37,6 +39,7 @@ function contentDispositionFileName(value) {
 function publicUpload(upload) {
   const result = upload.toObject();
   delete result.fileData;
+  delete result.recordsParserVersion;
   return result;
 }
 
@@ -44,7 +47,7 @@ async function getAuthorizedVehicle(user, vehicleId) {
   if (!mongoose.Types.ObjectId.isValid(vehicleId)) {
     return { error: { status: 400, message: 'A valid vehicleId is required' } };
   }
-  const vehicle = await Vehicle.findById(vehicleId).select('_id customer');
+  const vehicle = await Vehicle.findById(vehicleId).select('_id customer vehicleNumber');
   if (!vehicle) return { error: { status: 404, message: 'Vehicle not found' } };
   if (user.role === ROLES.CUSTOMER_ADMIN && String(vehicle.customer) !== String(user.customer)) {
     return { error: { status: 403, message: 'Vehicle does not belong to your account' } };
@@ -52,15 +55,64 @@ async function getAuthorizedVehicle(user, vehicleId) {
   return { vehicle };
 }
 
+async function reprocessLegacyUploads(vehicle, month) {
+  const filter = {
+    vehicle: vehicle._id,
+    $or: [
+      { recordsParserVersion: { $lt: RECORDS_PARSER_VERSION } },
+      { recordsParserVersion: { $exists: false } },
+    ],
+  };
+  if (month) filter.month = month;
+
+  const uploads = await DieselVerification.find(filter)
+    .select('+fileData')
+    .sort({ createdAt: 1, _id: 1 });
+  for (const upload of uploads) {
+    const format = upload.contentType === 'application/pdf'
+      ? 'pdf'
+      : upload.contentType === CSV_CONTENT_TYPE ? 'csv' : 'xlsx';
+    upload.dieselRecords = await parseDieselRecords(
+      upload.fileData,
+      format,
+      vehicle.vehicleNumber
+    );
+    upload.recordsParserVersion = RECORDS_PARSER_VERSION;
+    await upload.save();
+  }
+}
+
 async function listDieselVerifications(req, res) {
-  const { vehicleId, month } = req.query;
-  if (!vehicleId || !MONTH_PATTERN.test(String(month || ''))) {
-    return res.status(400).json({ error: 'vehicleId and a valid month (YYYY-MM) are required' });
+  const { vehicleId, month, fromDate, toDate } = req.query;
+  const hasDateRange = fromDate != null || toDate != null;
+  if (!vehicleId || (hasDateRange
+    ? !DATE_PATTERN.test(String(fromDate || '')) || !DATE_PATTERN.test(String(toDate || ''))
+    : !MONTH_PATTERN.test(String(month || '')))) {
+    return res.status(400).json({ error: 'vehicleId and either a valid month (YYYY-MM) or date range (fromDate and toDate) are required' });
+  }
+  const filter = { vehicle: vehicleId };
+  if (hasDateRange) {
+    const start = new Date(`${fromDate}T00:00:00.000Z`);
+    const end = new Date(`${toDate}T00:00:00.000Z`);
+    if (
+      Number.isNaN(start.getTime())
+      || Number.isNaN(end.getTime())
+      || start.toISOString().slice(0, 10) !== fromDate
+      || end.toISOString().slice(0, 10) !== toDate
+      || start > end
+    ) {
+      return res.status(400).json({ error: 'fromDate and toDate must be valid dates with fromDate on or before toDate' });
+    }
+    filter.dieselRecords = { $elemMatch: { date: { $gte: start, $lte: end } } };
+  } else {
+    filter.month = month;
   }
   const { vehicle, error } = await getAuthorizedVehicle(req.user, vehicleId);
   if (error) return res.status(error.status).json({ error: error.message });
 
-  const uploads = await DieselVerification.find({ vehicle: vehicle._id, month })
+  filter.vehicle = vehicle._id;
+  await reprocessLegacyUploads(vehicle, hasDateRange ? undefined : month);
+  const uploads = await DieselVerification.find(filter)
     .sort({ createdAt: 1, _id: 1 });
   res.json({ uploads: uploads.map(publicUpload) });
 }
@@ -81,21 +133,21 @@ async function createDieselVerification(req, res) {
   if (extension === 'pdf' && req.file.buffer.subarray(0, 5).toString('ascii') === '%PDF-') {
     contentType = 'application/pdf';
     try {
-      dieselRecords = await parseDieselRecords(req.file.buffer, 'pdf');
+      dieselRecords = await parseDieselRecords(req.file.buffer, 'pdf', vehicle.vehicleNumber);
     } catch (parseError) {
       return res.status(400).json({ error: parseError.message || 'The PDF could not be read' });
     }
   } else if (extension === 'xlsx' && req.file.buffer.subarray(0, 2).toString('ascii') === 'PK') {
     contentType = EXCEL_CONTENT_TYPE;
     try {
-      dieselRecords = await parseDieselRecords(req.file.buffer);
+      dieselRecords = await parseDieselRecords(req.file.buffer, 'xlsx', vehicle.vehicleNumber);
     } catch (parseError) {
       return res.status(400).json({ error: parseError.message || 'The Excel workbook could not be read' });
     }
   } else if (extension === 'csv') {
     contentType = CSV_CONTENT_TYPE;
     try {
-      dieselRecords = await parseDieselRecords(req.file.buffer, 'csv');
+      dieselRecords = await parseDieselRecords(req.file.buffer, 'csv', vehicle.vehicleNumber);
     } catch (parseError) {
       return res.status(400).json({ error: parseError.message || 'The CSV file could not be read' });
     }
@@ -111,6 +163,7 @@ async function createDieselVerification(req, res) {
     contentType,
     fileData: req.file.buffer,
     dieselRecords,
+    recordsParserVersion: RECORDS_PARSER_VERSION,
     uploadedBy: req.user.id,
   });
   res.status(201).json({ upload: publicUpload(upload) });

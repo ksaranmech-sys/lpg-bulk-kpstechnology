@@ -117,7 +117,8 @@ export default function VehicleMaintenance({ vehicle, onVehicleUpdated }) {
       </h3>
       <p style={{ color: '#666', marginTop: -4 }}>
         Enter the odometer reading when each component was serviced and its expected service interval.
-        Till now KM is calculated from the vehicle&apos;s latest odometer.
+        Starting a trip without an odometer is fine; diesel-fill odometer readings update the vehicle&apos;s
+        latest odometer used to calculate Till now KM.
       </p>
       <form onSubmit={saveMaintenance}>
         <div style={{ overflowX: 'auto' }}>

@@ -13,25 +13,86 @@ function dateKey(value) {
   return date ? Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) : null;
 }
 
+function orderedTrips(trips) {
+  return [...trips].sort((a, b) => {
+    const loadingDateDifference = (dateKey(a.loadingDate) ?? Number.MAX_SAFE_INTEGER)
+      - (dateKey(b.loadingDate) ?? Number.MAX_SAFE_INTEGER);
+    return loadingDateDifference
+      || new Date(a.createdAt || a.loadingDate || 0).getTime()
+        - new Date(b.createdAt || b.loadingDate || 0).getTime();
+  });
+}
+
+function tripDocumentIntervals(trips, month, dieselRecords = []) {
+  const sortedTrips = orderedTrips(trips);
+  const statementDates = dieselRecords.map((record) => dateKey(record.date))
+    .filter((date) => date != null);
+  const earliestStatementDate = statementDates.length ? Math.min(...statementDates) : null;
+  return sortedTrips
+    .map((trip, index) => {
+      if (monthOf(trip.loadingDate) !== month) return null;
+      const previousTurnDate = index === 0
+        ? earliestStatementDate
+        : dateKey(sortedTrips[index - 1].turnDate);
+      const currentTurnDate = dateKey(trip.turnDate);
+      if (previousTurnDate == null || currentTurnDate == null || currentTurnDate < previousTurnDate) return null;
+      return { trip, previousTurnDate, currentTurnDate };
+    })
+    .filter(Boolean);
+}
+
+export function getDieselVerificationDateRange(trips, month, uploads = []) {
+  const dieselRecords = uploads.flatMap((upload) => upload.dieselRecords || []);
+  const intervals = tripDocumentIntervals(trips, month, dieselRecords);
+  if (!intervals.length) return null;
+  const fromDate = Math.min(...intervals.map((interval) => interval.previousTurnDate));
+  const toDate = Math.max(...intervals.map((interval) => interval.currentTurnDate));
+  return {
+    fromDate: new Date(fromDate).toISOString().slice(0, 10),
+    toDate: new Date(toDate).toISOString().slice(0, 10),
+  };
+}
+
 export function buildDieselVerificationRows(trips, month, uploads) {
   const dieselRecords = uploads.flatMap((upload) => upload.dieselRecords || []);
+  const intervalsByTrip = new Map(
+    tripDocumentIntervals(trips, month, dieselRecords).map((interval) => [interval.trip._id, interval])
+  );
+  const countedStatementDates = new Set();
+  const countedStatementTransactions = new Set();
 
   return trips
     .filter((trip) => monthOf(trip.loadingDate) === month)
     .sort((a, b) => (
       dateKey(a.loadingDate) - dateKey(b.loadingDate)
-      || new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      || new Date(a.createdAt || a.loadingDate || 0).getTime()
+        - new Date(b.createdAt || b.loadingDate || 0).getTime()
     ))
     .map((trip) => {
-      const startDate = dateKey(trip.loadingDate);
-      const endDate = dateKey(trip.turnDate || trip.unloadingDate);
-      const dieselFromId = startDate != null && endDate != null && dieselRecords.length
-        ? dieselRecords.reduce((sum, record) => {
+      const interval = intervalsByTrip.get(trip._id);
+      const matchingRecords = interval
+        ? dieselRecords.filter((record) => {
           const recordDate = dateKey(record.date);
-          return recordDate != null && recordDate >= startDate && recordDate <= endDate
-            ? sum + (Number(record.litres) || 0)
-            : sum;
-        }, 0)
+          const transactionKey = recordDate == null
+            ? ''
+            : `${recordDate}:${Number(record.litres)}`;
+          if (
+            recordDate == null
+            || recordDate < interval.previousTurnDate
+            || recordDate > interval.currentTurnDate
+            || countedStatementDates.has(recordDate)
+            || countedStatementTransactions.has(transactionKey)
+          ) return false;
+          countedStatementTransactions.add(transactionKey);
+          return true;
+        })
+        : [];
+      matchingRecords.forEach((record) => {
+        const recordDate = dateKey(record.date);
+        countedStatementDates.add(recordDate);
+      });
+      const dieselFromDocument = matchingRecords.length
+        ? matchingRecords.reduce((sum, record) => sum + (Number(record.litres) || 0), 0)
         : null;
       const dieselEntries = Array.isArray(trip.dieselEntries) ? trip.dieselEntries : [];
       const dieselAdded = dieselEntries.length
@@ -44,10 +105,11 @@ export function buildDieselVerificationRows(trips, month, uploads) {
       return {
         id: trip._id,
         loading: trip.loadingLocation || '',
+        loadingWeightTons: trip.loadingWeightTons ?? null,
         unloading: trip.unloadingLocation || '',
         unloadingDate: trip.unloadingDate || null,
         tripDiesel: dieselAdded,
-        dieselFromId,
+        dieselFromDocument,
       };
     });
 }

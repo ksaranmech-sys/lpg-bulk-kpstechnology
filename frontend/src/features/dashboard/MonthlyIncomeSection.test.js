@@ -20,6 +20,7 @@ const row = (overrides) => ({
   leg: 'load',
   month: '2026-09',
   loadingDate: '2026-09-05T03:00:00Z',
+  loadingWeightTons: 18,
   unloadingDate: '2026-09-07T03:00:00Z',
   status: 'closed',
   corporation: 'IOC-KA',
@@ -147,12 +148,12 @@ test('shows last month by default, split by vehicle corporation then route state
 
   const headers = Array.from(ka.querySelectorAll('thead th')).map((th) => th.textContent);
   expect(headers).toEqual([
-    'S.No', 'Vehicle Number', 'Loading location', 'Unloading location', 'Loading date', 'Unloading date', 'Trip Income',
+    'S.No', 'Vehicle Number', 'Loading location', 'Unloading location', 'Loading date', 'Load weight (tons)', 'Unloading date', 'Trip Income',
     'Shortage', 'TDS', 'Diesel', 'Amount',
   ]);
   expect(ka.querySelector('thead').textContent).not.toMatch(/loss above 40|trip income x|\(trip income - tds\)/i);
   const kaRows = Array.from(ka.querySelectorAll('tbody tr')).map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.textContent));
-  expect(kaRows[0]).toEqual(['1', 'KA01AA0001', 'AEGIS, Mangalore', 'Belgaum', '05 Sept 2026', '07 Sept 2026', '10,000.00', '100.00', '200.00', '3,920.00', '5,780.00']);
+  expect(kaRows[0]).toEqual(['1', 'KA01AA0001', 'AEGIS, Mangalore', 'Belgaum', '05 Sept 2026', '18 t', '07 Sept 2026', '10,000.00', '100.00', '200.00', '3,920.00', '5,780.00']);
   expect(kaRows[1]).toEqual(['₹Total KA', '10,001', '100', '201', '3,921', '5,780']);
   expect(kaRows[1].slice(1).join('')).not.toContain('₹');
   expect(ka.querySelector('tbody tr td a').getAttribute('href')).toBe('/trips/t1');
@@ -166,8 +167,10 @@ test('shows last month by default, split by vehicle corporation then route state
   expect(divertCells[1]).toBe('TN01BB0002');
   expect(divertCells[2]).toBe('Chengalpattu');
   expect(divertCells[3]).toBe('SalemDivert (new unloading)');
-  expect(divertCells[5]).toBe('12 Sept 2026');
-  expect(divertCells[6]).toBe('5,000.00');
+  expect(divertCells[4]).toBe('05 Sept 2026');
+  expect(divertCells[5]).toBe('18 t');
+  expect(divertCells[6]).toBe('12 Sept 2026');
+  expect(divertCells[7]).toBe('5,000.00');
   const openRow = Array.from(tn.querySelectorAll('tbody tr')).find((tr) => tr.textContent.includes('TN01BB0001'));
   expect(openRow.querySelector('td:nth-child(2)').textContent).toContain('Open');
   await unmount();

@@ -24,10 +24,16 @@ function parseDate(value) {
     return new Date(Date.UTC(1899, 11, 30) + Math.round(value) * 86400000);
   }
   const text = String(value || '').trim();
-  const localDate = text.match(/^(\d{1,2})[/. -](\d{1,2})[/. -](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?$/i);
+  const isoDate = text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T]\d{1,2}:\d{2}(?::\d{2})?\s*(AM|PM)?)?$/i);
+  if (isoDate) {
+    const [, yearText, monthText, dayText] = isoDate;
+    return buildUtcDate(Number(yearText), Number(monthText) - 1, Number(dayText));
+  }
+  const localDate = text.match(/^(\d{1,2})[/. -](\d{1,2})[/. -](\d{2,4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?$/i);
   if (localDate) {
     const [, dayText, monthText, yearText] = localDate;
-    return buildUtcDate(Number(yearText), Number(monthText) - 1, Number(dayText));
+    const year = Number(yearText.length === 2 ? `20${yearText}` : yearText);
+    return buildUtcDate(year, Number(monthText) - 1, Number(dayText));
   }
   const namedMonthDate = text.match(/^(\d{1,2})[- /]([a-z]{3,})[- /](\d{2,4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)?)?$/i);
   if (namedMonthDate) {
@@ -49,12 +55,17 @@ function getCellValue(cell) {
     : value;
 }
 
+function normalizeVehicleNumber(value) {
+  return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
 function findHeader(worksheet, allowCsvHeaders = false) {
   const maxRow = Math.min(worksheet.rowCount, 20);
   for (let rowNumber = 1; rowNumber <= maxRow; rowNumber += 1) {
     const row = worksheet.getRow(rowNumber);
     let dateColumn = 0;
     let litresColumn = 0;
+    let vehicleColumn = 0;
     row.eachCell({ includeEmpty: false }, (cell, columnNumber) => {
       const header = normalizeHeader(getCellValue(cell));
       if (
@@ -79,30 +90,38 @@ function findHeader(worksheet, allowCsvHeaders = false) {
           || (header.includes('diesel') && /(litre|liter|ltr|qty|quantity|volume)/.test(header))
         ))
       ) litresColumn = columnNumber;
+      if (['vehicle', 'vehiclenumber', 'registrationnumber', 'trucknumber'].includes(header)) {
+        vehicleColumn = columnNumber;
+      }
     });
-    if (dateColumn && litresColumn) return { rowNumber, dateColumn, litresColumn };
+    if (dateColumn && litresColumn) return { rowNumber, dateColumn, litresColumn, vehicleColumn };
   }
   return null;
 }
 
-function parseWorksheetRecords(worksheet, allowCsvHeaders = false) {
+function parseWorksheetRecords(worksheet, allowCsvHeaders = false, targetVehicleNumber = '') {
   const records = [];
   const header = findHeader(worksheet, allowCsvHeaders);
   if (!header) return { foundHeaders: false, records };
+  const normalizedTargetVehicle = normalizeVehicleNumber(targetVehicleNumber);
 
   for (let rowNumber = header.rowNumber + 1; rowNumber <= worksheet.rowCount; rowNumber += 1) {
     const row = worksheet.getRow(rowNumber);
     const dateValue = getCellValue(row.getCell(header.dateColumn));
     const litresValue = getCellValue(row.getCell(header.litresColumn));
+    const rowVehicleNumber = header.vehicleColumn
+      ? normalizeVehicleNumber(getCellValue(row.getCell(header.vehicleColumn)))
+      : '';
     if ((dateValue == null || dateValue === '') && (litresValue == null || litresValue === '')) continue;
+    if (normalizedTargetVehicle && rowVehicleNumber && rowVehicleNumber !== normalizedTargetVehicle) continue;
 
     const date = parseDate(dateValue);
+    if (!date) continue;
     if (litresValue == null || String(litresValue).trim() === '') {
       throw new Error(`Row ${rowNumber} in "${worksheet.name}" needs a non-negative Diesel (litres) value.`);
     }
     const litresText = typeof litresValue === 'string' ? litresValue.replace(/,/g, '').trim() : litresValue;
     const litres = Number(litresText);
-    if (!date) throw new Error(`Row ${rowNumber} in "${worksheet.name}" needs a valid Date.`);
     if (!Number.isFinite(litres) || litres < 0) {
       throw new Error(`Row ${rowNumber} in "${worksheet.name}" needs a non-negative Diesel (litres) value.`);
     }
@@ -111,7 +130,7 @@ function parseWorksheetRecords(worksheet, allowCsvHeaders = false) {
   return { foundHeaders: true, records };
 }
 
-async function parseDieselRecords(buffer, format = 'xlsx') {
+async function parseDieselRecords(buffer, format = 'xlsx', targetVehicleNumber = '') {
   if (format === 'pdf') {
     const parser = new PDFParse({ data: buffer });
     let text;
@@ -133,6 +152,8 @@ async function parseDieselRecords(buffer, format = 'xlsx') {
 
     const datePattern = /\b(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{1,2}[- ](?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[- ]\d{2,4})(?:[ T]\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)?/i;
     const numberPattern = /-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/g;
+    const dieselVolumePattern = /DIESEL\s*,?\s*CCMS\s+[\d,]+(?:\.\d+)?\s+([\d,]+(?:\.\d+)?)/i;
+    const normalizedTargetVehicle = normalizeVehicleNumber(targetVehicleNumber);
     const records = [];
 
     lines.forEach((line, index) => {
@@ -141,9 +162,21 @@ async function parseDieselRecords(buffer, format = 'xlsx') {
       if (!dateMatch) return;
 
       const date = parseDate(dateMatch[0]);
-      const values = [...line.slice(dateMatch.index + dateMatch[0].length).matchAll(numberPattern)];
-      const litresText = values.at(-1)?.[0];
-      if (!date) throw new Error(`PDF row ${index + 1} needs a valid Date.`);
+      if (!date) return;
+      if (normalizedTargetVehicle && !normalizeVehicleNumber(line).includes(normalizedTargetVehicle)) return;
+
+      const transactionLines = [line];
+      for (let nextIndex = index + 1; nextIndex < Math.min(lines.length, index + 6); nextIndex += 1) {
+        if (datePattern.test(lines[nextIndex]) || /^\d+\s+\d{10}\b/.test(lines[nextIndex])) break;
+        transactionLines.push(lines[nextIndex]);
+      }
+      const transactionText = transactionLines.join(' ');
+      const dieselMatch = transactionText.match(dieselVolumePattern);
+      let litresText = dieselMatch?.[1];
+      if (litresText == null && !normalizedTargetVehicle) {
+        const values = [...line.slice(dateMatch.index + dateMatch[0].length).matchAll(numberPattern)];
+        litresText = values.at(-1)?.[0];
+      }
       if (litresText == null) return;
 
       const litres = Number(litresText.replace(/,/g, ''));
@@ -160,9 +193,10 @@ async function parseDieselRecords(buffer, format = 'xlsx') {
   const workbook = new ExcelJS.Workbook();
   if (format === 'csv') {
     const worksheet = await workbook.csv.read(Readable.from([buffer]), {
+      dateFormats: [],
       parserOptions: { delimiter: ',', ignoreEmpty: true, trim: true },
     });
-    const result = parseWorksheetRecords(worksheet, true);
+    const result = parseWorksheetRecords(worksheet, true, targetVehicleNumber);
     if (!result.foundHeaders) {
       throw new Error('The CSV must contain columns named "Date" and "Diesel (litres)".');
     }
@@ -176,7 +210,7 @@ async function parseDieselRecords(buffer, format = 'xlsx') {
   let hasExpectedHeaders = false;
 
   workbook.worksheets.forEach((worksheet) => {
-    const result = parseWorksheetRecords(worksheet);
+    const result = parseWorksheetRecords(worksheet, false, targetVehicleNumber);
     hasExpectedHeaders ||= result.foundHeaders;
     records.push(...result.records);
   });

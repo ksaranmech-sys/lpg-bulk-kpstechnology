@@ -7,57 +7,28 @@ export default function Layout({ children }) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [vehicleId, setVehicleId] = useState('');
-  const [vehicleOdometer, setVehicleOdometer] = useState('');
-  const [startOdometerKm, setStartOdometerKm] = useState('');
   const [startingTrip, setStartingTrip] = useState(false);
-  const [showStartTripForm, setShowStartTripForm] = useState(false);
   const [startTripError, setStartTripError] = useState('');
 
   useEffect(() => {
     if (user?.role !== 'vehicle_user') {
       setVehicleId('');
-      setVehicleOdometer('');
       return;
     }
     api.listVehicles()
       .then((res) => {
         const vehicle = res.data.vehicles?.[0];
         setVehicleId(vehicle?._id || '');
-        setVehicleOdometer(vehicle?.lastKnownOdometer == null ? '' : String(vehicle.lastKnownOdometer));
       })
       .catch(() => setVehicleId(''));
   }, [user]);
 
-  async function openStartTripForm() {
-    setStartOdometerKm(vehicleOdometer);
-    setStartTripError('');
-    setShowStartTripForm(true);
-    try {
-      const res = await api.getVehicle(vehicleId);
-      const currentOdometer = res.data.vehicle.lastKnownOdometer == null
-        ? ''
-        : String(res.data.vehicle.lastKnownOdometer);
-      setVehicleOdometer(currentOdometer);
-      setStartOdometerKm(currentOdometer);
-    } catch (err) {
-      setStartTripError(err.response?.data?.error || 'Failed to load the latest odometer reading');
-    }
-  }
-
-  async function startTrip(event) {
-    event.preventDefault();
-    const hasOdometer = startOdometerKm !== '';
-    if (!vehicleId || (hasOdometer && (!Number.isFinite(Number(startOdometerKm)) || Number(startOdometerKm) < 0))) {
-      setStartTripError('Enter a valid non-negative odometer reading.');
-      return;
-    }
+  async function startTrip() {
+    if (!vehicleId || startingTrip) return;
     setStartingTrip(true);
     setStartTripError('');
     try {
-      const res = await api.createTrip(vehicleId, hasOdometer
-        ? { startOdometerKm: Number(startOdometerKm) }
-        : {});
-      setShowStartTripForm(false);
+      const res = await api.createTrip(vehicleId, {});
       navigate(`/trips/${res.data.trip._id}`);
     } catch (err) {
       setStartTripError(err.response?.data?.error || 'Unable to start a trip. Please try again.');
@@ -88,10 +59,10 @@ export default function Layout({ children }) {
             <button
               className="btn secondary"
               style={{ color: 'white', borderColor: 'rgba(255,255,255,0.4)' }}
-              onClick={openStartTripForm}
+              onClick={startTrip}
               disabled={!vehicleId || startingTrip}
             >
-              Start Trip
+              {startingTrip ? 'Starting...' : 'Start Trip'}
             </button>
           )}
           {user && (
@@ -102,51 +73,6 @@ export default function Layout({ children }) {
         </div>
       </div>
       {startTripError && <div className="error-text" style={{ margin: '12px 24px 0' }}>{startTripError}</div>}
-      {showStartTripForm && (
-        <div
-          role="presentation"
-          onClick={(event) => { if (event.target === event.currentTarget) setShowStartTripForm(false); }}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 1000,
-            display: 'grid',
-            placeItems: 'center',
-            padding: 16,
-            background: 'rgba(0, 0, 0, 0.45)',
-          }}
-        >
-          <form
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="start-trip-title"
-            className="card"
-            onSubmit={startTrip}
-            style={{ width: 'min(100%, 440px)', margin: 0 }}
-          >
-            <h2 id="start-trip-title" className="section-title" style={{ marginTop: 0 }}>Start Trip</h2>
-            <div className="field">
-              <label htmlFor="start-trip-odometer">Starting Odometer (km, optional)</label>
-              <input
-                id="start-trip-odometer"
-                type="number"
-                min="0"
-                step="1"
-                value={startOdometerKm}
-                onChange={(event) => setStartOdometerKm(event.target.value)}
-                autoFocus
-              />
-            </div>
-            {startTripError && <p className="error-text">{startTripError}</p>}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button type="button" className="btn secondary" onClick={() => setShowStartTripForm(false)}>Cancel</button>
-              <button type="submit" className="btn" disabled={startingTrip}>
-                {startingTrip ? 'Starting...' : 'Confirm Start'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
       <div className="container">{children}</div>
     </div>
   );

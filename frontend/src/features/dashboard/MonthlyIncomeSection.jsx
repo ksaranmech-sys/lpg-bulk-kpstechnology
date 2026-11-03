@@ -45,9 +45,9 @@ function IncomeTable({ vehicleCorporation, group }) {
         <span style={{ fontWeight: 400, color: '#4b5f52', fontSize: 12 }}> - {totals.trips} unloading{totals.trips === 1 ? '' : 's'}</span>
       </h6>
       <div style={{ overflowX: 'auto' }}>
-        <table className="trip-km-table" style={{ width: '100%', minWidth: 1000, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+        <table className="trip-km-table" style={{ width: '100%', minWidth: 1100, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <colgroup>
-            {[4, 10, 12, 12, 10, 10, 11, 7, 7, 8, 9].map((width, index) => (
+            {[4, 9, 11, 11, 9, 9, 8, 10, 7, 7, 7, 8].map((width, index) => (
               <col key={index} style={{ width: `${width}%` }} />
             ))}
           </colgroup>
@@ -58,6 +58,7 @@ function IncomeTable({ vehicleCorporation, group }) {
               <th style={head}>Loading location</th>
               <th style={head}>Unloading location</th>
               <th style={head}>Loading date</th>
+              <th style={head}>Load weight (tons)</th>
               <th style={head}>Unloading date</th>
               <th style={{ ...right, fontSize: 12 }}>Trip Income</th>
               <th style={{ ...right, fontSize: 12 }}>Shortage</th>
@@ -84,6 +85,9 @@ function IncomeTable({ vehicleCorporation, group }) {
                   {row.leg === 'divert' && <div style={{ fontSize: 11, color: '#4b5f52' }}>Divert (new unloading)</div>}
                 </td>
                 <td style={cell}>{row.loadingDate ? formatDateLong(row.loadingDate) : '-'}</td>
+                <td style={cell}>{Number.isFinite(row.loadingWeightTons)
+                  ? `${new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(row.loadingWeightTons)} t`
+                  : '-'}</td>
                 <td style={cell}>{row.unloadingDate ? formatDateLong(row.unloadingDate) : '-'}</td>
                 <td className="num" style={right}>
                   {formatMoneyNumber(row.tripIncome)}
@@ -98,7 +102,7 @@ function IncomeTable({ vehicleCorporation, group }) {
               </tr>
             ))}
             <tr>
-              <td style={{ ...right, fontWeight: 700 }} colSpan={6}>
+              <td style={{ ...right, fontWeight: 700 }} colSpan={7}>
                 ₹Total {group.state}
                 {totals.pricedTrips < totals.trips && (
                   <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>{totals.trips - totals.pricedTrips} unloading(s) without income not included</div>

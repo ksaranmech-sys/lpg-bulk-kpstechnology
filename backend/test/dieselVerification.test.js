@@ -37,6 +37,38 @@ test('parses selectable-text PDF diesel statements', async () => {
   ]);
 });
 
+test('parses ISO year-first dates in selectable-text PDF diesel statements', async () => {
+  const buffer = await pdfBuffer([
+    'Transaction Date        Diesel Quantity (L)',
+    '2026-10-20        18.75',
+    '2026/10/21        25.5',
+    '22/10/26        30',
+  ]);
+
+  const records = await parseDieselRecords(buffer, 'pdf');
+  assert.deepEqual(records, [
+    { date: new Date('2026-10-20T00:00:00.000Z'), litres: 18.75 },
+    { date: new Date('2026-10-21T00:00:00.000Z'), litres: 25.5 },
+    { date: new Date('2026-10-22T00:00:00.000Z'), litres: 30 },
+  ]);
+});
+
+test('parses multi-line PDF diesel transactions for the selected vehicle only', async () => {
+  const buffer = await pdfBuffer([
+    'Transaction Date Vehicle No Diesel Quantity',
+    '7135016158340033 KA01AH6269 1408744200 29/10/2026',
+    "07:38:40 Sale 'DIESEL, CCMS 98.00 301.87 29583.00",
+    '29/10/2026 07:38:13 - 0 Offline',
+    '10 4000400001 OTHER VEHICLE 7135016158999999',
+    '7135016158999999 1408744201 29/10/2026',
+    "08:00:00 Sale 'DIESEL, CCMS 100.00 500.00 50000.00",
+  ]);
+
+  assert.deepEqual(await parseDieselRecords(buffer, 'pdf', 'KA01AH6269'), [
+    { date: new Date('2026-10-29T00:00:00.000Z'), litres: 301.87 },
+  ]);
+});
+
 test('parses vendor diesel statement dates and litre values', async () => {
   const buffer = await workbookBuffer([
     ['Date', 'Diesel (litres)'],
@@ -112,14 +144,24 @@ test('accepts settlement date and quantity aliases in CSV statements', async () 
   ]);
 });
 
-test('reports missing headers and invalid row values', async () => {
+test('skips invalid dates and reports missing headers or invalid litres', async () => {
   await assert.rejects(
     parseDieselRecords(await workbookBuffer([['Date', 'Amount'], ['2026-09-10', 10]])),
     /columns named "Date" and "Diesel \(litres\)"/
   );
+  const validDatedRecords = await parseDieselRecords(await workbookBuffer([
+    ['Date', 'Diesel (litres)'],
+    ['2026-09-10', 10],
+    ['invalid', 200],
+    ['2026-02-30', 300],
+    [null, 400],
+  ]));
+  assert.deepEqual(validDatedRecords, [
+    { date: new Date('2026-09-10T00:00:00.000Z'), litres: 10 },
+  ]);
   await assert.rejects(
     parseDieselRecords(await workbookBuffer([['Date', 'Diesel (litres)'], ['invalid', 10]])),
-    /Row 2.*valid Date/
+    /No dated diesel records were found/
   );
   await assert.rejects(
     parseDieselRecords(await workbookBuffer([['Date', 'Diesel (litres)'], ['2026-09-10', -1]])),
@@ -133,8 +175,16 @@ test('reports missing headers and invalid row values', async () => {
     parseDieselRecords(Buffer.from('Date,Amount\n2026-09-10,10\n'), 'csv'),
     /CSV must contain columns named "Date" and "Diesel \(litres\)"/
   );
+  assert.deepEqual(
+    await parseDieselRecords(Buffer.from('Date,Diesel (litres)\n2026-09-10,10\ninvalid,200\n'), 'csv'),
+    [{ date: new Date('2026-09-10T00:00:00.000Z'), litres: 10 }]
+  );
   await assert.rejects(
     parseDieselRecords(Buffer.from('Date,Diesel (litres)\n2026-09-10,-1\n'), 'csv'),
     /Row 2.*non-negative/
+  );
+  await assert.rejects(
+    parseDieselRecords(Buffer.from('Date,Diesel (litres)\ninvalid,10\n'), 'csv'),
+    /No dated diesel records were found/
   );
 });

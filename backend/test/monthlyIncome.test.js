@@ -202,6 +202,7 @@ test('unloadings are split by vehicle corporation, then by route state, with tot
   assert.equal(ka.rows[0].tripIncome, incomeB);
   assert.equal(ka.rows[1].unloadingDate, trips[0].unloadingDate);
   assert.equal(ka.rows[1].loadingDate, trips[0].loadingDate);
+  assert.equal(ka.rows[1].loadingWeightTons, trips[0].loadingWeightTons);
   assert.deepEqual(ka.totals, {
     trips: 2,
     pricedTrips: 2,

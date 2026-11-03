@@ -145,8 +145,10 @@ app automatically talks to the backend running on your PC (port 5001); set
    first `customer_admin` login.
 3. As the customer admin: add vehicles and drivers from the dashboard /
    customer page (or from the mobile app).
-4. As a driver: **Start Trip**, add advance, loading details, diesel fills
-   (photo + GPS), RTO, unloading, other expenses, then **Trip close**.
+4. As a driver: **Start Trip** (starting odometer is optional), add advance,
+   loading details, diesel fills (photo + GPS and odometer reading), RTO,
+   unloading, other expenses, then **Trip close**. Diesel-fill odometer
+   readings update the vehicle odometer used for maintenance calculations.
 5. Starting the *next* trip and recording its first diesel fill settles the
    previous one automatically.
 

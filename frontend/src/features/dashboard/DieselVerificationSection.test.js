@@ -28,11 +28,18 @@ test('offers vehicle and monthly file selection for diesel verification', async 
   api.listTripsForVehicle.mockResolvedValue({
     data: {
       trips: [{
+        _id: 'previous-trip',
+        createdAt: `${month}-01T00:00:00.000Z`,
+        loadingDate: `${month}-01T00:00:00.000Z`,
+        turnDate: `${month}-01T00:00:00.000Z`,
+      }, {
         _id: 'trip-1',
+        createdAt: `${month}-02T00:00:00.000Z`,
         loadingDate: `${month}-01T00:00:00.000Z`,
         unloadingDate: `${month}-03T00:00:00.000Z`,
         turnDate: `${month}-03T00:00:00.000Z`,
         loadingLocation: 'Loading depot',
+        loadingWeightTons: 17.5,
         unloadingLocation: 'Customer site',
         dieselEntries: [{ volumeLitres: 999 }],
         settlement: { totalDieselLitres: 20 },
@@ -56,8 +63,15 @@ test('offers vehicle and monthly file selection for diesel verification', async 
   expect(container.querySelector('#diesel-verification-file').accept).toContain('.xlsx');
   expect(container.querySelector('#diesel-verification-file').accept).toContain('.csv');
   expect(api.listDieselVerifications).toHaveBeenCalled();
+  expect(api.listDieselVerifications).toHaveBeenCalledWith({
+    vehicleId: 'vehicle-1',
+    fromDate: `${month}-01`,
+    toDate: `${month}-03`,
+  });
   expect(container.textContent).toContain('vendor-statement.xlsx');
   expect(container.textContent).toContain('Loading depot');
+  expect(container.textContent).toContain('Load Weight (tons)');
+  expect(container.textContent).toContain('17.5 t');
   expect(container.textContent).toContain('Customer site');
   expect(container.textContent).toContain('Diesel added in trip');
   expect(container.textContent).toContain('999 L');

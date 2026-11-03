@@ -1,5 +1,6 @@
 // Shared trip helpers: entry-date validation, close-date resolution, access checks, settlement refresh.
 const Trip = require('../../models/Trip');
+const Vehicle = require('../../models/Vehicle');
 const User = require('../../models/User');
 const { computeTripSettlement } = require('../../utils/tripCalculations');
 const { TRIP_STATUS, ROLES, DIESEL_MIN_LITRES, DIESEL_MIN_RATE_PER_LITRE } = require('../../config/constants');
@@ -87,6 +88,25 @@ async function validateOdometerKm(trip, odometerKm) {
     return `Odometer reading must be more than the previous trip's reading (${previousMax} km).`;
   }
   return null;
+}
+
+function getHighestOdometerReading(trips) {
+  const readings = trips.flatMap((trip) => [
+    trip.startOdometerKm,
+    ...(trip.dieselEntries || []).map((entry) => entry.odometerKm),
+  ]).filter((reading) => reading != null && reading !== '')
+    .map(Number)
+    .filter((reading) => Number.isFinite(reading) && reading >= 0);
+  return readings.reduce((highest, reading) => Math.max(highest, reading), null);
+}
+
+async function refreshVehicleLastKnownOdometer(vehicleId) {
+  const trips = await Trip.find({ vehicle: vehicleId })
+  .select('startOdometerKm dieselEntries.odometerKm')
+  .lean();
+  const lastKnownOdometer = getHighestOdometerReading(trips);
+  await Vehicle.findByIdAndUpdate(vehicleId, { lastKnownOdometer });
+  return lastKnownOdometer;
 }
 
 // Loading/unloading location + date are compulsory before a trip can close.
@@ -235,6 +255,8 @@ module.exports = {
   validateEntryDate,
   getPreviousTripMaxOdometer,
   validateOdometerKm,
+  getHighestOdometerReading,
+  refreshVehicleLastKnownOdometer,
   getMissingTripRouteFields,
   hasValidGpsCoordinates,
   dieselEntryError,
