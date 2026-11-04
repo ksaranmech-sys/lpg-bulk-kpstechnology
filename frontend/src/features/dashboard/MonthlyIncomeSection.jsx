@@ -34,12 +34,13 @@ const cell = { padding: '8px 10px', border: '1px solid #1f4d2b', verticalAlign: 
 const right = { ...cell, textAlign: 'right' };
 const head = { ...cell, textAlign: 'left', fontSize: 12 };
 
-// One state's table inside a vehicle-corporation block (e.g. IOC > TN routes).
+// One route-corporation table inside a vehicle-corporation block (e.g. IOC > IOC-TN routes).
 function IncomeTable({ vehicleCorporation, group }) {
   const { rows, totals } = group;
   const routeNote = group.corporations?.length ? ` (${group.corporations.join(', ')} routes)` : '';
+  const routeCorporation = group.corporation || group.corporations?.[0] || group.state;
   return (
-    <div className="income-group" style={{ marginTop: 12 }} data-testid={`income-group-${vehicleCorporation}-${group.state}`}>
+    <div className="income-group" style={{ marginTop: 12 }} data-testid={`income-group-${vehicleCorporation}-${routeCorporation}`}>
       <h6 style={{ margin: '0 0 6px', fontSize: 13 }}>
         {group.state}{routeNote}
         <span style={{ fontWeight: 400, color: '#4b5f52', fontSize: 12 }}> - {totals.trips} unloading{totals.trips === 1 ? '' : 's'}</span>
@@ -103,7 +104,7 @@ function IncomeTable({ vehicleCorporation, group }) {
             ))}
             <tr>
               <td style={{ ...right, fontWeight: 700 }} colSpan={7}>
-                ₹Total {group.state}
+                ₹Total {routeCorporation}
                 {totals.pricedTrips < totals.trips && (
                   <div style={{ fontWeight: 400, fontSize: 11, color: '#4b5f52' }}>{totals.trips - totals.pricedTrips} unloading(s) without income not included</div>
                 )}
@@ -165,7 +166,7 @@ function PeriodBlock({ group, period, monthLabel }) {
       </h5>
       {period.states.length === 0 && <p style={{ margin: '8px 0 0', fontSize: 13, color: '#4b5f52' }}>No unloadings in this period.</p>}
       {period.states.map((state) => (
-        <IncomeTable key={state.state} vehicleCorporation={`${group.vehicleCorporation}-${period.key}`} group={state} />
+        <IncomeTable key={state.corporation || state.state} vehicleCorporation={`${group.vehicleCorporation}-${period.key}`} group={state} />
       ))}
       {period.states.length > 1 && (
         <TotalsTable label={`Total ${title}`} sub={`${period.totals.pricedTrips} of ${period.totals.trips} unloadings priced`} totals={period.totals} />
@@ -175,7 +176,7 @@ function PeriodBlock({ group, period, monthLabel }) {
 }
 
 // Main split: one block per vehicle corporation (IOC, BPC, HPC, ...), then per billing period,
-// then a table per route state.
+// then a table per KM-table route corporation.
 function CorporationBlock({ group, monthLabel }) {
   const cutoff = group.cutoffDay > 0 ? `cut-off: up to the ${group.cutoffDay}th of the next month` : 'cut-off: calendar month';
   const billing = group.halfMonth ? 'billed per half month' : 'billed once a month';

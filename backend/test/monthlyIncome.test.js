@@ -185,7 +185,7 @@ test('month helpers: default is the previous month; future months are rejected',
   assert.equal(end.toISOString(), '2026-09-30T18:30:00.000Z');
 });
 
-test('unloadings are split by vehicle corporation, then by route state, with totals at each level', () => {
+test('unloadings are split by vehicle corporation, then by route corporation, with totals at each level', () => {
   const result = monthlyIncome.buildMonthlyIncome(trips, '2026-09', routeKmTable, opts);
   assert.equal(result.month, '2026-09');
   // these fixture vehicles carry no corporation -> one main group, split by route state
@@ -274,14 +274,16 @@ test('monthly income uses the unloading location corporation when it differs fro
   const routes = [
     { loadingLocation: 'IOC loading depot', corporation: 'IOC-TN', unloadingLocation: 'IOC destination', km: 60 },
     { loadingLocation: 'Other Kerala origin', corporation: 'IOC-KL', unloadingLocation: 'Kerala terminal', km: 70 },
-    { loadingLocation: 'Other Karnataka origin', corporation: 'HPC-KA', unloadingLocation: 'Karnataka terminal', km: 80 },
+    { loadingLocation: 'Other Karnataka origin', corporation: 'IOC-KA', unloadingLocation: 'Karnataka terminal', km: 80 },
+    { loadingLocation: 'IOC loading depot', corporation: 'IOC-KA', unloadingLocation: 'Kerala terminal', km: 200 },
+    { loadingLocation: 'IOC loading depot', corporation: 'IOC-KA', unloadingLocation: 'Karnataka terminal', km: 200 },
   ];
-  const mismatchedTrips = ['IOC-KL', 'HPC-KA'].map((corporation, index) => ({
+  const mismatchedTrips = ['IOC-KA', 'IOC-KL'].map((corporation, index) => ({
     _id: `unloading-corporation-${index}`,
     vehicle: { vehicleNumber: `V-${index}`, corporation: 'IOC' },
     status: 'closed',
     loadingLocation: 'IOC loading depot',
-    unloadingLocation: corporation === 'IOC-KL' ? 'Kerala terminal' : 'Karnataka terminal',
+    unloadingLocation: corporation === 'IOC-KA' ? 'Karnataka terminal' : 'Kerala terminal',
     manualKm: 100,
     loadingWeightTons: 18,
     unloadingWeightTons: 18,
@@ -291,10 +293,11 @@ test('monthly income uses the unloading location corporation when it differs fro
   const result = monthlyIncome.buildMonthlyIncome(mismatchedTrips, '2026-09', routes, opts);
   const states = result.groups[0].periods.find((period) => period.key === 'second-half').states;
 
-  assert.deepEqual(states.map((state) => [state.state, state.corporations]), [
-    ['KA', ['HPC-KA']],
-    ['KL', ['IOC-KL']],
+  assert.deepEqual(states.map((state) => [state.state, state.corporation, state.corporations]), [
+    ['KA', 'IOC-KA', ['IOC-KA']],
+    ['KL', 'IOC-KL', ['IOC-KL']],
   ]);
+  assert.deepEqual(states.map((state) => state.rows.length), [1, 1]);
   assert.equal(states.find((state) => state.state === 'KL').rows[0].tripIncome,
     Math.round(18 * rate('kl-18mt', 'km-151-200') * 100) / 100);
   assert.equal(states.find((state) => state.state === 'KA').rows[0].tripIncome,

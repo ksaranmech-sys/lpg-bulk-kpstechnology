@@ -91,7 +91,7 @@ afterEach(() => {
   global.IS_REACT_ACT_ENVIRONMENT = false;
 });
 
-test('shows last month by default, split by vehicle corporation then route state, with the TDS / Diesel / Amount split', async () => {
+test('shows last month by default, split by vehicle corporation then route corporation, with the TDS / Diesel / Amount split', async () => {
   const kaState = { state: 'KA', known: true, corporations: ['IOC-KA'], rows: [row({ shortage: 100, amount: 5780 })], totals: { trips: 1, pricedTrips: 1, tripIncome: 10000.7, shortage: 100.4, tds: 200.5, diesel: 3920.6, amount: 5780.1 } };
   const tnState = { state: 'TN', known: true, corporations: ['IOC-TN'], rows: [
     row({ tripId: 't2', vehicleNumber: 'TN01BB0001', corporation: 'IOC-TN', state: 'TN', tripIncome: null, tds: null, diesel: null, amount: null, status: 'open', notes: ['Loading weight (tons) is required to calculate Trip Income.'] }),
@@ -134,9 +134,9 @@ test('shows last month by default, split by vehicle corporation then route state
   expect(firstHalf.textContent).toContain('Diesel 5,880');
   expect(firstHalf.textContent).toContain('Amount 8,720');
   expect(firstHalf.textContent).not.toContain('TDS ₹');
-  const bpc = container.querySelector('[data-testid="income-group-BPC-month-TN"]');
-  const ka = container.querySelector('[data-testid="income-group-IOC-first-half-KA"]');
-  const tn = container.querySelector('[data-testid="income-group-IOC-first-half-TN"]');
+  const bpc = container.querySelector('[data-testid="income-group-BPC-month-BPC-TN"]');
+  const ka = container.querySelector('[data-testid="income-group-IOC-first-half-IOC-KA"]');
+  const tn = container.querySelector('[data-testid="income-group-IOC-first-half-IOC-TN"]');
   expect(bpc).not.toBeNull();
   expect(ka).not.toBeNull();
   expect(tn).not.toBeNull();
@@ -154,7 +154,7 @@ test('shows last month by default, split by vehicle corporation then route state
   expect(ka.querySelector('thead').textContent).not.toMatch(/loss above 40|trip income x|\(trip income - tds\)/i);
   const kaRows = Array.from(ka.querySelectorAll('tbody tr')).map((tr) => Array.from(tr.querySelectorAll('td')).map((td) => td.textContent));
   expect(kaRows[0]).toEqual(['1', 'KA01AA0001', 'AEGIS, Mangalore', 'Belgaum', '05 Sept 2026', '18 t', '07 Sept 2026', '10,000.00', '100.00', '200.00', '3,920.00', '5,780.00']);
-  expect(kaRows[1]).toEqual(['₹Total KA', '10,001', '100', '201', '3,921', '5,780']);
+  expect(kaRows[1]).toEqual(['₹Total IOC-KA', '10,001', '100', '201', '3,921', '5,780']);
   expect(kaRows[1].slice(1).join('')).not.toContain('₹');
   expect(ka.querySelector('tbody tr td a').getAttribute('href')).toBe('/trips/t1');
   expect(ka.querySelector('tbody tr td:nth-child(2)').textContent).not.toContain('IOC');
@@ -173,6 +173,52 @@ test('shows last month by default, split by vehicle corporation then route state
   expect(divertCells[7]).toBe('5,000.00');
   const openRow = Array.from(tn.querySelectorAll('tbody tr')).find((tr) => tr.textContent.includes('TN01BB0001'));
   expect(openRow.querySelector('td:nth-child(2)').textContent).toContain('Open');
+  await unmount();
+});
+
+test('renders IOC-KA and IOC-KL as separate route-corporation components', async () => {
+  const kaState = {
+    state: 'KA',
+    corporation: 'IOC-KA',
+    corporations: ['IOC-KA'],
+    known: true,
+    rows: [row({ tripId: 'ka-trip', corporation: 'IOC-KA', state: 'KA' })],
+    totals: { trips: 1, pricedTrips: 1, tripIncome: 10000, tds: 200, diesel: 3920, amount: 5880 },
+  };
+  const klState = {
+    state: 'KL',
+    corporation: 'IOC-KL',
+    corporations: ['IOC-KL'],
+    known: true,
+    rows: [row({ tripId: 'kl-trip', vehicleNumber: 'KL01AA0001', corporation: 'IOC-KL', state: 'KL' })],
+    totals: { trips: 1, pricedTrips: 1, tripIncome: 10000, tds: 200, diesel: 3920, amount: 5880 },
+  };
+  const periodTotals = { trips: 2, pricedTrips: 2, tripIncome: 20000, tds: 400, diesel: 7840, amount: 11760 };
+  const group = {
+    vehicleCorporation: 'IOC',
+    known: true,
+    cutoffDay: 0,
+    halfMonth: true,
+    periods: [
+      { key: 'first-half', label: '1 - 15', from: '2026-09-01', to: '2026-09-15', states: [kaState, klState], totals: periodTotals },
+      { key: 'second-half', label: '16 - 30', from: '2026-09-16', to: '2026-09-30', states: [], totals: { trips: 0, pricedTrips: 0, tripIncome: 0, tds: 0, diesel: 0, amount: 0 } },
+    ],
+    totals: periodTotals,
+  };
+  api.getCustomerMonthlyIncome.mockResolvedValue(response('2026-09', [group]));
+
+  const { container, unmount } = await mount(<MemoryRouter><MonthlyIncomeSection customerId="c1" /></MemoryRouter>);
+
+  const ka = container.querySelector('[data-testid="income-group-IOC-first-half-IOC-KA"]');
+  const kl = container.querySelector('[data-testid="income-group-IOC-first-half-IOC-KL"]');
+  expect(ka).not.toBeNull();
+  expect(kl).not.toBeNull();
+  expect(ka.querySelector('h6').textContent).toContain('KA (IOC-KA routes)');
+  expect(kl.querySelector('h6').textContent).toContain('KL (IOC-KL routes)');
+  expect(ka.textContent).toContain('₹Total IOC-KA');
+  expect(kl.textContent).toContain('₹Total IOC-KL');
+  expect(ka.querySelector('tbody a').getAttribute('href')).toBe('/trips/ka-trip');
+  expect(kl.querySelector('tbody a').getAttribute('href')).toBe('/trips/kl-trip');
   await unmount();
 });
 

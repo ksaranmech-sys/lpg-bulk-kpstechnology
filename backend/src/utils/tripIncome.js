@@ -7,9 +7,9 @@
 //
 // Trip Income (per leg) uses the Rate/KM/Ton table for the route's corporation state (the suffix
 // of the KM table's corporation column: IOC-TN / BPC-TN -> TN table, IOC-KA / BPC-KA -> KA table)
-// and tonnage class (based on loading weight: <= 18 t -> 18MT, else 21MT), in the trip's loading month. When the route
-// itself is not in the KM table (manual KM), the corporation is the one with the most KM-table
-// routes from the loading location:
+// and tonnage class (based on loading weight: <= 18 t -> 18MT, else 21MT), in the trip's loading
+// month. When the route itself is not in the KM table (manual KM), the corporation is resolved
+// from a unique corporation serving the unloading location, else from the loading location:
 //   km <= 450                 : weight x KM-band rate
 //   km >  450, Mangalore load : weight x km x "451 Mangalore base"
 //   km >  450, other load     : weight x km x "451 Normal base"
@@ -52,17 +52,16 @@ function findRouteRow(routeKmTable, loadingLocation, unloadingLocation) {
   )) || null;
 }
 
-// The KM table's corporation for this trip: from the exact route, else from rows sharing the
-// unloading location when they agree on a single corporation, else from rows sharing the loading
-// location (the single corporation, or the one with the most routes from there).
+// Prefer the unloading location's unique corporation: the destination can belong to a different
+// corporation than the origin or the exact route row. Otherwise use the exact route, then loading.
 function resolveCorporation(routeKmTable, loadingLocation, unloadingLocation) {
   const rows = routeKmTable || [];
   const exact = findRouteRow(rows, loadingLocation, unloadingLocation);
-  if (exact?.corporation) return { corporation: clean(exact.corporation), source: 'route', candidates: [clean(exact.corporation)] };
   const distinct = (matches) => Array.from(new Set(matches.map((row) => clean(row.corporation)).filter(Boolean)));
-  const unloadingRows = rows.filter((row) => clean(row.unloadingLocation) === clean(unloadingLocation));
+  const unloadingRows = rows.filter((row) => row !== exact && clean(row.unloadingLocation) === clean(unloadingLocation));
   const byUnloading = distinct(unloadingRows);
   if (byUnloading.length === 1) return { corporation: byUnloading[0], source: 'unloading-location', candidates: byUnloading };
+  if (exact?.corporation) return { corporation: clean(exact.corporation), source: 'route', candidates: [clean(exact.corporation)] };
   const loadingRows = rows.filter((row) => clean(row.loadingLocation) === clean(loadingLocation));
   const byLoading = distinct(loadingRows);
   if (byLoading.length === 1) return { corporation: byLoading[0], source: 'loading-location', candidates: byLoading };

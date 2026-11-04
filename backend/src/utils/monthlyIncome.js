@@ -1,6 +1,6 @@
 // Monthly Income shown to admins: every unloading of a customer's trips that happened in a month,
-// split first by the vehicle's corporation (IOC, BPC, HPC, ...) and then by the route's state
-// (the suffix of the KM table corporation: IOC-TN -> TN, BPC-KA -> KA, ...). A trip's
+// split first by the vehicle's corporation (IOC, BPC, HPC, ...) and then by the full route
+// corporation from the KM table (IOC-TN, BPC-KA, ...). A trip's
 // Load leg belongs to the month of its Unloading date; a diverted trip's Divert leg belongs to
 // the month of its Divert (new unloading) date, so the two legs may be billed in different
 // months. Each row carries that leg's income:
@@ -206,8 +206,7 @@ function buildMonthlyIncome(trips, month, routeKmTable, { getRateTable, now, sho
     });
 
   // Main split: the vehicle's corporation (IOC, BPC, HPC, ...); then the billing period (IOC / HPC
-  // are billed per half month, others once); then the route's state from the KM table
-  // corporation (IOC-TN -> TN, BPC-KA -> KA, ...).
+  // are billed per half month, others once); then the full route corporation from the KM table.
   const groupBy = (list, keyOf) => {
     const map = new Map();
     list.forEach((row) => {
@@ -219,16 +218,19 @@ function buildMonthlyIncome(trips, month, routeKmTable, { getRateTable, now, sho
   };
   const sortKeys = (unknownKey) => ([a], [b]) => (a === unknownKey) - (b === unknownKey) || a.localeCompare(b);
 
-  const stateGroups = (list) => Array.from(groupBy(list, (row) => row.state || UNKNOWN_STATE).entries())
+  const stateGroups = (list) => Array.from(groupBy(list, (row) => row.corporation || UNKNOWN_STATE).entries())
     .sort(sortKeys(UNKNOWN_STATE))
-    .map(([state, stateRows]) => ({
-      state,
-      known: state !== UNKNOWN_STATE,
-      // KM-table corporations behind this state (normally one, e.g. IOC-TN)
-      corporations: Array.from(new Set(stateRows.map((row) => row.corporation).filter(Boolean))).sort(),
-      rows: stateRows.map((row, index) => ({ sNo: index + 1, ...row })),
-      totals: sumRows(stateRows),
-    }));
+    .map(([corporation, stateRows]) => {
+      const state = stateRows[0]?.state || UNKNOWN_STATE;
+      return {
+        state,
+        corporation: corporation === UNKNOWN_STATE ? null : corporation,
+        known: corporation !== UNKNOWN_STATE,
+        corporations: corporation === UNKNOWN_STATE ? [] : [corporation],
+        rows: stateRows.map((row, index) => ({ sNo: index + 1, ...row })),
+        totals: sumRows(stateRows),
+      };
+    });
 
   const groups = Array.from(groupBy(rows, (row) => row.vehicleCorporation || UNKNOWN_VEHICLE_CORPORATION).entries())
     .sort(sortKeys(UNKNOWN_VEHICLE_CORPORATION))
