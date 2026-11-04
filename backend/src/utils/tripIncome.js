@@ -53,13 +53,16 @@ function findRouteRow(routeKmTable, loadingLocation, unloadingLocation) {
 }
 
 // The KM table's corporation for this trip: from the exact route, else from rows sharing the
-// loading location (the single corporation, or the one with the most routes from there), else
-// from rows sharing the unloading location when they agree on a single corporation.
+// unloading location when they agree on a single corporation, else from rows sharing the loading
+// location (the single corporation, or the one with the most routes from there).
 function resolveCorporation(routeKmTable, loadingLocation, unloadingLocation) {
   const rows = routeKmTable || [];
   const exact = findRouteRow(rows, loadingLocation, unloadingLocation);
   if (exact?.corporation) return { corporation: clean(exact.corporation), source: 'route', candidates: [clean(exact.corporation)] };
   const distinct = (matches) => Array.from(new Set(matches.map((row) => clean(row.corporation)).filter(Boolean)));
+  const unloadingRows = rows.filter((row) => clean(row.unloadingLocation) === clean(unloadingLocation));
+  const byUnloading = distinct(unloadingRows);
+  if (byUnloading.length === 1) return { corporation: byUnloading[0], source: 'unloading-location', candidates: byUnloading };
   const loadingRows = rows.filter((row) => clean(row.loadingLocation) === clean(loadingLocation));
   const byLoading = distinct(loadingRows);
   if (byLoading.length === 1) return { corporation: byLoading[0], source: 'loading-location', candidates: byLoading };
@@ -72,8 +75,6 @@ function resolveCorporation(routeKmTable, loadingLocation, unloadingLocation) {
     const leaders = counts.filter((entry) => entry.count === max);
     if (leaders.length === 1) return { corporation: leaders[0].corporation, source: 'loading-location-majority', candidates: byLoading };
   }
-  const byUnloading = distinct(rows.filter((row) => clean(row.unloadingLocation) === clean(unloadingLocation)));
-  if (byUnloading.length === 1) return { corporation: byUnloading[0], source: 'unloading-location', candidates: byUnloading };
   const candidates = byLoading.length ? byLoading : byUnloading;
   return { corporation: null, source: candidates.length > 1 ? 'ambiguous' : null, candidates };
 }

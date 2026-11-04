@@ -270,6 +270,37 @@ test('monthly income includes trips from every route state represented in the KM
   assert.equal(result.totals.trips, 3);
 });
 
+test('monthly income uses the unloading location corporation when it differs from the loading location', () => {
+  const routes = [
+    { loadingLocation: 'IOC loading depot', corporation: 'IOC-TN', unloadingLocation: 'IOC destination', km: 60 },
+    { loadingLocation: 'Other Kerala origin', corporation: 'IOC-KL', unloadingLocation: 'Kerala terminal', km: 70 },
+    { loadingLocation: 'Other Karnataka origin', corporation: 'HPC-KA', unloadingLocation: 'Karnataka terminal', km: 80 },
+  ];
+  const mismatchedTrips = ['IOC-KL', 'HPC-KA'].map((corporation, index) => ({
+    _id: `unloading-corporation-${index}`,
+    vehicle: { vehicleNumber: `V-${index}`, corporation: 'IOC' },
+    status: 'closed',
+    loadingLocation: 'IOC loading depot',
+    unloadingLocation: corporation === 'IOC-KL' ? 'Kerala terminal' : 'Karnataka terminal',
+    manualKm: 100,
+    loadingWeightTons: 18,
+    unloadingWeightTons: 18,
+    loadingDate: new Date('2026-09-10T03:00:00Z'),
+    unloadingDate: new Date('2026-09-20T09:00:00Z'),
+  }));
+  const result = monthlyIncome.buildMonthlyIncome(mismatchedTrips, '2026-09', routes, opts);
+  const states = result.groups[0].periods.find((period) => period.key === 'second-half').states;
+
+  assert.deepEqual(states.map((state) => [state.state, state.corporations]), [
+    ['KA', ['HPC-KA']],
+    ['KL', ['IOC-KL']],
+  ]);
+  assert.equal(states.find((state) => state.state === 'KL').rows[0].tripIncome,
+    Math.round(18 * rate('kl-18mt', 'km-151-200') * 100) / 100);
+  assert.equal(states.find((state) => state.state === 'KA').rows[0].tripIncome,
+    Math.round(18 * rate('ka-18mt', 'km-151-200') * 100) / 100);
+});
+
 test('a diverted trip\'s Divert leg is billed in the month of the new unloading, from the first unloading point', () => {
   const result = monthlyIncome.buildMonthlyIncome(trips, '2026-10', routeKmTable, opts);
   const tn = result.groups[0].periods[0].states.find((s) => s.state === 'TN');
