@@ -96,5 +96,5 @@ test('super admin cannot edit trip entries after the salary edit window', async 
 
   assert.equal(result.nextCalled, false);
   assert.equal(result.responseStatus, 403);
-  assert.match(result.responseBody.error, /through the 5th/);
+  assert.match(result.responseBody.error, /through the 10th/);
 });

@@ -255,7 +255,7 @@ test('shows Trip Income KM and Trip Income for admins between Load Turn Added an
   expect(tripRoute).toContain('17.5 t');
   expect(tripRoute).toContain('18 t');
   expect(container.querySelector('fieldset').disabled).toBe(true);
-  expect(container.textContent).toContain('through the 5th of the following month');
+  expect(container.textContent).toContain('through the 10th of the following month');
   // the card is not part of the printable Single Trip area
   expect(card.closest('.trip-details-print-area')).toBeNull();
 
