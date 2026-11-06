@@ -242,10 +242,9 @@ function getTripCorporationKm(trip, routeKmTable) {
   return getCorporationKmDetails(trip, routeKmTable).value;
 }
 
-// Rs 1000 per trip whose route-table KM is under 200. With a temporary driver the charge is
-// split by date using the same share as the KM, so specialTripCharges can be a fraction of
-// specialTripCount x 1000.
-function calculateSpecialTripCharges(trips, routeKmTable, shareOf = () => 1) {
+// Apply the driver's configured Less than 200 KM charge only to routes under 200 KM.
+// With a temporary driver the charge is split by date using the same share as the KM.
+function calculateSpecialTripCharges(trips, routeKmTable, lessThan200Charge = 0, shareOf = () => 1) {
   let shortTripCount = 0;
   let specialTripCharges = 0;
   trips.forEach((trip) => {
@@ -257,7 +256,7 @@ function calculateSpecialTripCharges(trips, routeKmTable, shareOf = () => 1) {
     const share = shareOf(trip);
     if (share <= 0) return;
     shortTripCount += 1;
-    specialTripCharges += 1000 * share;
+    specialTripCharges += Number(lessThan200Charge || 0) * share;
   });
   return {
     specialTripCount: shortTripCount,
@@ -349,7 +348,7 @@ function calculateTemporaryDriverSegment(month, temporaryDriver, monthTrips, rou
   const corporationKm = sumRouteTableKm(allTrips, routeKmTable, Number(driver.minKmCharges || 0) > 0, tempShareOf);
   const kmCharges = Number(driver.kmCharges || 0);
   const kmBeta = round0(kmCharges * corporationKm);
-  const { specialTripCount, specialTripCharges } = calculateSpecialTripCharges(allTrips, routeKmTable, tempShareOf);
+  const { specialTripCount, specialTripCharges } = calculateSpecialTripCharges(allTrips, routeKmTable, driver.minKmCharges, tempShareOf);
 
   // Months entirely outside the substitute's window have nothing to pay - no temporary sheet.
   if (days === 0 && tempRows.length === 0) return null;
@@ -374,6 +373,7 @@ function calculateTemporaryDriverSegment(month, temporaryDriver, monthTrips, rou
     kmCharges,
     kmBeta,
     specialTripCount,
+    specialTripRate: Number(driver.minKmCharges || 0),
     specialTripCharges: round0(specialTripCharges),
     totalAdvance,
     totalDiesel,
@@ -448,7 +448,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   const corporationKm = sumRouteTableKm(allTrips, routeKmTable, Number(driver.minKmCharges || 0) > 0, driverShareOf);
   const manualKmTotal = 0;
   const totalDriverKm = corporationKm + manualKmTotal;
-  const { specialTripCount, specialTripCharges } = calculateSpecialTripCharges(allTrips, routeKmTable, driverShareOf);
+  const { specialTripCount, specialTripCharges } = calculateSpecialTripCharges(allTrips, routeKmTable, driver.minKmCharges, driverShareOf);
   const totalBalance = sumTripBalances(tripsWithBalances);
   const totalAdvance = round0(sumTripAdvances(tripsWithBalances));
   const totalDiesel = round0(sumTripDiesel(tripsWithBalances));
@@ -484,6 +484,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
     totalDriverKm: round0(totalDriverKm),
     kmBeta,
     specialTripCount,
+    specialTripRate: Number(driver.minKmCharges || 0),
     specialTripCharges: round0(specialTripCharges),
     salaryBalance: round0(basicSalary + kmBeta + specialTripCharges - totalBalance),
   };

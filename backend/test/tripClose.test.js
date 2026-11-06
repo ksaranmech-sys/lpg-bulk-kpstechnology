@@ -560,7 +560,7 @@ test('COP KM is the sum of matching route KM table entries for closed trips', ()
   assert.equal(total, 725.5);
 });
 
-test('special trip charges count closed routes below 200 KM at Rs 1000 each', () => {
+test('special trip charges use the configured Less than 200 KM amount only below 200 KM', () => {
   const charges = customerController.calculateSpecialTripCharges([
     { loadingLocation: 'Short', unloadingLocation: 'Route' },
     { loadingLocation: 'Long', unloadingLocation: 'Route' },
@@ -568,9 +568,9 @@ test('special trip charges count closed routes below 200 KM at Rs 1000 each', ()
   ], [
     { loadingLocation: 'Short', unloadingLocation: 'Route', km: 199 },
     { loadingLocation: 'Long', unloadingLocation: 'Route', km: 200 },
-  ]);
+  ], 375);
 
-  assert.deepEqual(charges, { specialTripCount: 1, specialTripCharges: 1000 });
+  assert.deepEqual(charges, { specialTripCount: 1, specialTripCharges: 375 });
 });
 
 test('driver KM and short-trip charges split leg by leg when a temporary driver covers part of a trip', () => {
@@ -604,8 +604,8 @@ test('driver KM and short-trip charges split leg by leg when a temporary driver 
 
   assert.equal(customerController.sumRouteTableKm(trips, routeKmTable, false, driverShareOf), 150);
   assert.equal(customerController.sumRouteTableKm(trips, routeKmTable, false, tempShareOf), 150);
-  assert.deepEqual(customerController.calculateSpecialTripCharges(trips, routeKmTable, driverShareOf), { specialTripCount: 2, specialTripCharges: 1500 });
-  assert.deepEqual(customerController.calculateSpecialTripCharges(trips, routeKmTable, tempShareOf), { specialTripCount: 2, specialTripCharges: 1500 });
+  assert.deepEqual(customerController.calculateSpecialTripCharges(trips, routeKmTable, 1000, driverShareOf), { specialTripCount: 2, specialTripCharges: 1500 });
+  assert.deepEqual(customerController.calculateSpecialTripCharges(trips, routeKmTable, 1000, tempShareOf), { specialTripCount: 2, specialTripCharges: 1500 });
 });
 
 test('a trip belongs to the salary month it closes in, even when loaded the month before', () => {

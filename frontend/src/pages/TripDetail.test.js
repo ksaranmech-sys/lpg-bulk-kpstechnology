@@ -51,6 +51,7 @@ test('renders trip sections in order and toggles divert fields', async () => {
         loadingExpense: 100,
         unloadingLocation: 'Depot',
         unloadingDate: '2026-09-15T00:00:00.000Z',
+        unloadingCorporation: 'IOC-KL',
         unloadingExpense: 50,
         turnNumber: 7,
         turnDate: '2026-09-13T00:00:00.000Z',
@@ -102,6 +103,7 @@ test('renders trip sections in order and toggles divert fields', async () => {
   const unloadingSummary = Array.from(container.querySelectorAll('.card')).find(
     (card) => card.querySelector('h3')?.textContent === 'Unloading Details'
   );
+  expect(unloadingSummary.textContent).toContain('Corporation IOC-KL');
   await act(async () => unloadingSummary.querySelector('button').click());
   const unloadingForm = Array.from(container.querySelectorAll('form')).find(
     (form) => form.querySelector('h3')?.textContent === 'Unloading Details'

@@ -16,7 +16,7 @@ export default function Login() {
     setBusy(true);
     try {
       await signIn(username, password);
-      navigate('/');
+      navigate('/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'Login failed');
     } finally {

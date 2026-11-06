@@ -330,9 +330,9 @@ function renderSalarySheet(doc, { title, driverLabel, vehicle, customer, month, 
     ['Settlement to Driver', `Rs ${fmtMoney(summary.salaryBalance)}`],
   ];
   if (specialTripCharges > 0) {
-    const splitByDate = specialTripCharges !== Number(summary.specialTripCount || 0) * 1000;
+    const splitByDate = specialTripCharges !== Number(summary.specialTripCount || 0) * Number(summary.specialTripRate || 0);
     salaryRows.splice(2, 0, [
-      `Special Trip Charges (${summary.specialTripCount || 0} trips x Rs 1000${splitByDate ? ', split by date with temporary driver' : ''})`,
+      `Special Trip Charges (${summary.specialTripCount || 0} trips x Rs ${fmtMoney(summary.specialTripRate)}${splitByDate ? ', split by date with temporary driver' : ''})`,
       `Rs ${fmtMoney(summary.specialTripCharges)}`,
     ]);
   }

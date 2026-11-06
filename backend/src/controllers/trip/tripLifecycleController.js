@@ -11,7 +11,7 @@ const { removeExpiredClosedTrips } = require('../../utils/tripRetention');
 const { findCurrentDriverForVehicle } = require('../../utils/driverAssignment');
 const metaRoutes = require('../../routes/metaRoutes');
 const { getCorporationKmDetails, findRouteKm } = require('../../utils/corporationKm');
-const { computeTripIncome } = require('../../utils/tripIncome');
+const { computeTripIncome, resolveCorporation } = require('../../utils/tripIncome');
 const { isClosedTripEditable } = require('../../utils/tripEditPolicy');
 const {
   getTripCloseDate,
@@ -208,6 +208,7 @@ async function getTrip(req, res) {
   const driver = await findCurrentDriverForVehicle(trip.vehicle._id, trip.loadingDate || trip.createdAt || new Date(), 'name temporaryDriver joiningDate');
   if (trip.status === TRIP_STATUS.CLOSED) await refreshTripSettlement(trip);
   const result = trip.toObject();
+  const routeKmTable = metaRoutes.loadRouteKmTable();
   result.editWindowClosed = [ROLES.SUPER_ADMIN, ROLES.CUSTOMER_ADMIN].includes(req.user?.role) &&
     !isClosedTripEditable(trip);
   result.odometerKm = trip.status === TRIP_STATUS.CLOSED && trip.settlement?.totalKm != null
@@ -215,17 +216,22 @@ async function getTrip(req, res) {
     : calculateTripKm(trip, nextTrip);
   result.corporationKmSource = getCorporationKmDetails(
     result,
-    metaRoutes.loadRouteKmTable()
+    routeKmTable
   ).source;
-  result.corpKm = findRouteKm(metaRoutes.loadRouteKmTable(), result.loadingLocation, result.unloadingLocation);
+  result.corpKm = findRouteKm(routeKmTable, result.loadingLocation, result.unloadingLocation);
   result.corporationKm = getCorporationKmDetails(
     result,
-    metaRoutes.loadRouteKmTable()
+    routeKmTable
   ).value;
   result.driverName = driver?.getDisplayName() || null;
+  result.unloadingCorporation = resolveCorporation(
+    routeKmTable,
+    result.loadingLocation,
+    result.unloadingLocation
+  ).corporation;
   // Income figures are for admins only; drivers never see what the customer is billed.
   if (req.user?.role !== ROLES.VEHICLE_USER) {
-    result.tripIncome = computeTripIncome(result, metaRoutes.loadRouteKmTable());
+    result.tripIncome = computeTripIncome(result, routeKmTable);
   }
   // Used by the frontend to grey out dates before whichever is later: the driver's joining date,
   // or the previous trip's Load Turn date (that trip counts as closed once the driver pressed

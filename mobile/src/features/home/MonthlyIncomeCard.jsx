@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Platform, Text, View } from 'react-native';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { formatDateLong, formatMonthLabel, monthKey, previousMonth } from '@kps/shared';
 import { api, errorMessage } from '../../api';
 import { Button, Card, ErrorText, Loading, Muted, Row } from '../../ui';
 import { colors, spacing } from '../../theme';
+import { buildMonthlyIncomeHtml } from './monthlyIncomePdf';
 
 const money = new Intl.NumberFormat('en-IN', {
-  style: 'currency',
-  currency: 'INR',
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
@@ -41,6 +42,7 @@ export default function MonthlyIncomeCard({ customerId }) {
   const [showArchive, setShowArchive] = useState(false);
   const [income, setIncome] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [sharingPdf, setSharingPdf] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -65,6 +67,24 @@ export default function MonthlyIncomeCard({ customerId }) {
     setMonth(monthKey(new Date(year, monthNumber - 1 + amount, 1)));
   }
 
+  async function shareMonthlyIncomePdf() {
+    setSharingPdf(true);
+    setError('');
+    try {
+      const html = buildMonthlyIncomeHtml(income, month);
+      if (Platform.OS === 'web') {
+        await Print.printAsync({ html });
+      } else {
+        const { uri } = await Print.printToFileAsync({ html, width: 842, height: 595 });
+        await Sharing.shareAsync(uri, { mimeType: 'application/pdf', UTI: 'com.adobe.pdf' });
+      }
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to generate monthly income PDF'));
+    } finally {
+      setSharingPdf(false);
+    }
+  }
+
   return (
     <Card title={`Monthly Income (${formatMonthLabel(month)})${isArchived ? ' - Archived' : ''}`}>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
@@ -87,8 +107,16 @@ export default function MonthlyIncomeCard({ customerId }) {
           </Text>
         ))}
       </View>
+      <Button
+        title={'\uD83D\uDDA8\uFE0F  Share monthly income PDF'}
+        variant="secondary"
+        onPress={shareMonthlyIncomePdf}
+        loading={sharingPdf}
+        disabled={loading || !income?.groups?.length}
+        style={{ alignSelf: 'flex-end', marginBottom: spacing.md }}
+      />
       <Muted style={{ marginBottom: spacing.md }}>
-        Income for unloadings in this month, grouped by vehicle corporation, billing period and route state.
+        Income for unloadings in this month, grouped by vehicle corporation, billing period and route corporation.
         IOC and HPC are split into half-month periods; corporation cut-off rules apply.
       </Muted>
       <ErrorText>{error}</ErrorText>
@@ -104,7 +132,7 @@ export default function MonthlyIncomeCard({ customerId }) {
             <Card key={period.key} title={`${period.label} (${period.totals.trips} unloadings)`} style={{ marginTop: spacing.sm }}>
               {period.states.length === 0 ? <Muted>No unloadings in this period.</Muted> : null}
               {period.states.map((state) => (
-                <Card key={state.state} title={`${state.state} (${state.totals.trips} unloadings)`} style={{ marginTop: spacing.sm, backgroundColor: '#f7fafc' }}>
+                <Card key={state.corporation || state.state} title={`${state.state}${state.corporation ? ` (${state.corporation} routes)` : ''} (${state.totals.trips} unloadings)`} style={{ marginTop: spacing.sm, backgroundColor: '#f7fafc' }}>
                   {state.rows.map((trip) => (
                     <View key={`${trip.tripId}-${trip.leg}`} style={{ paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border }}>
                       <Text style={{ color: colors.ink, fontWeight: '700' }}>
@@ -120,7 +148,7 @@ export default function MonthlyIncomeCard({ customerId }) {
                       <Row label="Amount" value={formatMoney(trip.amount)} bold />
                     </View>
                   ))}
-                  <IncomeTotals title={`Total ${state.state}`} totals={state.totals} />
+                  <IncomeTotals title={`Total ${state.corporation || state.state}`} totals={state.totals} />
                 </Card>
               ))}
               {period.states.length > 1 ? <IncomeTotals title={`Total ${group.vehicleCorporation} - ${period.label}`} totals={period.totals} /> : null}

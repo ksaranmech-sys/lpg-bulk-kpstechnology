@@ -2,12 +2,18 @@ import React from 'react';
 
 export default function UnloadingDetailsSummary({ trip, onEdit }) {
   const chip = { background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 14 };
+  const corporation = trip.unloadingCorporation || trip.tripIncome?.corporation;
   return (
     <div className="card">
       <h3 className="section-title">Unloading Details</h3>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'center' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
           <span style={chip}><strong>{trip.unloadingLocation || '-'}</strong></span>
+          {corporation && (
+            <span style={chip}>
+              <span style={{ color: '#64748b' }}>Corporation</span> <strong>{corporation}</strong>
+            </span>
+          )}
           {trip.unloadingWeightTons != null && trip.unloadingWeightTons !== '' && (
             <span style={chip}>
               <span style={{ color: '#64748b' }}>Weight</span> <strong>{trip.unloadingWeightTons} t</strong>

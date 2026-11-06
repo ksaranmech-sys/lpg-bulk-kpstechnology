@@ -151,11 +151,13 @@ function UnloadingSummary({ trip, onEdit }) {
   const hasManualKm = trip.manualKm != null && trip.manualKm !== '';
   const hasManualKmDivert = trip.isDiverted && trip.manualKmDivert != null && trip.manualKmDivert !== '';
   const hasWeight = trip.unloadingWeightTons != null && trip.unloadingWeightTons !== '';
+  const corporation = trip.unloadingCorporation || trip.tripIncome?.corporation;
   return (
     <View>
       <SummaryChips
         items={[
           { value: trip.unloadingLocation || '-' },
+          corporation && { label: 'Corporation', value: corporation },
           hasWeight && { label: 'Weight', value: `${trip.unloadingWeightTons} t` },
           { value: trip.unloadingDate ? formatDate(trip.unloadingDate) : '-', muted: true },
           hasManualKm && { label: 'Manual KM Load', value: `${trip.manualKm} km` },

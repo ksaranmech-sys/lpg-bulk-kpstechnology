@@ -25,10 +25,11 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
+          <Route path="/" element={<PrivateRoute><Navigate to="/dashboard" replace /></PrivateRoute>} />
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+          <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="/vehicles/:vehicleId/*" element={<PrivateRoute><Navigate to="/" replace /></PrivateRoute>} />
           <Route path="/trips/:tripId" element={<PrivateRoute><TripDetail /></PrivateRoute>} />
           <Route path="/admin/onboarding" element={<PrivateRoute><AdminOnboarding /></PrivateRoute>} />
