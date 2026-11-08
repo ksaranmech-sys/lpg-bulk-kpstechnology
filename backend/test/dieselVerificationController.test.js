@@ -44,17 +44,19 @@ test('filters uploaded statements by their diesel record dates and selected vehi
     vehicle: { vehicleNumber: 'KA01AH6269' },
     recordsParserVersion: 0,
     dieselRecords: [],
+    defRecords: [],
     async save() {},
     toObject() {
       return {
         _id: this._id,
         dieselRecords: this.dieselRecords,
+        defRecords: this.defRecords,
         recordsParserVersion: this.recordsParserVersion,
       };
     },
   };
   DieselVerification.find = (filter) => {
-    if (filter.$or) {
+    if (filter.$or?.[0]?.recordsParserVersion) {
       return {
         select() { return this; },
         populate() { return this; },
@@ -65,6 +67,7 @@ test('filters uploaded statements by their diesel record dates and selected vehi
     return {
       populate() { return this; },
       sort: async () => {
+        query = filter;
         migratedRecords = legacyUpload.dieselRecords;
         return [legacyUpload, duplicateUpload];
       },
@@ -100,19 +103,26 @@ test('filters uploaded statements by their diesel record dates and selected vehi
 
   assert.equal(response.statusCode, 200);
   assert.equal(String(query.customer), '507f1f77bcf86cd799439012');
-  assert.deepEqual(query.dieselRecords.$elemMatch.date, {
-    $gte: new Date('2026-10-01T00:00:00.000Z'),
-    $lte: new Date('2026-10-15T00:00:00.000Z'),
-  });
-  assert.equal(response.body.uploads[0]._id, 'upload-1');
-  assert.equal(response.body.uploads.length, 1);
-  assert.equal(response.body.uploads[0].fileHash, undefined);
+  assert.deepEqual(query.$or, [
+    { dieselRecords: { $elemMatch: { date: {
+      $gte: new Date('2026-10-01T00:00:00.000Z'),
+      $lte: new Date('2026-10-15T00:00:00.000Z'),
+    } } } },
+    { defRecords: { $elemMatch: { date: {
+      $gte: new Date('2026-10-01T00:00:00.000Z'),
+      $lte: new Date('2026-10-15T00:00:00.000Z'),
+    } } } },
+  ]);
   assert.deepEqual(migratedRecords, [{
     date: new Date('2026-10-10T00:00:00.000Z'),
     litres: 20,
     vehicleNumber: 'KA01AH6269',
   }]);
-  assert.equal(legacyUpload.recordsParserVersion, 3);
+  assert.equal(legacyUpload.recordsParserVersion, 4);
+  assert.deepEqual(legacyUpload.defRecords, []);
+  assert.equal(response.body.uploads[0]._id, 'upload-1');
+  assert.equal(response.body.uploads.length, 1);
+  assert.equal(response.body.uploads[0].fileHash, undefined);
   assert.equal(response.body.uploads[0].recordsParserVersion, undefined);
 });
 
@@ -207,10 +217,10 @@ test('uploads all vehicle rows and assigns rows without a vehicle number to the 
     file: {
       originalname: 'fleet.csv',
       buffer: Buffer.from(
-        'Date,Diesel Quantity,Vehicle No\n'
-        + '10/10/2026,20,KA01AH6269\n'
-        + '10/10/2026,30,KA02AB1234\n'
-        + '11/10/2026,15,\n'
+        'Date,Diesel Quantity,DEF Quantity,Vehicle No\n'
+        + '10/10/2026,20,2,KA01AH6269\n'
+        + '10/10/2026,30,3,KA02AB1234\n'
+        + '11/10/2026,15,1,\n'
       ),
     },
     user: { role: 'super_admin', id: 'user-id' },
@@ -221,6 +231,11 @@ test('uploads all vehicle rows and assigns rows without a vehicle number to the 
     [20, 'KA01AH6269'],
     [30, 'KA02AB1234'],
     [15, 'KA01AH6269'],
+  ]);
+  assert.deepEqual(savedUpload.defRecords.map(({ litres, vehicleNumber }) => [litres, vehicleNumber]), [
+    [2, 'KA01AH6269'],
+    [3, 'KA02AB1234'],
+    [1, 'KA01AH6269'],
   ]);
   assert.equal(savedUpload.fileHash.length, 64);
 });

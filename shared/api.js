@@ -154,6 +154,9 @@ export function createEndpoints(api) {
     addDieselEntry: (tripId, fields, file) => api.post(`/trips/${tripId}/diesel`, buildFormData(fields, file), multipart),
     updateDieselEntry: (tripId, index, data) => api.patch(`/trips/${tripId}/diesel/${index}`, data),
     deleteDieselEntry: (tripId, index) => api.delete(`/trips/${tripId}/diesel/${index}`),
+    addDefEntry: (tripId, fields, file) => api.post(`/trips/${tripId}/def`, buildFormData(fields, file), multipart),
+    updateDefEntry: (tripId, index, data) => api.patch(`/trips/${tripId}/def/${index}`, data),
+    deleteDefEntry: (tripId, index) => api.delete(`/trips/${tripId}/def/${index}`),
 
     addRtoEntry: (tripId, fields, file) => api.post(`/trips/${tripId}/rto`, buildFormData(fields, file), multipart),
     updateRtoEntry: (tripId, index, data) => api.patch(`/trips/${tripId}/rto/${index}`, data),

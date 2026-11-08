@@ -194,6 +194,63 @@ async function deleteDieselEntry(req, res) {
   res.json({ trip });
 }
 
+async function addDefEntry(req, res) {
+  const trip = await getOpenTripOr404(req, res);
+  if (!trip) return;
+
+  const volume = Number(req.body.volumeLitres);
+  if (!Number.isFinite(volume) || volume <= 0) {
+    return res.status(400).json({ error: 'volumeLitres must be a positive number' });
+  }
+  const filledAt = req.body.filledAt ? new Date(req.body.filledAt) : new Date();
+  if (Number.isNaN(filledAt.getTime())) return res.status(400).json({ error: 'filledAt must be a valid date' });
+  const dateError = await validateEntryDate(trip, filledAt, 'DEF');
+  if (dateError) return res.status(400).json({ error: dateError });
+
+  const photo = req.file ? { url: await saveUploadedFile(req.file) } : undefined;
+  trip.defEntries.push({ volumeLitres: volume, filledAt, photo });
+  await trip.save();
+  res.status(201).json({ trip });
+}
+
+async function updateDefEntry(req, res) {
+  const trip = await getOpenTripOr404(req, res);
+  if (!trip) return;
+
+  const index = Number(req.params.defIndex);
+  const entry = trip.defEntries[index];
+  if (!Number.isInteger(index) || index < 0 || !entry) {
+    return res.status(404).json({ error: 'DEF entry not found' });
+  }
+  const volume = Number(req.body.volumeLitres);
+  if (!Number.isFinite(volume) || volume <= 0) {
+    return res.status(400).json({ error: 'volumeLitres must be a positive number' });
+  }
+  if (req.body.filledAt) {
+    const filledAt = new Date(req.body.filledAt);
+    if (Number.isNaN(filledAt.getTime())) return res.status(400).json({ error: 'filledAt must be a valid date' });
+    const dateError = await validateEntryDate(trip, filledAt, 'DEF');
+    if (dateError) return res.status(400).json({ error: dateError });
+    entry.filledAt = filledAt;
+  }
+  entry.volumeLitres = volume;
+  await trip.save();
+  res.json({ trip });
+}
+
+async function deleteDefEntry(req, res) {
+  const trip = await getOpenTripOr404(req, res);
+  if (!trip) return;
+
+  const index = Number(req.params.defIndex);
+  if (!Number.isInteger(index) || index < 0 || !trip.defEntries[index]) {
+    return res.status(404).json({ error: 'DEF entry not found' });
+  }
+  trip.defEntries.splice(index, 1);
+  await trip.save();
+  res.json({ trip });
+}
+
 // POST /api/v1/trips/:tripId/rto  (multipart/form-data: photo, amount, date, lat, lng)
 async function addRtoEntry(req, res) {
   const trip = await getOpenTripOr404(req, res);
@@ -318,6 +375,9 @@ module.exports = {
   addDieselEntry,
   updateDieselEntry,
   deleteDieselEntry,
+  addDefEntry,
+  updateDefEntry,
+  deleteDefEntry,
   addRtoEntry,
   updateRtoEntry,
   addOtherExpense,

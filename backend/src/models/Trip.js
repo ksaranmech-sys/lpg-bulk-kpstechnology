@@ -42,6 +42,15 @@ const dieselEntrySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+const defEntrySchema = new mongoose.Schema(
+  {
+    volumeLitres: { type: Number, required: true, min: 0.01 },
+    filledAt: { type: Date, required: true, default: Date.now },
+    photo: photoSchema,
+  },
+  { timestamps: true }
+);
+
 const rtoEntrySchema = new mongoose.Schema(
   {
     amount: { type: Number, required: true, min: 0 },
@@ -80,6 +89,7 @@ const tripSchema = new mongoose.Schema(
     turnExpense: { type: Number, default: 0, min: 0 },
 
     dieselEntries: { type: [dieselEntrySchema], default: [] },
+    defEntries: { type: [defEntrySchema], default: [] },
 
     rtoEntries: { type: [rtoEntrySchema], default: [] },
 

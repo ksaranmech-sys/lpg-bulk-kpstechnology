@@ -51,6 +51,7 @@ export async function compressPhoto(file) {
 const withCompressedPhoto = (fn) => async (tripId, fields, file, ...rest) => fn(tripId, fields, await compressPhoto(file), ...rest);
 export const setLoadingDetailsWithPhoto = withCompressedPhoto(client.setLoadingDetailsWithPhoto);
 export const addDieselEntry = withCompressedPhoto(client.addDieselEntry);
+export const addDefEntry = withCompressedPhoto(client.addDefEntry);
 export const addRtoEntry = withCompressedPhoto(client.addRtoEntry);
 export const addOtherExpense = withCompressedPhoto(client.addOtherExpense);
 export const createVehicleExpense = async (data, file) => client.createVehicleExpense(data, await compressPhoto(file));
@@ -68,6 +69,7 @@ export const {
   setUnloading, setTurnDetails, setUnloadingTurnDetails, deleteUnloadingTurnDetails,
   closeTrip, sendReport, reportDownloadUrl,
   updateDieselEntry, deleteDieselEntry,
+  updateDefEntry, deleteDefEntry,
   updateRtoEntry,
   updateOtherExpense, deleteOtherExpense,
   createCustomer, listCustomers, getCustomer, getCustomerMonthlyIncome,

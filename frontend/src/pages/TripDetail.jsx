@@ -12,6 +12,7 @@ import UnloadingTurnForm from '../components/trip/UnloadingTurnForm';
 import UnloadingTurnSummary from '../components/trip/UnloadingTurnSummary';
 import DieselForm from '../components/trip/DieselForm';
 import DieselSummary from '../components/trip/DieselSummary';
+import DefSection from '../components/trip/DefSection';
 import RtoSummary from '../components/trip/RtoSummary';
 import RtoForm from '../components/trip/RtoForm';
 import OtherExpenseForm from '../components/trip/OtherExpenseForm';
@@ -30,7 +31,7 @@ export default function TripDetail() {
   const [editingUnloadingDetails, setEditingUnloadingDetails] = useState(false);
   const [editingTurnDetails, setEditingTurnDetails] = useState(false);
   // After an entry is added, the page scrolls to the next section so the driver keeps moving
-  // down the form (Advance -> Loading -> Diesel -> ...).
+  // down the form (Advance -> Loading -> Diesel -> DEF -> ...).
   const sectionRefs = useRef({});
   const [scrollTarget, setScrollTarget] = useState(null);
 
@@ -120,8 +121,11 @@ export default function TripDetail() {
         <div className="card" ref={sectionRef('diesel')}>
           <DieselSummary trip={trip} tripId={tripId} onSaved={load} />
           <div style={{ marginTop: 14 }}>
-            <DieselForm tripId={tripId} trip={trip} onSaved={savedAndGoTo('rto')} title="" />
+            <DieselForm tripId={tripId} trip={trip} onSaved={savedAndGoTo('def')} title="" />
           </div>
+        </div>
+        <div className="card" ref={sectionRef('def')}>
+          <DefSection trip={trip} tripId={tripId} onSaved={savedAndGoTo('rto')} />
         </div>
         <div className="card" ref={sectionRef('rto')}>
           <RtoSummary trip={trip} onSaved={load} />

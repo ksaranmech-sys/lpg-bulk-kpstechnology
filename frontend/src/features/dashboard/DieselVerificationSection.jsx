@@ -146,7 +146,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
     try {
       await api.createDieselVerification({ vehicleId, month }, file);
       clearSelectedFile();
-      setMessage('Monthly diesel statement uploaded.');
+      setMessage('Monthly fuel statement uploaded.');
       try {
         const uploadResponse = await api.listDieselVerifications({ vehicleId, month });
         const monthUploads = uploadResponse.data.uploads || [];
@@ -210,7 +210,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
   return (
     <section className="card" aria-labelledby="diesel-verification-title" style={{ order: 9999 }}>
       <h3 id="diesel-verification-title" className="section-title" style={{ marginTop: 0 }}>
-        Diesel Verification
+        Diesel Verification &amp; DEF
       </h3>
       {vehiclesLoading ? <p>Loading vehicles...</p> : vehicles.length === 0 ? (
         <p style={{ margin: 0, color: '#666' }}>No vehicles available for diesel verification.</p>
@@ -255,7 +255,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
 
           <form onSubmit={handleUpload} style={{ display: 'flex', alignItems: 'end', gap: 12, flexWrap: 'wrap', margin: '4px 0 20px' }}>
             <div className="field" style={{ minWidth: 260 }}>
-              <label htmlFor="diesel-verification-file">Monthly diesel statement (PDF, Excel .xls/.xlsx, or CSV)</label>
+              <label htmlFor="diesel-verification-file">Monthly Diesel / DEF statement (PDF, Excel .xls/.xlsx, or CSV)</label>
               <input
                 id="diesel-verification-file"
                 ref={fileInputRef}
@@ -264,8 +264,10 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                 required
                 onChange={(event) => setFile(event.target.files?.[0] || null)}
               />
-              <small>              One customer statement can include multiple vehicles. Upload each distinct file once; exact duplicate files are rejected.
-              Statement date columns may be Date, Settlement Date, Transaction Date, or Txn Date; quantity columns may be Quantity or Diesel Quantity (litres). PDFs must contain selectable text.</small>
+              <small>
+                One customer statement can include multiple vehicles. Upload each distinct file once; exact duplicate files are rejected.
+                Statement date columns may be Date, Settlement Date, Transaction Date, or Txn Date. Include Diesel / DEF quantity columns or a Product and Quantity column. PDFs must contain selectable text.
+              </small>
             </div>
             {file && (
               <button
@@ -325,7 +327,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
             <p style={{ color: '#666' }}>No trips found for this vehicle in {month}.</p>
           ) : (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', minWidth: 1120, borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', minWidth: 1500, borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
                     <th style={cellStyle}>S.No</th>
@@ -338,6 +340,9 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                     <th style={cellStyle}>Diesel for Trip</th>
                     <th style={cellStyle}>Diesel added in trip</th>
                     <th style={cellStyle}>Diesel from Document</th>
+                    <th style={cellStyle}>DEF for Trip</th>
+                    <th style={cellStyle}>DEF added in trip</th>
+                    <th style={cellStyle}>DEF from Document</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -355,6 +360,9 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                       <td style={cellStyle}>{formatVerificationLitres(row.dieselForTrip)}</td>
                       <td style={cellStyle}>{formatVerificationLitres(row.tripDiesel)}</td>
                       <td style={cellStyle}>{formatVerificationLitres(row.dieselFromDocument)}</td>
+                      <td style={cellStyle}>{formatVerificationLitres(row.defForTrip)}</td>
+                      <td style={cellStyle}>{formatVerificationLitres(row.defAdded)}</td>
+                      <td style={cellStyle}>{formatVerificationLitres(row.defFromDocument)}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const ExcelJS = require('exceljs');
 const XLSX = require('@e965/xlsx');
 const PDFDocument = require('pdfkit');
-const { parseDieselRecords } = require('../src/utils/dieselVerification');
+const { parseDieselRecords, parseFuelRecords } = require('../src/utils/dieselVerification');
 
 async function workbookBuffer(rows) {
   const workbook = new ExcelJS.Workbook();
@@ -127,6 +127,51 @@ test('parses CSV statements with quoted values, comma-formatted litres, and a UT
     { date: new Date('2026-09-10T00:00:00.000Z'), litres: 125.5 },
     { date: new Date('2026-09-11T00:00:00.000Z'), litres: 1250.25 },
   ]);
+});
+
+test('parses Diesel and DEF from separate spreadsheet quantity columns', async () => {
+  const buffer = await workbookBuffer([
+    ['Date', 'Vehicle No', 'Diesel Quantity (litres)', 'DEF Quantity (litres)'],
+    ['10/10/2026', 'KA01AH6269', 240, 18.5],
+    ['11/10/2026', '', 125, 12],
+  ]);
+
+  assert.deepEqual(await parseFuelRecords(buffer, 'xlsx', 'KA01AH6269'), {
+    dieselRecords: [
+      { date: new Date('2026-10-10T00:00:00.000Z'), litres: 240, vehicleNumber: 'KA01AH6269' },
+      { date: new Date('2026-10-11T00:00:00.000Z'), litres: 125, vehicleNumber: 'KA01AH6269' },
+    ],
+    defRecords: [
+      { date: new Date('2026-10-10T00:00:00.000Z'), litres: 18.5, vehicleNumber: 'KA01AH6269' },
+      { date: new Date('2026-10-11T00:00:00.000Z'), litres: 12, vehicleNumber: 'KA01AH6269' },
+    ],
+  });
+});
+
+test('parses Diesel and DEF product rows from a statement quantity column', async () => {
+  const csv = [
+    'Transaction Date,Product,Quantity (litres),Vehicle No',
+    '10/10/2026,Diesel,240,KA01AH6269',
+    '11/10/2026,AdBlue,18.5,KA01AH6269',
+  ].join('\n');
+
+  assert.deepEqual(await parseFuelRecords(Buffer.from(csv), 'csv'), {
+    dieselRecords: [{ date: new Date('2026-10-10T00:00:00.000Z'), litres: 240, vehicleNumber: 'KA01AH6269' }],
+    defRecords: [{ date: new Date('2026-10-11T00:00:00.000Z'), litres: 18.5, vehicleNumber: 'KA01AH6269' }],
+  });
+});
+
+test('parses DEF quantities from selectable-text PDF transactions', async () => {
+  const buffer = await pdfBuffer([
+    'Transaction Date Product Quantity (L)',
+    '10-Nov-2026 DEF 18.75 L',
+    '11-Nov-2026 Diesel 250 L',
+  ]);
+
+  assert.deepEqual(await parseFuelRecords(buffer, 'pdf'), {
+    dieselRecords: [{ date: new Date('2026-11-11T00:00:00.000Z'), litres: 250 }],
+    defRecords: [{ date: new Date('2026-11-10T00:00:00.000Z'), litres: 18.75 }],
+  });
 });
 
 test('parses vendor CSV transaction date and diesel quantity headers while ignoring time', async () => {

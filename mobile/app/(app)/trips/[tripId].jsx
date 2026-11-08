@@ -9,6 +9,7 @@ import { colors, spacing } from '../../../src/theme';
 import AdvanceSection from '../../../src/trip/AdvanceSection';
 import LoadingSection from '../../../src/trip/LoadingSection';
 import DieselSection from '../../../src/trip/DieselSection';
+import DefSection from '../../../src/trip/DefSection';
 import RtoSection from '../../../src/trip/RtoSection';
 import UnloadingTurnSection from '../../../src/trip/UnloadingTurnSection';
 import UnloadingSection from '../../../src/trip/UnloadingSection';
@@ -21,7 +22,7 @@ export default function TripScreen() {
   const { user } = useAuth();
   const { trip, meta, loading, error, reload } = useTrip(tripId);
   // After an entry is added the screen scrolls to the next section so the driver keeps moving
-  // down the form (Advance -> Loading -> Diesel -> ...).
+  // down the form (Advance -> Loading -> Diesel -> DEF -> ...).
   const scrollRef = useRef(null);
   const sectionY = useRef({});
   const onSectionLayout = (key) => (event) => { sectionY.current[key] = event.nativeEvent.layout.y; };
@@ -75,7 +76,8 @@ export default function TripScreen() {
 
       <View onLayout={onSectionLayout('advance')}><AdvanceSection {...sectionProps} onAdded={addedThenGoTo('loading')} /></View>
       <View onLayout={onSectionLayout('loading')}><LoadingSection {...sectionProps} onAdded={addedThenGoTo('diesel')} /></View>
-      <View onLayout={onSectionLayout('diesel')}><DieselSection {...sectionProps} onAdded={addedThenGoTo('rto')} /></View>
+      <View onLayout={onSectionLayout('diesel')}><DieselSection {...sectionProps} onAdded={addedThenGoTo('def')} /></View>
+      <View onLayout={onSectionLayout('def')}><DefSection {...sectionProps} onAdded={addedThenGoTo('rto')} /></View>
       <View onLayout={onSectionLayout('rto')}><RtoSection {...sectionProps} onAdded={addedThenGoTo('unloadingTurn')} /></View>
       <View onLayout={onSectionLayout('unloadingTurn')}><UnloadingTurnSection {...sectionProps} onAdded={addedThenGoTo('unloading')} /></View>
       <View onLayout={onSectionLayout('unloading')}><UnloadingSection {...sectionProps} onAdded={addedThenGoTo('other')} /></View>

@@ -30,6 +30,9 @@ router.post(
 );
 router.patch('/:tripId/diesel/:dieselIndex', scopeToOpenTripForUser, ctrl.updateDieselEntry);
 router.delete('/:tripId/diesel/:dieselIndex', scopeToOpenTripForUser, ctrl.deleteDieselEntry);
+router.post('/:tripId/def', scopeToOpenTripForUser, upload.single('photo'), ctrl.addDefEntry);
+router.patch('/:tripId/def/:defIndex', scopeToOpenTripForUser, ctrl.updateDefEntry);
+router.delete('/:tripId/def/:defIndex', scopeToOpenTripForUser, ctrl.deleteDefEntry);
 router.post(
   '/:tripId/rto',
   scopeToOpenTripForUser,

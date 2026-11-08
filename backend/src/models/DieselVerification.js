@@ -27,6 +27,7 @@ const dieselVerificationSchema = new mongoose.Schema(
     },
     fileData: { type: Buffer, required: true, select: false },
     dieselRecords: { type: [dieselRecordSchema], default: [] },
+    defRecords: { type: [dieselRecordSchema], default: [] },
     recordsParserVersion: { type: Number, default: 0 },
     fileHash: { type: String, default: null, index: true },
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

@@ -65,6 +65,43 @@ test('shows diesel entry totals before a trip settlement is available', () => {
   expect(row.dieselForTrip).toBeNull();
 });
 
+test('calculates DEF trip, entered, and statement totals independently from diesel', () => {
+  const rows = buildDieselVerificationRows([
+    {
+      _id: 'trip-1',
+      loadingDate: '2026-10-01T00:00:00.000Z',
+      turnDate: '2026-10-10T00:00:00.000Z',
+      dieselEntries: [{ volumeLitres: 300 }],
+      defEntries: [{ volumeLitres: 10 }, { volumeLitres: 2.5 }],
+    },
+    {
+      _id: 'trip-2',
+      loadingDate: '2026-10-11T00:00:00.000Z',
+      turnDate: '2026-10-20T00:00:00.000Z',
+      dieselEntries: [{ volumeLitres: 200 }],
+      defEntries: [{ volumeLitres: 4 }],
+    },
+  ], '2026-10', [{
+    dieselRecords: [{ date: '2026-10-10T00:00:00.000Z', litres: 300 }],
+    defRecords: [
+      { date: '2026-10-10T00:00:00.000Z', litres: 10 },
+      { date: '2026-10-12T00:00:00.000Z', litres: 4.5 },
+    ],
+  }]);
+
+  expect(rows[0]).toMatchObject({
+    dieselFromDocument: 300,
+    defForTrip: 6.5,
+    defAdded: 12.5,
+    defFromDocument: 10,
+  });
+  expect(rows[1]).toMatchObject({
+    defForTrip: null,
+    defAdded: 4,
+    defFromDocument: 4.5,
+  });
+});
+
 test('shows no diesel amount when a trip has no diesel entries', () => {
   const [row] = buildDieselVerificationRows([{
     _id: 'trip-without-diesel',
@@ -192,6 +229,25 @@ test('loads document records across months for each consecutive trip load-turn i
     toDate: '2026-10-12',
   });
   expect(getDieselVerificationDateRange(trips.slice(1), '2026-10')).toBeNull();
+});
+
+test('includes DEF-only statement dates when loading cross-month trip comparisons', () => {
+  const trips = [{
+    _id: 'previous-trip',
+    loadingDate: '2026-09-20T00:00:00.000Z',
+    turnDate: '2026-09-28T00:00:00.000Z',
+  }, {
+    _id: 'current-trip',
+    loadingDate: '2026-10-01T00:00:00.000Z',
+    turnDate: '2026-10-12T00:00:00.000Z',
+  }];
+
+  expect(getDieselVerificationDateRange(trips, '2026-10', [{
+    defRecords: [{ date: '2026-09-25T00:00:00.000Z', litres: 8 }],
+  }])).toEqual({
+    fromDate: '2026-09-28',
+    toDate: '2026-10-12',
+  });
 });
 
 test('finds the previous trip by loading date even when trips were created out of order', () => {
