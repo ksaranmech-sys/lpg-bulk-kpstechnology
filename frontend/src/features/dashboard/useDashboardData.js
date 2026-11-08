@@ -53,13 +53,18 @@ export function useDashboardData(user) {
   useEffect(() => {
     if (!['customer_admin', 'vehicle_user'].includes(user?.role)) {
       setLeaves([]);
+      setLeaveError('');
       return;
     }
     setLeavesLoading(true);
+    setLeaveError('');
     api
       .listLeaves(user.role === 'customer_admin' ? user.customer : undefined)
       .then((res) => setLeaves(res.data.leaves || []))
-      .catch((err) => setLeaveError(err.response?.data?.error || 'Failed to load leave entries'))
+      .catch((err) => {
+        setLeaves([]);
+        setLeaveError(err.response?.data?.error || 'Failed to load leave entries');
+      })
       .finally(() => setLeavesLoading(false));
   }, [user]);
 

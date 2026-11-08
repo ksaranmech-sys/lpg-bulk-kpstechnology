@@ -13,6 +13,7 @@ import axios from 'axios';
 export function createApiClient({ baseURL, session, onSessionExpired }) {
   // 60s covers a Render free-tier cold start; without a timeout a dead connection hangs forever.
   const http = axios.create({ baseURL, timeout: 60000 });
+  const maxTransientGetRetries = 2;
 
   http.interceptors.request.use(async (config) => {
     const { token } = (await session.getSession()) || {};
@@ -41,7 +42,20 @@ export function createApiClient({ baseURL, session, onSessionExpired }) {
     async (err) => {
       const original = err.config || {};
       const isAuthCall = /\/auth\/(login|refresh)$/.test(original.url || '');
-      if (err.response?.status !== 401 || original._retried || isAuthCall) {
+      const isGetRequest = String(original.method || '').toLowerCase() === 'get';
+      const retryCount = original._transientRetries || 0;
+      const status = err.response?.status;
+      const isTransientFailure = [502, 503, 504].includes(status)
+        || (status === 500 && retryCount === 0)
+        || (!err.response && ['ERR_NETWORK', 'ECONNRESET', 'ETIMEDOUT'].includes(err.code));
+
+      if (isGetRequest && isTransientFailure && retryCount < maxTransientGetRetries) {
+        original._transientRetries = retryCount + 1;
+        await new Promise((resolve) => setTimeout(resolve, 750 * (retryCount + 1)));
+        return http(original);
+      }
+
+      if (status !== 401 || original._retried || isAuthCall) {
         return Promise.reject(err);
       }
       try {
