@@ -43,7 +43,7 @@ test('offers vehicle and monthly file selection for diesel verification', async 
         loadingWeightTons: 17.5,
         unloadingLocation: 'Customer site',
         dieselEntries: [{ volumeLitres: 999 }],
-        settlement: { totalDieselLitres: 20 },
+        settlement: { totalDieselLitres: 20, totalKm: 850, mileageKmPerLitre: 2.45 },
       }],
     },
   });
@@ -75,6 +75,9 @@ test('offers vehicle and monthly file selection for diesel verification', async 
   expect(container.textContent).toContain('17.5 t');
   expect(container.textContent).toContain('Customer site');
   expect(container.textContent).toContain('Diesel added in trip');
+  expect(container.textContent).toContain('Trip KM');
+  expect(container.textContent).toContain('850 km');
+  expect(container.textContent).toContain('2.45 km/L');
   expect(container.textContent).toContain('999 L');
   expect(container.textContent).not.toContain('20 L');
   expect(container.textContent).toContain('18 L');

@@ -1,7 +1,9 @@
 import {
   buildDieselVerificationRows,
   formatVerificationDate,
+  formatVerificationKilometres,
   formatVerificationLitres,
+  formatVerificationMileage,
   getDieselVerificationDateRange,
 } from './dieselVerificationData';
 
@@ -16,7 +18,7 @@ test('builds monthly trip rows using the statement start date for the first trip
       loadingWeightTons: 17.5,
       unloadingLocation: 'Unloading 2',
       dieselEntries: [{ volumeLitres: 10 }, { volumeLitres: '5.5' }, { volumeLitres: 900 }],
-      settlement: { totalDieselLitres: 55 },
+      settlement: { totalDieselLitres: 55, totalKm: 1250.5, mileageKmPerLitre: 2.74 },
     },
     {
       _id: 'trip-1',
@@ -43,6 +45,8 @@ test('builds monthly trip rows using the statement start date for the first trip
   expect(rows[1]).toMatchObject({
     loadingWeightTons: 17.5,
     unloading: 'Unloading 2',
+    tripKm: 1250.5,
+    mileageKmPerLitre: 2.74,
     dieselFromDocument: 7,
     tripDiesel: 915.5,
   });
@@ -237,4 +241,8 @@ test('formats verification dates and litres for the table', () => {
   expect(formatVerificationDate(null)).toBe('—');
   expect(formatVerificationLitres(12.5)).toContain('12.5');
   expect(formatVerificationLitres(null)).toBe('—');
+  expect(formatVerificationKilometres(1234.5)).toContain('1,234.5 km');
+  expect(formatVerificationKilometres(null)).toBe('—');
+  expect(formatVerificationMileage(3.25)).toBe('3.25 km/L');
+  expect(formatVerificationMileage(null)).toBe('—');
 });

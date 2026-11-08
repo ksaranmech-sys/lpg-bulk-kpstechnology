@@ -3,7 +3,9 @@ import * as api from '../../api/api';
 import {
   buildDieselVerificationRows,
   formatVerificationDate,
+  formatVerificationKilometres,
   formatVerificationLitres,
+  formatVerificationMileage,
   getDieselVerificationDateRange,
 } from './dieselVerificationData';
 
@@ -323,7 +325,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
             <p style={{ color: '#666' }}>No trips found for this vehicle in {month}.</p>
           ) : (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', minWidth: 940, borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', minWidth: 1120, borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
                     <th style={cellStyle}>S.No</th>
@@ -331,6 +333,8 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                     <th style={cellStyle}>Load Weight (tons)</th>
                     <th style={cellStyle}>Unloading</th>
                     <th style={cellStyle}>Unloading Date</th>
+                    <th style={cellStyle}>Trip KM</th>
+                    <th style={cellStyle}>Mileage</th>
                     <th style={cellStyle}>Diesel added in trip</th>
                     <th style={cellStyle}>Diesel from Document</th>
                   </tr>
@@ -345,6 +349,8 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                         : `${Number(row.loadingWeightTons).toLocaleString('en-IN', { maximumFractionDigits: 2 })} t`}</td>
                       <td style={cellStyle}>{row.unloading || '—'}</td>
                       <td style={cellStyle}>{formatVerificationDate(row.unloadingDate)}</td>
+                      <td style={cellStyle}>{formatVerificationKilometres(row.tripKm)}</td>
+                      <td style={cellStyle}>{formatVerificationMileage(row.mileageKmPerLitre)}</td>
                       <td style={cellStyle}>{formatVerificationLitres(row.tripDiesel)}</td>
                       <td style={cellStyle}>{formatVerificationLitres(row.dieselFromDocument)}</td>
                     </tr>

@@ -113,6 +113,8 @@ export function buildDieselVerificationRows(trips, month, uploads, vehicleNumber
         loadingWeightTons: trip.loadingWeightTons ?? null,
         unloading: trip.unloadingLocation || '',
         unloadingDate: trip.unloadingDate || null,
+        tripKm: trip.settlement?.totalKm ?? null,
+        mileageKmPerLitre: trip.settlement?.mileageKmPerLitre ?? null,
         tripDiesel: dieselAdded,
         dieselFromDocument,
       };
@@ -128,4 +130,16 @@ export function formatVerificationLitres(value) {
   return value == null
     ? '—'
     : `${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 2 })} L`;
+}
+
+export function formatVerificationKilometres(value) {
+  return value == null
+    ? '—'
+    : `${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 2 })} km`;
+}
+
+export function formatVerificationMileage(value) {
+  return value == null
+    ? '—'
+    : `${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 2 })} km/L`;
 }
