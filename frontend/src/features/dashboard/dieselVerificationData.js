@@ -115,6 +115,7 @@ export function buildDieselVerificationRows(trips, month, uploads, vehicleNumber
         unloadingDate: trip.unloadingDate || null,
         tripKm: trip.settlement?.totalKm ?? null,
         mileageKmPerLitre: trip.settlement?.mileageKmPerLitre ?? null,
+        dieselForTrip: trip.settlement?.totalDieselLitres ?? null,
         tripDiesel: dieselAdded,
         dieselFromDocument,
       };

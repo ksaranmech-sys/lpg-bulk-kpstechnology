@@ -47,6 +47,7 @@ test('builds monthly trip rows using the statement start date for the first trip
     unloading: 'Unloading 2',
     tripKm: 1250.5,
     mileageKmPerLitre: 2.74,
+    dieselForTrip: 55,
     dieselFromDocument: 7,
     tripDiesel: 915.5,
   });
@@ -61,6 +62,7 @@ test('shows diesel entry totals before a trip settlement is available', () => {
   }], '2026-09', []);
 
   expect(row.tripDiesel).toBe(60);
+  expect(row.dieselForTrip).toBeNull();
 });
 
 test('shows no diesel amount when a trip has no diesel entries', () => {

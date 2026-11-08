@@ -78,8 +78,9 @@ test('offers vehicle and monthly file selection for diesel verification', async 
   expect(container.textContent).toContain('Trip KM');
   expect(container.textContent).toContain('850 km');
   expect(container.textContent).toContain('2.45 km/L');
+  expect(container.textContent).toContain('Diesel for Trip');
+  expect(container.textContent).toContain('20 L');
   expect(container.textContent).toContain('999 L');
-  expect(container.textContent).not.toContain('20 L');
   expect(container.textContent).toContain('18 L');
 
   const deleteButton = container.querySelector('button[aria-label="Delete vendor-statement.xlsx"]');

@@ -335,6 +335,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                     <th style={cellStyle}>Unloading Date</th>
                     <th style={cellStyle}>Trip KM</th>
                     <th style={cellStyle}>Mileage</th>
+                    <th style={cellStyle}>Diesel for Trip</th>
                     <th style={cellStyle}>Diesel added in trip</th>
                     <th style={cellStyle}>Diesel from Document</th>
                   </tr>
@@ -351,6 +352,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                       <td style={cellStyle}>{formatVerificationDate(row.unloadingDate)}</td>
                       <td style={cellStyle}>{formatVerificationKilometres(row.tripKm)}</td>
                       <td style={cellStyle}>{formatVerificationMileage(row.mileageKmPerLitre)}</td>
+                      <td style={cellStyle}>{formatVerificationLitres(row.dieselForTrip)}</td>
                       <td style={cellStyle}>{formatVerificationLitres(row.tripDiesel)}</td>
                       <td style={cellStyle}>{formatVerificationLitres(row.dieselFromDocument)}</td>
                     </tr>
