@@ -340,8 +340,6 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                     <th style={cellStyle}>Diesel for Trip</th>
                     <th style={cellStyle}>Diesel added in trip</th>
                     <th style={cellStyle}>Diesel from Document</th>
-                    <th style={cellStyle}>DEF for Trip</th>
-                    <th style={cellStyle}>DEF added in trip</th>
                     <th style={cellStyle}>DEF from Document</th>
                   </tr>
                 </thead>
@@ -360,8 +358,6 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                       <td style={cellStyle}>{formatVerificationLitres(row.dieselForTrip)}</td>
                       <td style={cellStyle}>{formatVerificationLitres(row.tripDiesel)}</td>
                       <td style={cellStyle}>{formatVerificationLitres(row.dieselFromDocument)}</td>
-                      <td style={cellStyle}>{formatVerificationLitres(row.defForTrip)}</td>
-                      <td style={cellStyle}>{formatVerificationLitres(row.defAdded)}</td>
                       <td style={cellStyle}>{formatVerificationLitres(row.defFromDocument)}</td>
                     </tr>
                   ))}

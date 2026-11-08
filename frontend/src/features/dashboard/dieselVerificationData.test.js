@@ -65,7 +65,7 @@ test('shows diesel entry totals before a trip settlement is available', () => {
   expect(row.dieselForTrip).toBeNull();
 });
 
-test('calculates DEF trip, entered, and statement totals independently from diesel', () => {
+test('calculates DEF statement totals independently from diesel', () => {
   const rows = buildDieselVerificationRows([
     {
       _id: 'trip-1',
@@ -91,13 +91,9 @@ test('calculates DEF trip, entered, and statement totals independently from dies
 
   expect(rows[0]).toMatchObject({
     dieselFromDocument: 300,
-    defForTrip: 6.5,
-    defAdded: 12.5,
     defFromDocument: 10,
   });
   expect(rows[1]).toMatchObject({
-    defForTrip: null,
-    defAdded: 4,
     defFromDocument: 4.5,
   });
 });

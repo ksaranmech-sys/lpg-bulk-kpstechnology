@@ -44,7 +44,6 @@ export function buildDieselVerificationRows(trips, month, uploads, vehicleNumber
     buildTripVerificationIntervals(trips, month, defRecords).map((interval) => [interval.trip._id, interval])
   );
   const ordered = orderedTrips(trips);
-  const nextTripById = new Map(ordered.slice(0, -1).map((trip, index) => [trip._id, ordered[index + 1]]));
   const countedStatementDates = new Set();
   const countedDefStatementDates = new Set();
 
@@ -95,20 +94,6 @@ export function buildDieselVerificationRows(trips, month, uploads, vehicleNumber
           return Number.isFinite(litres) ? sum + litres : sum;
         }, 0)
         : null;
-      const defEntries = Array.isArray(trip.defEntries) ? trip.defEntries : [];
-      const nextTrip = nextTripById.get(trip._id);
-      const nextTripDefEntries = Array.isArray(nextTrip?.defEntries) ? nextTrip.defEntries : [];
-      const defAdded = defEntries.length
-        ? defEntries.reduce((sum, entry) => {
-          const litres = Number(entry.volumeLitres);
-          return Number.isFinite(litres) ? sum + litres : sum;
-        }, 0)
-        : null;
-      const defForTrip = defEntries.length > 0 && nextTripDefEntries.length > 0
-        ? defEntries.slice(1).reduce((sum, entry) => sum + (Number(entry.volumeLitres) || 0), 0)
-          + (Number(nextTripDefEntries[0].volumeLitres) || 0)
-        : null;
-
       return {
         id: trip._id,
         loading: trip.loadingLocation || '',
@@ -120,8 +105,6 @@ export function buildDieselVerificationRows(trips, month, uploads, vehicleNumber
         dieselForTrip: trip.settlement?.totalDieselLitres ?? null,
         tripDiesel: dieselAdded,
         dieselFromDocument,
-        defForTrip,
-        defAdded,
         defFromDocument,
       };
     });
