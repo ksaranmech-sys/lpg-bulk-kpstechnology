@@ -122,6 +122,12 @@ async function parsePdfRecords(buffer, targetVehicleNumber) {
   if (!normalizedHeaders.includes('date') || !normalizedHeaders.includes('amount')) {
     throw new Error('The PDF must contain selectable text with Date and Amount columns.');
   }
+  const vehicleHeaderPosition = Math.max(
+    normalizedHeaders.indexOf('vehiclenumber'),
+    normalizedHeaders.indexOf('vehicleno'),
+    normalizedHeaders.indexOf('vehicle')
+  );
+  const vehicleIsAfterAmount = vehicleHeaderPosition > normalizedHeaders.indexOf('amount');
 
   const datePattern = /\b(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{1,2}[- ](?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[- ]\d{2,4})(?:[ T]\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)?/i;
   const numberPattern = /-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/g;
@@ -136,18 +142,24 @@ async function parsePdfRecords(buffer, targetVehicleNumber) {
     if (!date) return;
 
     const fullVehicleNumber = getVehicleNumber(line);
-    const transactionText = line
+    let transactionText = line
       .slice(dateMatch.index + dateMatch[0].length)
       .replace(/\b[A-Z]{2}\s*\d{2}\s*[A-Z]{1,3}\s*\d{4}\b/ig, '');
-    const values = [...transactionText.matchAll(numberPattern)];
+    let values = [...transactionText.matchAll(numberPattern)];
+    let numericVehicleNumber = '';
+    if (!fullVehicleNumber && vehicleHeaderPosition >= 0) {
+      const vehicleValue = vehicleIsAfterAmount ? values.at(-1) : values[0];
+      if (vehicleValue?.[0].match(/^\d{4}$/)) {
+        numericVehicleNumber = vehicleValue[0];
+        transactionText = transactionText.slice(0, vehicleValue.index)
+          + transactionText.slice(vehicleValue.index + vehicleValue[0].length);
+        values = [...transactionText.matchAll(numberPattern)];
+      }
+    }
     const amountText = values.at(-1)?.[0];
     if (amountText == null) {
       throw new Error(`PDF row ${index + 1} needs a non-negative Amount value.`);
     }
-    const numericVehicleNumber = values
-      .slice(0, -1)
-      .map(([value]) => getLastFourVehicleDigits(value))
-      .find((value) => value.length === 4);
     records.push({
       date,
       amount: parseAmount(amountText, `PDF row ${index + 1}`),

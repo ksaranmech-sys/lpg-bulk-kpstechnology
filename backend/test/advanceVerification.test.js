@@ -63,11 +63,11 @@ test('parses CSV and Excel advance statements with optional vehicle numbers', as
   assert.deepEqual(await parseAdvanceRecords(workbook, 'xlsx', 'KA01AH6269'), expected);
 });
 
-test('parses selectable-text PDF vehicle suffixes and amounts', async () => {
+test('parses selectable-text PDF full and numeric vehicle suffixes before amounts', async () => {
   const pdf = await pdfBuffer([
     'Transaction Date Vehicle Number Amount',
     '10-Nov-2026 KA01AH6269 1,250.50',
-    '11-Nov-2026 1234 750.00',
+    '11-Nov-2026 6304 750.00',
   ]);
   assert.deepEqual(await parseAdvanceRecords(pdf, 'pdf', 'KA03CD5678'), [
     {
@@ -78,9 +78,19 @@ test('parses selectable-text PDF vehicle suffixes and amounts', async () => {
     {
       date: new Date('2026-11-11T00:00:00.000Z'),
       amount: 750,
-      vehicleNumber: '1234',
+      vehicleNumber: '6304',
     },
   ]);
+
+  const amountBeforeVehicle = await pdfBuffer([
+    'Transaction Date Amount Vehicle Number',
+    '12-Nov-2026 4,500.00 6269',
+  ]);
+  assert.deepEqual(await parseAdvanceRecords(amountBeforeVehicle, 'pdf', 'KA03CD5678'), [{
+    date: new Date('2026-11-12T00:00:00.000Z'),
+    amount: 4500,
+    vehicleNumber: '6269',
+  }]);
 });
 
 test('parses legacy .xls advance statements', async () => {
