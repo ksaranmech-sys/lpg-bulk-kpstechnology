@@ -263,7 +263,7 @@ export default function AdvanceVerificationSection({ vehicles, loading: vehicles
                 onChange={(event) => setFile(event.target.files?.[0] || null)}
               />
               <small>
-                The statement must contain Date and Amount columns. Vehicle Number is optional; rows without it are assigned to the selected vehicle.
+                The statement must contain Date and Amount columns. Vehicle Number is optional; matching uses its last four digits. Rows without it are assigned to the selected vehicle.
                 PDFs must contain selectable text.
               </small>
             </div>

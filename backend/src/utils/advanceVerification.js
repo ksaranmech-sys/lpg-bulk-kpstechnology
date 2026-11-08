@@ -1,7 +1,12 @@
 const { PDFParse } = require('pdf-parse');
 const { Readable } = require('stream');
-const { parseDate, normalizeVehicleNumber, getVehicleNumber } = require('./dieselVerification');
+const { parseDate, getVehicleNumber } = require('./dieselVerification');
 const { loadSpreadsheetWorkbook } = require('./spreadsheet');
+
+function getLastFourVehicleDigits(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits.length >= 4 ? digits.slice(-4) : '';
+}
 
 function normalizeHeader(value) {
   return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -83,7 +88,7 @@ function parseWorksheetRecords(worksheet, targetVehicleNumber) {
     const dateValue = getCellValue(row.getCell(header.dateColumn));
     const amountValue = getCellValue(row.getCell(header.amountColumn));
     const rowVehicleNumber = header.vehicleColumn
-      ? normalizeVehicleNumber(getCellValue(row.getCell(header.vehicleColumn)))
+      ? getLastFourVehicleDigits(getCellValue(row.getCell(header.vehicleColumn)))
       : '';
     if ((dateValue == null || dateValue === '') && (amountValue == null || amountValue === '')) continue;
 
@@ -95,7 +100,7 @@ function parseWorksheetRecords(worksheet, targetVehicleNumber) {
     records.push({
       date,
       amount: parseAmount(amountValue, `Row ${rowNumber} in "${worksheet.name}"`),
-      vehicleNumber: rowVehicleNumber || normalizeVehicleNumber(targetVehicleNumber),
+      vehicleNumber: rowVehicleNumber || getLastFourVehicleDigits(targetVehicleNumber),
     });
   }
   return { foundHeaders: true, records };
@@ -121,7 +126,7 @@ async function parsePdfRecords(buffer, targetVehicleNumber) {
   const datePattern = /\b(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{1,2}[- ](?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[- ]\d{2,4})(?:[ T]\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)?/i;
   const numberPattern = /-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/g;
   const records = [];
-  const defaultVehicleNumber = normalizeVehicleNumber(targetVehicleNumber);
+  const defaultVehicleNumber = getLastFourVehicleDigits(targetVehicleNumber);
 
   lines.forEach((line, index) => {
     const dateMatch = datePattern.exec(line);
@@ -130,7 +135,7 @@ async function parsePdfRecords(buffer, targetVehicleNumber) {
     const date = parseDate(dateMatch[0]);
     if (!date) return;
 
-    const vehicleNumber = getVehicleNumber(line) || defaultVehicleNumber;
+    const fullVehicleNumber = getVehicleNumber(line);
     const transactionText = line
       .slice(dateMatch.index + dateMatch[0].length)
       .replace(/\b[A-Z]{2}\s*\d{2}\s*[A-Z]{1,3}\s*\d{4}\b/ig, '');
@@ -139,10 +144,16 @@ async function parsePdfRecords(buffer, targetVehicleNumber) {
     if (amountText == null) {
       throw new Error(`PDF row ${index + 1} needs a non-negative Amount value.`);
     }
+    const numericVehicleNumber = values
+      .slice(0, -1)
+      .map(([value]) => getLastFourVehicleDigits(value))
+      .find((value) => value.length === 4);
     records.push({
       date,
       amount: parseAmount(amountText, `PDF row ${index + 1}`),
-      vehicleNumber,
+      vehicleNumber: getLastFourVehicleDigits(fullVehicleNumber)
+        || numericVehicleNumber
+        || defaultVehicleNumber,
     });
   });
 

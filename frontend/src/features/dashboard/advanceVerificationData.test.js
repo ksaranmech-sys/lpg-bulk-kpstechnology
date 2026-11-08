@@ -63,7 +63,7 @@ test('filters statement rows by vehicle and leaves unmatched trips visible', () 
   const uploads = [{
     defaultVehicleNumber: 'KA01AH6269',
     advanceRecords: [
-      { date: '2026-10-02T00:00:00.000Z', amount: 100, vehicleNumber: 'KA01AH6269' },
+      { date: '2026-10-02T00:00:00.000Z', amount: 100, vehicleNumber: '6269' },
       { date: '2026-10-03T00:00:00.000Z', amount: 200, vehicleNumber: 'KA02AB1234' },
     ],
   }];

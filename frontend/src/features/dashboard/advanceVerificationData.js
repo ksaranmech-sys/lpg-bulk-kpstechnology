@@ -5,7 +5,8 @@ import {
 } from './tripVerificationIntervals';
 
 function normalizeVehicleNumber(value) {
-  return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits.length >= 4 ? digits.slice(-4) : '';
 }
 
 function recordsForVehicle(uploads, vehicleNumber) {
