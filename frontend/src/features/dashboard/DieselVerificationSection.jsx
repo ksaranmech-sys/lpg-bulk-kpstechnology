@@ -255,12 +255,12 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
 
           <form onSubmit={handleUpload} style={{ display: 'flex', alignItems: 'end', gap: 12, flexWrap: 'wrap', margin: '4px 0 20px' }}>
             <div className="field" style={{ minWidth: 260 }}>
-              <label htmlFor="diesel-verification-file">Monthly diesel statement (PDF, Excel .xlsx, or CSV)</label>
+              <label htmlFor="diesel-verification-file">Monthly diesel statement (PDF, Excel .xls/.xlsx, or CSV)</label>
               <input
                 id="diesel-verification-file"
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,.xlsx,.csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+                accept=".pdf,.xls,.xlsx,.csv,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
                 required
                 onChange={(event) => setFile(event.target.files?.[0] || null)}
               />

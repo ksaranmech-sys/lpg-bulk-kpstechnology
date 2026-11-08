@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const ExcelJS = require('exceljs');
+const XLSX = require('@e965/xlsx');
 const PDFDocument = require('pdfkit');
 const AdvanceVerification = require('../src/models/AdvanceVerification');
 const Vehicle = require('../src/models/Vehicle');
@@ -76,6 +77,25 @@ test('parses selectable-text PDF advance statements with vehicle and amount', as
   ]);
 });
 
+test('parses legacy .xls advance statements', async () => {
+  const workbook = {
+    SheetNames: ['Advance Statement'],
+    Sheets: {
+      'Advance Statement': XLSX.utils.aoa_to_sheet([
+        ['Txn Date', 'Advance Amount', 'Vehicle No'],
+        ['10/10/2026', '1,250.25', 'KA01AH6269'],
+        ['11/10/2026', 500, ''],
+      ]),
+    },
+  };
+  const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xls' });
+
+  assert.deepEqual(await parseAdvanceRecords(buffer, 'xls', 'KA01AH6269'), [
+    { date: new Date('2026-10-10T00:00:00.000Z'), amount: 1250.25, vehicleNumber: 'KA01AH6269' },
+    { date: new Date('2026-10-11T00:00:00.000Z'), amount: 500, vehicleNumber: 'KA01AH6269' },
+  ]);
+});
+
 test('rejects statements without Date and Amount columns and negative advance amounts', async () => {
   await assert.rejects(
     parseAdvanceRecords(Buffer.from('Date,Quantity\n10/10/2026,50\n'), 'csv'),
@@ -140,7 +160,13 @@ test('creates an advance verification upload and rejects a duplicate file', asyn
   };
   const vehicleId = '507f1f77bcf86cd799439011';
   const customerId = '507f1f77bcf86cd799439012';
-  const buffer = Buffer.from('Date,Amount\n10/10/2026,500\n');
+  const legacyWorkbook = {
+    SheetNames: ['Advances'],
+    Sheets: {
+      Advances: XLSX.utils.aoa_to_sheet([['Date', 'Amount'], ['10/10/2026', 500]]),
+    },
+  };
+  const buffer = XLSX.write(legacyWorkbook, { type: 'buffer', bookType: 'xls' });
   let savedUpload;
   AdvanceVerification.findOne = async () => null;
   Vehicle.findById = () => ({
@@ -164,7 +190,7 @@ test('creates an advance verification upload and rejects a duplicate file', asyn
   const created = response();
   await createAdvanceVerification({
     body: { vehicleId, month: '2026-10' },
-    file: { originalname: 'advances.csv', buffer },
+    file: { originalname: 'advances.xls', buffer },
     user: { role: 'super_admin', id: 'user-id' },
   }, created);
   assert.equal(created.statusCode, 201);
@@ -173,12 +199,13 @@ test('creates an advance verification upload and rejects a duplicate file', asyn
     amount: 500,
     vehicleNumber: 'KA01AH6269',
   }]);
+  assert.equal(savedUpload.contentType, 'application/vnd.ms-excel');
 
   AdvanceVerification.findOne = async () => ({ _id: 'existing-upload' });
   const duplicate = response();
   await createAdvanceVerification({
     body: { vehicleId, month: '2026-10' },
-    file: { originalname: 'advances.csv', buffer },
+    file: { originalname: 'advances.xls', buffer },
     user: { role: 'super_admin', id: 'user-id' },
   }, duplicate);
   assert.equal(duplicate.statusCode, 409);

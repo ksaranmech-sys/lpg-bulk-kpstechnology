@@ -4,8 +4,12 @@ const AdvanceVerification = require('../models/AdvanceVerification');
 const Vehicle = require('../models/Vehicle');
 const { ROLES } = require('../config/constants');
 const { parseAdvanceRecords } = require('../utils/advanceVerification');
+const {
+  XLSX_CONTENT_TYPE,
+  XLS_CONTENT_TYPE,
+  getSpreadsheetFormat,
+} = require('../utils/spreadsheet');
 
-const EXCEL_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const CSV_CONTENT_TYPE = 'text/csv';
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -103,7 +107,7 @@ async function listAdvanceVerifications(req, res) {
 
 async function createAdvanceVerification(req, res) {
   const { vehicleId, month } = req.body;
-  if (!req.file) return res.status(400).json({ error: 'A PDF, .xlsx, or .csv file is required' });
+  if (!req.file) return res.status(400).json({ error: 'A PDF, .xls/.xlsx, or .csv file is required' });
   if (!MONTH_PATTERN.test(String(month || ''))) {
     return res.status(400).json({ error: 'A valid month (YYYY-MM) is required' });
   }
@@ -122,14 +126,14 @@ async function createAdvanceVerification(req, res) {
   if (extension === 'pdf' && req.file.buffer.subarray(0, 5).toString('ascii') === '%PDF-') {
     contentType = 'application/pdf';
     format = 'pdf';
-  } else if (extension === 'xlsx' && req.file.buffer.subarray(0, 2).toString('ascii') === 'PK') {
-    contentType = EXCEL_CONTENT_TYPE;
-    format = 'xlsx';
+  } else if (['xls', 'xlsx'].includes(extension) && getSpreadsheetFormat(req.file.buffer) === extension) {
+    contentType = extension === 'xls' ? XLS_CONTENT_TYPE : XLSX_CONTENT_TYPE;
+    format = extension;
   } else if (extension === 'csv') {
     contentType = CSV_CONTENT_TYPE;
     format = 'csv';
   } else {
-    return res.status(400).json({ error: 'Upload a valid PDF, Excel .xlsx, or CSV file' });
+    return res.status(400).json({ error: 'Upload a valid PDF, Excel .xls/.xlsx, or CSV file' });
   }
 
   let advanceRecords;

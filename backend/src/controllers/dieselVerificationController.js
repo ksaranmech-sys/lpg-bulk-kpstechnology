@@ -4,12 +4,16 @@ const DieselVerification = require('../models/DieselVerification');
 const Vehicle = require('../models/Vehicle');
 const { ROLES } = require('../config/constants');
 const { parseDieselRecords } = require('../utils/dieselVerification');
+const {
+  XLSX_CONTENT_TYPE,
+  XLS_CONTENT_TYPE,
+  getSpreadsheetFormat,
+} = require('../utils/spreadsheet');
 
-const EXCEL_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const CSV_CONTENT_TYPE = 'text/csv';
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const RECORDS_PARSER_VERSION = 2;
+const RECORDS_PARSER_VERSION = 3;
 
 function safeFileName(value) {
   return String(value || 'diesel-report')
@@ -78,7 +82,9 @@ async function reprocessLegacyUploads(customerId, month) {
   for (const upload of uploads) {
     const format = upload.contentType === 'application/pdf'
       ? 'pdf'
-      : upload.contentType === CSV_CONTENT_TYPE ? 'csv' : 'xlsx';
+      : upload.contentType === CSV_CONTENT_TYPE
+        ? 'csv'
+        : upload.contentType === XLS_CONTENT_TYPE ? 'xls' : 'xlsx';
     upload.dieselRecords = await parseDieselRecords(
       upload.fileData,
       format,
@@ -135,7 +141,7 @@ async function listDieselVerifications(req, res) {
 
 async function createDieselVerification(req, res) {
   const { vehicleId, month } = req.body;
-  if (!req.file) return res.status(400).json({ error: 'A PDF, .xlsx, or .csv file is required' });
+  if (!req.file) return res.status(400).json({ error: 'A PDF, .xls/.xlsx, or .csv file is required' });
   if (!MONTH_PATTERN.test(String(month || ''))) {
     return res.status(400).json({ error: 'A valid month (YYYY-MM) is required' });
   }
@@ -162,10 +168,10 @@ async function createDieselVerification(req, res) {
     } catch (parseError) {
       return res.status(400).json({ error: parseError.message || 'The PDF could not be read' });
     }
-  } else if (extension === 'xlsx' && req.file.buffer.subarray(0, 2).toString('ascii') === 'PK') {
-    contentType = EXCEL_CONTENT_TYPE;
+  } else if (['xls', 'xlsx'].includes(extension) && getSpreadsheetFormat(req.file.buffer) === extension) {
+    contentType = extension === 'xls' ? XLS_CONTENT_TYPE : XLSX_CONTENT_TYPE;
     try {
-      dieselRecords = await parseDieselRecords(req.file.buffer, 'xlsx', vehicle.vehicleNumber);
+      dieselRecords = await parseDieselRecords(req.file.buffer, extension, vehicle.vehicleNumber);
     } catch (parseError) {
       return res.status(400).json({ error: parseError.message || 'The Excel workbook could not be read' });
     }
@@ -177,7 +183,7 @@ async function createDieselVerification(req, res) {
       return res.status(400).json({ error: parseError.message || 'The CSV file could not be read' });
     }
   } else {
-    return res.status(400).json({ error: 'Upload a valid PDF, Excel .xlsx, or CSV file' });
+    return res.status(400).json({ error: 'Upload a valid PDF, Excel .xls/.xlsx, or CSV file' });
   }
 
   const upload = await DieselVerification.create({

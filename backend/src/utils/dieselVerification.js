@@ -1,6 +1,6 @@
-const ExcelJS = require('exceljs');
 const { PDFParse } = require('pdf-parse');
 const { Readable } = require('stream');
+const { loadSpreadsheetWorkbook } = require('./spreadsheet');
 
 function normalizeHeader(value) {
   return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -213,8 +213,9 @@ async function parseDieselRecords(buffer, format = 'xlsx', targetVehicleNumber =
     return records;
   }
 
-  const workbook = new ExcelJS.Workbook();
   if (format === 'csv') {
+    const ExcelJS = require('exceljs');
+    const workbook = new ExcelJS.Workbook();
     const worksheet = await workbook.csv.read(Readable.from([buffer]), {
       dateFormats: [],
       parserOptions: { delimiter: ',', ignoreEmpty: true, trim: true },
@@ -227,8 +228,10 @@ async function parseDieselRecords(buffer, format = 'xlsx', targetVehicleNumber =
     return result.records;
   }
 
-  if (format !== 'xlsx') throw new Error('Only PDF, CSV, and Excel (.xlsx) files can be processed.');
-  await workbook.xlsx.load(buffer);
+  if (!['xls', 'xlsx'].includes(format)) {
+    throw new Error('Only PDF, CSV, and Excel (.xls/.xlsx) files can be processed.');
+  }
+  const workbook = await loadSpreadsheetWorkbook(buffer, format);
   const records = [];
   let hasExpectedHeaders = false;
 

@@ -54,6 +54,7 @@ test('offers vehicle/month statement upload and compares advances with the state
   expect(container.querySelector('#advance-verification-vehicle').value).toBe('vehicle-1');
   expect(container.querySelector('#advance-verification-month').type).toBe('month');
   expect(container.querySelector('#advance-verification-file').accept).toContain('.pdf');
+  expect(container.querySelector('#advance-verification-file').accept).toContain('.xls');
   expect(container.querySelector('#advance-verification-file').accept).toContain('.xlsx');
   expect(container.querySelector('#advance-verification-file').accept).toContain('.csv');
   expect(api.listAdvanceVerifications).toHaveBeenCalledWith({ vehicleId: 'vehicle-1', month });

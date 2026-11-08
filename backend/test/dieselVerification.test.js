@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const ExcelJS = require('exceljs');
+const XLSX = require('@e965/xlsx');
 const PDFDocument = require('pdfkit');
 const { parseDieselRecords } = require('../src/utils/dieselVerification');
 
@@ -81,6 +82,25 @@ test('parses vehicle-specific spreadsheet records and assigns rows without a veh
   assert.deepEqual(await parseDieselRecords(buffer, 'xlsx', 'KA01AH6269'), [
     { date: new Date('2026-10-10T00:00:00.000Z'), litres: 20, vehicleNumber: 'KA01AH6269' },
     { date: new Date('2026-10-10T00:00:00.000Z'), litres: 30, vehicleNumber: 'KA02AB1234' },
+    { date: new Date('2026-10-11T00:00:00.000Z'), litres: 15, vehicleNumber: 'KA01AH6269' },
+  ]);
+});
+
+test('parses legacy .xls diesel statements', async () => {
+  const workbook = {
+    SheetNames: ['Diesel Statement'],
+    Sheets: {
+      'Diesel Statement': XLSX.utils.aoa_to_sheet([
+        ['Date', 'Diesel Quantity', 'Vehicle No'],
+        ['10/10/2026', 20, 'KA01AH6269'],
+        ['11/10/2026', 15, ''],
+      ]),
+    },
+  };
+  const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xls' });
+
+  assert.deepEqual(await parseDieselRecords(buffer, 'xls', 'KA01AH6269'), [
+    { date: new Date('2026-10-10T00:00:00.000Z'), litres: 20, vehicleNumber: 'KA01AH6269' },
     { date: new Date('2026-10-11T00:00:00.000Z'), litres: 15, vehicleNumber: 'KA01AH6269' },
   ]);
 });

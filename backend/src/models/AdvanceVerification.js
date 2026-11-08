@@ -19,6 +19,7 @@ const advanceVerificationSchema = new mongoose.Schema(
       type: String,
       enum: [
         'application/pdf',
+        'application/vnd.ms-excel',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         'text/csv',
       ],

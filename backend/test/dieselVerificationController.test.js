@@ -1,8 +1,26 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const XLSX = require('@e965/xlsx');
 const DieselVerification = require('../src/models/DieselVerification');
 const Vehicle = require('../src/models/Vehicle');
-const { listDieselVerifications } = require('../src/controllers/dieselVerificationController');
+const {
+  listDieselVerifications,
+  createDieselVerification,
+} = require('../src/controllers/dieselVerificationController');
+
+function createResponse() {
+  return {
+    statusCode: 200,
+    status(code) {
+      this.statusCode = code;
+      return this;
+    },
+    json(body) {
+      this.body = body;
+      return this;
+    },
+  };
+}
 
 test('filters uploaded statements by their diesel record dates and selected vehicle', async (t) => {
   const originalFind = DieselVerification.find;
@@ -94,7 +112,7 @@ test('filters uploaded statements by their diesel record dates and selected vehi
     litres: 20,
     vehicleNumber: 'KA01AH6269',
   }]);
-  assert.equal(legacyUpload.recordsParserVersion, 2);
+  assert.equal(legacyUpload.recordsParserVersion, 3);
   assert.equal(response.body.uploads[0].recordsParserVersion, undefined);
 });
 
@@ -205,6 +223,48 @@ test('uploads all vehicle rows and assigns rows without a vehicle number to the 
     [15, 'KA01AH6269'],
   ]);
   assert.equal(savedUpload.fileHash.length, 64);
+});
+
+test('uploads legacy .xls diesel statements with the Excel MIME type', async (t) => {
+  const originals = {
+    findOne: DieselVerification.findOne,
+    create: DieselVerification.create,
+    findById: Vehicle.findById,
+  };
+  const vehicleId = '507f1f77bcf86cd799439011';
+  const customerId = '507f1f77bcf86cd799439012';
+  const workbook = {
+    SheetNames: ['Diesel'],
+    Sheets: {
+      Diesel: XLSX.utils.aoa_to_sheet([['Date', 'Diesel Quantity'], ['10/10/2026', 20]]),
+    },
+  };
+  const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xls' });
+  let savedUpload;
+  DieselVerification.findOne = async () => null;
+  Vehicle.findById = () => ({
+    select: async () => ({ _id: vehicleId, customer: customerId, vehicleNumber: 'KA01AH6269' }),
+  });
+  DieselVerification.create = async (upload) => {
+    savedUpload = upload;
+    return { toObject: () => ({ ...upload, _id: 'new-upload' }) };
+  };
+  t.after(() => {
+    DieselVerification.findOne = originals.findOne;
+    DieselVerification.create = originals.create;
+    Vehicle.findById = originals.findById;
+  });
+
+  const result = createResponse();
+  await createDieselVerification({
+    body: { vehicleId, month: '2026-10' },
+    file: { originalname: 'diesel.xls', buffer },
+    user: { role: 'super_admin', id: 'user-id' },
+  }, result);
+
+  assert.equal(result.statusCode, 201);
+  assert.equal(savedUpload.contentType, 'application/vnd.ms-excel');
+  assert.deepEqual(savedUpload.dieselRecords.map(({ litres }) => litres), [20]);
 });
 
 test('rejects invalid uploaded-statement date ranges', async () => {

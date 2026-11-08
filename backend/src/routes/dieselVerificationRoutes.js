@@ -11,8 +11,8 @@ const reportUpload = multer({
   limits: { fileSize: 10 * 1024 * 1024, files: 1 },
   fileFilter(req, file, callback) {
     const extension = path.extname(file.originalname).toLowerCase();
-    if (!['.pdf', '.xlsx', '.csv'].includes(extension)) {
-      return callback(Object.assign(new Error('Only PDF, Excel (.xlsx), and CSV files are allowed'), { status: 400 }));
+    if (!['.pdf', '.xls', '.xlsx', '.csv'].includes(extension)) {
+      return callback(Object.assign(new Error('Only PDF, Excel (.xls/.xlsx), and CSV files are allowed'), { status: 400 }));
     }
     return callback(null, true);
   },
