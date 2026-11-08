@@ -1,16 +1,12 @@
+import {
+  buildTripVerificationIntervals,
+  dateKey,
+  monthOf,
+} from './tripVerificationIntervals';
+
 function dateValue(value) {
   const date = value ? new Date(value) : null;
   return date && !Number.isNaN(date.getTime()) ? date : null;
-}
-
-function monthOf(value) {
-  const date = dateValue(value);
-  return date ? `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}` : '';
-}
-
-function dateKey(value) {
-  const date = dateValue(value);
-  return date ? Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) : null;
 }
 
 function normalizeVehicleNumber(value) {
@@ -24,37 +20,9 @@ function recordsForVehicle(uploads, vehicleNumber) {
       || normalizeVehicleNumber(record.vehicleNumber || upload.defaultVehicleNumber) === targetVehicleNumber));
 }
 
-function orderedTrips(trips) {
-  return [...trips].sort((a, b) => {
-    const loadingDateDifference = (dateKey(a.loadingDate) ?? Number.MAX_SAFE_INTEGER)
-      - (dateKey(b.loadingDate) ?? Number.MAX_SAFE_INTEGER);
-    return loadingDateDifference
-      || new Date(a.createdAt || a.loadingDate || 0).getTime()
-        - new Date(b.createdAt || b.loadingDate || 0).getTime();
-  });
-}
-
-function tripDocumentIntervals(trips, month, dieselRecords = []) {
-  const sortedTrips = orderedTrips(trips);
-  const statementDates = dieselRecords.map((record) => dateKey(record.date))
-    .filter((date) => date != null);
-  const earliestStatementDate = statementDates.length ? Math.min(...statementDates) : null;
-  return sortedTrips
-    .map((trip, index) => {
-      if (monthOf(trip.loadingDate) !== month) return null;
-      const previousTurnDate = index === 0
-        ? earliestStatementDate
-        : dateKey(sortedTrips[index - 1].turnDate);
-      const currentTurnDate = dateKey(trip.turnDate);
-      if (previousTurnDate == null || currentTurnDate == null || currentTurnDate < previousTurnDate) return null;
-      return { trip, previousTurnDate, currentTurnDate };
-    })
-    .filter(Boolean);
-}
-
 export function getDieselVerificationDateRange(trips, month, uploads = [], vehicleNumber = '') {
   const dieselRecords = recordsForVehicle(uploads, vehicleNumber);
-  const intervals = tripDocumentIntervals(trips, month, dieselRecords);
+  const intervals = buildTripVerificationIntervals(trips, month, dieselRecords);
   if (!intervals.length) return null;
   const fromDate = Math.min(...intervals.map((interval) => interval.previousTurnDate));
   const toDate = Math.max(...intervals.map((interval) => interval.currentTurnDate));
@@ -67,7 +35,7 @@ export function getDieselVerificationDateRange(trips, month, uploads = [], vehic
 export function buildDieselVerificationRows(trips, month, uploads, vehicleNumber = '') {
   const dieselRecords = recordsForVehicle(uploads, vehicleNumber);
   const intervalsByTrip = new Map(
-    tripDocumentIntervals(trips, month, dieselRecords).map((interval) => [interval.trip._id, interval])
+    buildTripVerificationIntervals(trips, month, dieselRecords).map((interval) => [interval.trip._id, interval])
   );
   const countedStatementDates = new Set();
 

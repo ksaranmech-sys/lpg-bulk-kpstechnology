@@ -245,4 +245,9 @@ async function parseDieselRecords(buffer, format = 'xlsx', targetVehicleNumber =
   return records;
 }
 
-module.exports = { parseDieselRecords };
+module.exports = {
+  parseDate,
+  normalizeVehicleNumber,
+  getVehicleNumber,
+  parseDieselRecords,
+};

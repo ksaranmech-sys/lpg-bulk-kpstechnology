@@ -200,5 +200,13 @@ export function createEndpoints(api) {
     downloadDieselVerificationFile: (verificationId) =>
       api.get(`/diesel-verifications/${verificationId}/file`, { responseType: 'blob' }),
     deleteDieselVerification: (verificationId) => api.delete(`/diesel-verifications/${verificationId}`),
+
+    // ---- Monthly driver advance verification ----
+    listAdvanceVerifications: (params) => api.get('/advance-verifications', { params }),
+    createAdvanceVerification: (data, file) =>
+      api.post('/advance-verifications', buildFormData(data, file, 'file'), multipart),
+    downloadAdvanceVerificationFile: (verificationId) =>
+      api.get(`/advance-verifications/${verificationId}/file`, { responseType: 'blob' }),
+    deleteAdvanceVerification: (verificationId) => api.delete(`/advance-verifications/${verificationId}`),
   };
 }

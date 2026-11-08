@@ -16,6 +16,7 @@ const metaRoutes = require('./routes/metaRoutes');
 const leaveRoutes = require('./routes/leaveRoutes');
 const vehicleExpenseRoutes = require('./routes/vehicleExpenseRoutes');
 const dieselVerificationRoutes = require('./routes/dieselVerificationRoutes');
+const advanceVerificationRoutes = require('./routes/advanceVerificationRoutes');
 const dieselPriceRoutes = require('./routes/dieselPriceRoutes');
 const rateTableRoutes = require('./routes/rateTableRoutes');
 
@@ -58,6 +59,7 @@ app.use('/api/v1/meta', requireAuth, metaRoutes);
 app.use('/api/v1/leaves', leaveRoutes);
 app.use('/api/v1/vehicle-expenses', vehicleExpenseRoutes);
 app.use('/api/v1/diesel-verifications', dieselVerificationRoutes);
+app.use('/api/v1/advance-verifications', advanceVerificationRoutes);
 app.use('/api/v1/diesel-prices', dieselPriceRoutes);
 app.use('/api/v1/rate-tables', rateTableRoutes);
 
@@ -87,8 +89,9 @@ app.use((err, req, res, next) => {
     });
   }
   if (err.name === 'MulterError') {
-    const isDieselVerification = req.originalUrl.startsWith('/api/v1/diesel-verifications');
-    const fileLabel = isDieselVerification ? 'File' : 'Photo';
+    const isStatementVerification = req.originalUrl.startsWith('/api/v1/diesel-verifications')
+      || req.originalUrl.startsWith('/api/v1/advance-verifications');
+    const fileLabel = isStatementVerification ? 'File' : 'Photo';
     return res.status(400).json({ error: err.code === 'LIMIT_FILE_SIZE' ? `${fileLabel} must be smaller than 10MB` : err.message });
   }
   if (err.name === 'CastError') {
