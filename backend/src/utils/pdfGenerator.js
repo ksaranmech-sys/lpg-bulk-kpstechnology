@@ -14,119 +14,122 @@ async function buildTripSettlementPdf(trip, nextTrip = null) {
   const photos = await loadTripPhotos(trip);
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 24, size: 'A4' });
-    const reportStartY = doc.page.margins.top - 10;
     const chunks = [];
     doc.on('data', (c) => chunks.push(c));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    const advances = trip.driverAdvances || [];
-    const dieselEntries = trip.dieselEntries || [];
-    const rtoEntries = trip.rtoEntries || [];
-    const otherExpenses = trip.otherExpenses || [];
-    const odometerKm = trip.status === 'closed' && trip.settlement?.totalKm != null
-      ? trip.settlement.totalKm
-      : calculateTripKm(trip, nextTrip);
-
-    const totalAdvance = advances.reduce((sum, a) => sum + Number(a.amount || 0), 0);
-    const dieselCardTotal = dieselEntries
-      .filter((entry) => entry.paymentMethod !== 'cash')
-      .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-    const dieselCashTotal = dieselEntries
-      .filter((entry) => entry.paymentMethod === 'cash')
-      .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-    const totalDiesel = dieselEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-    const loadingExpenseTotal = Number(trip.loadingExpense || 0);
-    const turnExpenseTotal = Number(trip.turnExpense || 0);
-    const parkingExpenseTotal = Number(trip.parkingExpense || 0);
-    const unloadingExpenseTotal = Number(trip.unloadingExpense || 0);
-    const rtoExpenseTotal = rtoEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-    const otherExpenseTotal = otherExpenses.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
-    const totalExpenses = dieselCashTotal + loadingExpenseTotal + turnExpenseTotal + parkingExpenseTotal + unloadingExpenseTotal + rtoExpenseTotal + otherExpenseTotal;
-    const balance = totalAdvance - totalExpenses;
-
-    doc.fontSize(15).font('Helvetica-Bold').fillColor('#102f52').text('Single Trip', { align: 'left' });
-    doc.moveDown(0.12);
-
-    compactStyledSectionHeader(doc, 'Trip Details');
-    renderSalaryRows(doc, [
-      ['Customer', trip.customer?.companyName || '-'],
-      ['Vehicle Number', trip.vehicle?.vehicleNumber || '-'],
-      ['Trip ID', String(trip._id || '-')],
-      ['Loading Location', `${trip.loadingLocation || '-'} (${fmtDate(trip.loadingDate)})`],
-      ['Unloading Location', `${trip.unloadingLocation || '-'} (${fmtDate(trip.unloadingDate)})`],
-      ...(trip.isDiverted ? [['Divert Location', `${trip.divertUnloadingLocation ? `${trip.divertUnloadingLocation} (Divert)` : '-'} (${fmtDate(trip.divertDate)})`]] : []),
-      ['Trip Status', trip.status || '-'],
-    ], { compact: true });
-
-    compactStyledSectionHeader(doc, 'Odometer & Mileage');
-    renderSalaryRows(doc, [
-      ['Odometer KM', formatKm(odometerKm)],
-      ...manualKmRows(trip).map(([label, value, legText]) => [`${label} (${legText})`, value]),
-    ], { compact: true });
-
-    compactStyledSectionHeader(doc, 'Driver Advance Details');
-    renderTable(doc, ['Date', 'Advance'],
-      advances.length ? advances.map((a) => [fmtDate(a.date), `Rs ${fmtMoney(a.amount)}`]) : [['-', 'No advances added']],
-      { totalLabel: 'Total', totalValue: `Rs ${fmtMoney(totalAdvance)}` }, { styled: true, compact: true });
-
-    compactStyledSectionHeader(doc, 'Diesel Filled Details');
-    renderTable(doc, ['Date', 'Purchase Type', 'Odometer KM', 'Litres', 'Tank Fill', 'Amount'],
-      dieselEntries.length ? dieselEntries.map((d) => [
-        fmtDate(d.filledAt),
-        d.paymentMethod === 'cash' ? 'Cash' : 'Diesel Card',
-        d.odometerKm != null ? `${fmtMoney(d.odometerKm)} km` : '-',
-        d.volumeLitres != null ? `${fmtMoney(d.volumeLitres)} L` : '-',
-        d.loadingPointTankFill ? '✓' : '-',
-        `Rs ${fmtMoney(d.amount)}`,
-      ]) : [['-', 'No diesel entries', '-', '-', '-', '-']],
-      { totalLabel: 'Diesel Card', totalValue: `Rs ${fmtMoney(dieselCardTotal)}`, extraRows: [
-        ['Cash', '', `Rs ${fmtMoney(dieselCashTotal)}`],
-        ['Total', '', `Rs ${fmtMoney(totalDiesel)}`],
-      ] }, { styled: true, compact: true });
-
-    compactStyledSectionHeader(doc, 'Expenses');
-    renderTable(doc, ['Item', 'Date', 'Amount'], [
-      ['Cash Diesel', '-', `Rs ${fmtMoney(dieselCashTotal)}`],
-      ['Cleaner Loading', fmtDate(trip.loadingDate), `Rs ${fmtMoney(loadingExpenseTotal)}`],
-      ['Turn', fmtDate(trip.loadingDate), `Rs ${fmtMoney(turnExpenseTotal)}`],
-      ['Parking', fmtDate(trip.loadingDate), `Rs ${fmtMoney(parkingExpenseTotal)}`],
-      ...(unloadingExpenseTotal > 0 ? [['Unloading', fmtDate(trip.unloadingDate), `Rs ${fmtMoney(unloadingExpenseTotal)}`]] : []),
-      ...rtoEntries.map((entry) => ['RTO', fmtDate(entry.date), `Rs ${fmtMoney(entry.amount)}`]),
-      ...otherExpenses.map((entry) => [entry.description || 'Other', fmtDate(entry.date), `Rs ${fmtMoney(entry.amount)}`]),
-    ], { totalLabel: 'Total Expenses', totalValue: `Rs ${fmtMoney(totalExpenses)}` }, { styled: true, compact: true });
-
-    compactStyledSectionHeader(doc, 'Balance');
-    renderSalaryRows(doc, [
-      ['Trip Advance', `Rs ${fmtMoney(totalAdvance)}`],
-      ['Total Expenses', `Rs ${fmtMoney(totalExpenses)}`],
-      ['Trip Balance (Advance - Expenses)', `Rs ${fmtMoney(balance)}`],
-    ], { compact: true, highlightLast: true });
-
-    doc.fontSize(7).fillColor('gray').text(
-      `Generated on ${new Date().toLocaleString('en-IN')} by KPS Fleet Management System`,
-      doc.page.margins.left,
-      doc.y + 2,
-      {
-        width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
-        align: 'center',
-        lineBreak: false,
-      }
-    );
-    doc.y += 12;
-
-    doc.roundedRect(
-      doc.page.margins.left - 8,
-      reportStartY,
-      doc.page.width - doc.page.margins.left - doc.page.margins.right + 16,
-      doc.y - reportStartY + 8,
-      8
-    ).lineWidth(1).strokeColor('#1f4d2b').stroke();
-
-    renderTripPhotos(doc, photos);
-
+    renderTripSettlementSheet(doc, trip, photos, nextTrip);
     doc.end();
   });
+}
+
+function renderTripSettlementSheet(doc, trip, photos, nextTrip = null, title = 'Single Trip') {
+  const reportStartY = doc.page.margins.top - 10;
+  const advances = trip.driverAdvances || [];
+  const dieselEntries = trip.dieselEntries || [];
+  const rtoEntries = trip.rtoEntries || [];
+  const otherExpenses = trip.otherExpenses || [];
+  const odometerKm = trip.status === 'closed' && trip.settlement?.totalKm != null
+    ? trip.settlement.totalKm
+    : calculateTripKm(trip, nextTrip);
+
+  const totalAdvance = advances.reduce((sum, a) => sum + Number(a.amount || 0), 0);
+  const dieselCardTotal = dieselEntries
+    .filter((entry) => entry.paymentMethod !== 'cash')
+    .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+  const dieselCashTotal = dieselEntries
+    .filter((entry) => entry.paymentMethod === 'cash')
+    .reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+  const totalDiesel = dieselEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+  const loadingExpenseTotal = Number(trip.loadingExpense || 0);
+  const turnExpenseTotal = Number(trip.turnExpense || 0);
+  const parkingExpenseTotal = Number(trip.parkingExpense || 0);
+  const unloadingExpenseTotal = Number(trip.unloadingExpense || 0);
+  const rtoExpenseTotal = rtoEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+  const otherExpenseTotal = otherExpenses.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+  const totalExpenses = dieselCashTotal + loadingExpenseTotal + turnExpenseTotal + parkingExpenseTotal + unloadingExpenseTotal + rtoExpenseTotal + otherExpenseTotal;
+  const balance = totalAdvance - totalExpenses;
+
+  doc.fontSize(15).font('Helvetica-Bold').fillColor('#102f52').text(title, { align: 'left' });
+  doc.moveDown(0.12);
+
+  compactStyledSectionHeader(doc, 'Trip Details');
+  renderSalaryRows(doc, [
+    ['Customer', trip.customer?.companyName || '-'],
+    ['Vehicle Number', trip.vehicle?.vehicleNumber || '-'],
+    ['Trip ID', String(trip._id || '-')],
+    ['Loading Location', `${trip.loadingLocation || '-'} (${fmtDate(trip.loadingDate)})`],
+    ['Unloading Location', `${trip.unloadingLocation || '-'} (${fmtDate(trip.unloadingDate)})`],
+    ...(trip.isDiverted ? [['Divert Location', `${trip.divertUnloadingLocation ? `${trip.divertUnloadingLocation} (Divert)` : '-'} (${fmtDate(trip.divertDate)})`]] : []),
+    ['Trip Status', trip.status || '-'],
+  ], { compact: true });
+
+  compactStyledSectionHeader(doc, 'Odometer & Mileage');
+  renderSalaryRows(doc, [
+    ['Odometer KM', formatKm(odometerKm)],
+    ...manualKmRows(trip).map(([label, value, legText]) => [`${label} (${legText})`, value]),
+  ], { compact: true });
+
+  compactStyledSectionHeader(doc, 'Driver Advance Details');
+  renderTable(doc, ['Date', 'Advance'],
+    advances.length ? advances.map((a) => [fmtDate(a.date), `Rs ${fmtMoney(a.amount)}`]) : [['-', 'No advances added']],
+    { totalLabel: 'Total', totalValue: `Rs ${fmtMoney(totalAdvance)}` }, { styled: true, compact: true });
+
+  compactStyledSectionHeader(doc, 'Diesel Filled Details');
+  renderTable(doc, ['Date', 'Purchase Type', 'Odometer KM', 'Litres', 'Tank Fill', 'Amount'],
+    dieselEntries.length ? dieselEntries.map((d) => [
+      fmtDate(d.filledAt),
+      d.paymentMethod === 'cash' ? 'Cash' : 'Diesel Card',
+      d.odometerKm != null ? `${fmtMoney(d.odometerKm)} km` : '-',
+      d.volumeLitres != null ? `${fmtMoney(d.volumeLitres)} L` : '-',
+      d.loadingPointTankFill ? '✓' : '-',
+      `Rs ${fmtMoney(d.amount)}`,
+    ]) : [['-', 'No diesel entries', '-', '-', '-', '-']],
+    { totalLabel: 'Diesel Card', totalValue: `Rs ${fmtMoney(dieselCardTotal)}`, extraRows: [
+      ['Cash', '', `Rs ${fmtMoney(dieselCashTotal)}`],
+      ['Total', '', `Rs ${fmtMoney(totalDiesel)}`],
+    ] }, { styled: true, compact: true });
+
+  compactStyledSectionHeader(doc, 'Expenses');
+  renderTable(doc, ['Item', 'Date', 'Amount'], [
+    ['Cash Diesel', '-', `Rs ${fmtMoney(dieselCashTotal)}`],
+    ['Cleaner Loading', fmtDate(trip.loadingDate), `Rs ${fmtMoney(loadingExpenseTotal)}`],
+    ['Turn', fmtDate(trip.loadingDate), `Rs ${fmtMoney(turnExpenseTotal)}`],
+    ['Parking', fmtDate(trip.loadingDate), `Rs ${fmtMoney(parkingExpenseTotal)}`],
+    ...(unloadingExpenseTotal > 0 ? [['Unloading', fmtDate(trip.unloadingDate), `Rs ${fmtMoney(unloadingExpenseTotal)}`]] : []),
+    ...rtoEntries.map((entry) => ['RTO', fmtDate(entry.date), `Rs ${fmtMoney(entry.amount)}`]),
+    ...otherExpenses.map((entry) => [entry.description || 'Other', fmtDate(entry.date), `Rs ${fmtMoney(entry.amount)}`]),
+  ], { totalLabel: 'Total Expenses', totalValue: `Rs ${fmtMoney(totalExpenses)}` }, { styled: true, compact: true });
+
+  compactStyledSectionHeader(doc, 'Balance');
+  renderSalaryRows(doc, [
+    ['Trip Advance', `Rs ${fmtMoney(totalAdvance)}`],
+    ['Total Expenses', `Rs ${fmtMoney(totalExpenses)}`],
+    ['Trip Balance (Advance - Expenses)', `Rs ${fmtMoney(balance)}`],
+  ], { compact: true, highlightLast: true });
+
+  doc.fontSize(7).fillColor('gray').text(
+    `Generated on ${new Date().toLocaleString('en-IN')} by KPS Fleet Management System`,
+    doc.page.margins.left,
+    doc.y + 2,
+    {
+      width: doc.page.width - doc.page.margins.left - doc.page.margins.right,
+      align: 'center',
+      lineBreak: false,
+    }
+  );
+  doc.y += 12;
+
+  doc.roundedRect(
+    doc.page.margins.left - 8,
+    reportStartY,
+    doc.page.width - doc.page.margins.left - doc.page.margins.right + 16,
+    doc.y - reportStartY + 8,
+    8
+  ).lineWidth(1).strokeColor('#1f4d2b').stroke();
+
+  renderTripPhotos(doc, photos);
 }
 
 // Every photo attached to a trip, in report order, with a short caption.
@@ -223,18 +226,25 @@ function renderTripPhotos(doc, photos) {
 // One PDF per person: `which` is 'regular' (the driver's own sheet + their split of each trip)
 // or 'temporary' (the substitute's sheet + their split). Each PDF only carries that person's
 // rows, so the two settlements can be handed out independently.
-function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, which = 'regular' }) {
+async function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, which = 'regular' }) {
+  const temporaryDriver = summary.temporaryDriver;
+  const isTemporary = which === 'temporary' && temporaryDriver;
+  const sheetSummary = isTemporary ? temporaryDriver : summary;
+  const trips = sheetSummary.trips || [];
+  const tripReports = [];
+  for (const trip of trips) {
+    tripReports.push({
+      trip: { ...trip, customer, vehicle },
+      photos: await loadTripPhotos(trip),
+    });
+  }
+
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 24, size: 'A4', layout: 'landscape' });
     const chunks = [];
     doc.on('data', (chunk) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
-
-    const temporaryDriver = summary.temporaryDriver;
-    const isTemporary = which === 'temporary' && temporaryDriver;
-    const sheetSummary = isTemporary ? temporaryDriver : summary;
-    const trips = sheetSummary.trips || [];
 
     if (isTemporary) {
       const period = `${fmtDate(temporaryDriver.joiningDate)} - ${temporaryDriver.returningDate ? fmtDate(temporaryDriver.returningDate) : 'Ongoing'}`;
@@ -261,6 +271,11 @@ function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary, whic
         basicSalaryLabel: `Basic Salary Payable (Payable days: ${summary.payableDays || 0}, Leaves taken: ${summary.unpaidLeaveDays || 0})`,
       });
     }
+
+    tripReports.forEach(({ trip, photos }, index) => {
+      doc.addPage({ size: 'A4', layout: 'portrait', margin: 24 });
+      renderTripSettlementSheet(doc, trip, photos, null, `Single Trip ${index + 1} of ${tripReports.length}`);
+    });
 
     doc.end();
   });

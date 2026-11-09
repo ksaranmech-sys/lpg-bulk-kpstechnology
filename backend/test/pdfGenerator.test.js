@@ -59,7 +59,7 @@ test('keeps the single-trip summary, expenses, and balance on one A4 page', asyn
   }
 });
 
-test('renders monthly trip details, amounts, and salary calculation on one A4 page', async () => {
+test('renders salary calculation first, followed by a single-trip report for every trip', async () => {
   const trip = {
     _id: 'trip-1',
     loadingLocation: 'IPPL, Chennai',
@@ -82,6 +82,13 @@ test('renders monthly trip details, amounts, and salary calculation on one A4 pa
   const trips = Array.from({ length: 5 }, (_, index) => ({
     ...trip,
     _id: `trip-${index + 1}`,
+    driverAdvances: [{ date: '2026-10-24T00:00:00.000Z', amount: 4000 + index }],
+    dieselEntries: [{
+      filledAt: '2026-10-24T00:00:00.000Z',
+      amount: 42470.98 + index,
+      volumeLitres: 339.89,
+      paymentMethod: 'diesel_card',
+    }],
     unloadingLocation: ['Erode', 'Chengalpattu', 'Trichy', 'Trichy', 'Cochin'][index],
     corporationKm: [952, 192, 748, 748, 1190][index],
     dieselLitres: [339.89, 0, 100.2, 372.01, 431.01][index],
@@ -90,6 +97,27 @@ test('renders monthly trip details, amounts, and salary calculation on one A4 pa
     expenseTotal: [1200, 1200, 3200, 1200, 5740][index],
     balance: [2800, 2800, 800, 2800, 3260][index],
   }));
+  const temporaryDriver = {
+    name: 'TEMP DRIVER',
+    joiningDate: '2026-10-20T00:00:00.000Z',
+    days: 1,
+    trips: [{
+      ...trip,
+      _id: 'temporary-trip-1',
+      driverAdvances: [{ date: '2026-10-24T00:00:00.000Z', amount: 1000 }],
+      dieselEntries: [],
+      rtoEntries: [],
+      otherExpenses: [],
+    }],
+    basicSalary: 1000,
+    corporationKm: 100,
+    kmCharges: 2,
+    kmBeta: 200,
+    totalExpense: 0,
+    totalAdvance: 1000,
+    salaryBalance: 200,
+    specialTripCharges: 0,
+  };
   const buffer = buildDriverMonthlySummaryPdf({
     driver: { name: 'MANIKANDAN' },
     vehicle: { vehicleNumber: 'TN28BL6304' },
@@ -107,13 +135,14 @@ test('renders monthly trip details, amounts, and salary calculation on one A4 pa
       payableDays: 31,
       unpaidLeaveDays: 0,
       specialTripCharges: 0,
+      temporaryDriver,
     },
   });
   const pdf = await buffer;
   const parser = new PDFParse({ data: pdf });
   try {
     const result = await parser.getText();
-    assert.equal(result.pages.length, 1);
+    assert.equal(result.pages.length, 6);
     assert.match(result.pages[0].text, /Closed Trips/);
     assert.match(result.pages[0].text, /DRIVER KM/);
     assert.match(result.pages[0].text, /DIESEL L/);
@@ -122,7 +151,37 @@ test('renders monthly trip details, amounts, and salary calculation on one A4 pa
     assert.match(result.pages[0].text, /42,470\.98/);
     assert.match(result.pages[0].text, /Salary Calculation/);
     assert.match(result.pages[0].text, /Settlement to Driver/);
+    result.pages.slice(1).forEach((page, index) => {
+      assert.match(page.text, new RegExp(`Single Trip ${index + 1} of 5`));
+      assert.match(page.text, new RegExp(`trip-${index + 1}`));
+      assert.match(page.text, /Trip Details/);
+      assert.match(page.text, /Diesel Filled Details/);
+      assert.match(page.text, /Expenses/);
+      assert.match(page.text, /Trip Balance/);
+    });
   } finally {
     await parser.destroy();
+  }
+
+  const temporaryPdf = await buildDriverMonthlySummaryPdf({
+    driver: { name: 'MANIKANDAN' },
+    vehicle: { vehicleNumber: 'TN28BL6304' },
+    customer: { companyName: 'KPS Transports' },
+    summary: {
+      month: '2026-10',
+      trips: [],
+      temporaryDriver,
+    },
+    which: 'temporary',
+  });
+  const temporaryParser = new PDFParse({ data: temporaryPdf });
+  try {
+    const result = await temporaryParser.getText();
+    assert.equal(result.pages.length, 2);
+    assert.match(result.pages[0].text, /Temporary Driver Salary Calculation/);
+    assert.match(result.pages[1].text, /temporary-trip-1/);
+    assert.match(result.pages[1].text, /Single Trip 1 of 1/);
+  } finally {
+    await temporaryParser.destroy();
   }
 });
