@@ -17,6 +17,7 @@ const {
   computeTripSettlement,
 } = require('../src/utils/tripCalculations');
 const { getCorporationKmDetails } = require('../src/utils/corporationKm');
+const { getDriverKmShare } = require('../src/utils/salary');
 
 test('tripController exposes a closeTrip endpoint', () => {
   assert.equal(typeof tripController.closeTrip, 'function');
@@ -626,6 +627,83 @@ test('monthly salary includes a pending-close trip and calculates KM Beta from i
   assert.equal(salary.kmBeta, 2976);
 });
 
+test('salary splits trip KM between drivers when an assignment changes at unloading', async (t) => {
+  const trip = {
+    _id: 'assignment-boundary-trip',
+    status: 'closed',
+    loadingLocation: 'Load',
+    loadingDate: new Date('2026-10-30T00:00:00.000Z'),
+    unloadingLocation: 'Route',
+    unloadingDate: new Date('2026-10-31T00:00:00.000Z'),
+    fillingOrderLocation: 'Load',
+    turnDate: new Date('2026-11-02T00:00:00.000Z'),
+    closedAt: new Date('2026-11-03T00:00:00.000Z'),
+    driverAdvances: [{ amount: 100, date: new Date('2026-10-30T00:00:00.000Z') }],
+    loadingExpense: 20,
+    dieselEntries: [],
+    rtoEntries: [],
+    otherExpenses: [],
+    settlement: {},
+    toObject() {
+      const plainTrip = { ...this };
+      delete plainTrip.toObject;
+      return plainTrip;
+    },
+  };
+  const drivers = {
+    resigned: {
+      _id: 'resigned-driver',
+      name: 'Previous Driver',
+      vehicle: 'vehicle-1',
+      basicSalary: 30000,
+      kmCharges: 2,
+      minKmCharges: 0,
+      joiningDate: new Date('2026-09-01T00:00:00.000Z'),
+      resigningDate: new Date('2026-10-31T00:00:00.000Z'),
+    },
+    replacement: {
+      _id: 'replacement-driver',
+      name: 'New Driver',
+      vehicle: 'vehicle-1',
+      basicSalary: 30000,
+      kmCharges: 2,
+      minKmCharges: 0,
+      joiningDate: new Date('2026-11-01T00:00:00.000Z'),
+      resigningDate: null,
+    },
+  };
+  let selectedDriver = drivers.resigned;
+  t.mock.method(User, 'findOne', () => ({ select: async () => selectedDriver }));
+  t.mock.method(Leave, 'find', () => ({ select: async () => [] }));
+  t.mock.method(Trip, 'find', () => ({
+    select() { return this; },
+    sort: async () => [trip],
+  }));
+  t.mock.method(settings, 'getRouteKmTable', () => [
+    { loadingLocation: 'Load', unloadingLocation: 'Route', km: 1000 },
+  ]);
+
+  const resignedSalary = await customerController.calculateDriverMonthlySalary('customer-1', 'resigned-driver', '2026-11');
+  selectedDriver = drivers.replacement;
+  const replacementSalary = await customerController.calculateDriverMonthlySalary('customer-1', 'replacement-driver', '2026-11');
+
+  assert.equal(getDriverKmShare(trip, drivers.resigned, [
+    { loadingLocation: 'Load', unloadingLocation: 'Route', km: 1000 },
+  ]), 0.5);
+  assert.equal(resignedSalary.trips.length, 1);
+  assert.equal(resignedSalary.trips[0].corporationKm, 500);
+  assert.equal(resignedSalary.corporationKm, 500);
+  assert.equal(resignedSalary.kmBeta, 1000);
+  assert.equal(resignedSalary.totalAdvance, 0);
+  assert.equal(resignedSalary.totalExpense, 0);
+  assert.equal(replacementSalary.trips.length, 1);
+  assert.equal(replacementSalary.trips[0].corporationKm, 500);
+  assert.equal(replacementSalary.corporationKm, 500);
+  assert.equal(replacementSalary.kmBeta, 1000);
+  assert.equal(replacementSalary.totalAdvance, 100);
+  assert.equal(replacementSalary.totalExpense, 20);
+});
+
 test('salary KM prefers configured routes and falls back to settled odometer KM when a route is missing', () => {
   const total = customerController.sumRouteTableKm([
     { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', fillingOrderLocation: 'MRPL', settlement: { totalKm: 999 } },
@@ -647,6 +725,7 @@ test('salary KM uses the configured round-trip load route when filling-order loc
     unloadingLocation: 'Erode',
     fillingOrderLocation: '',
     unloadingDate: new Date('2026-11-05T00:00:00.000Z'),
+    turnDate: new Date('2026-11-07T00:00:00.000Z'),
   }, [
     { loadingLocation: 'AEGIS, Mangalore', unloadingLocation: 'Erode', km: 992 },
   ]);
@@ -654,7 +733,8 @@ test('salary KM uses the configured round-trip load route when filling-order loc
   assert.equal(details.value, 992);
   assert.equal(details.source, 'km_table_load_only');
   assert.deepEqual(details.legs, [
-    { leg: 'load', km: 992, date: new Date('2026-11-05T00:00:00.000Z') },
+    { leg: 'load', km: 496, date: new Date('2026-11-05T00:00:00.000Z') },
+    { leg: 'return', km: 496, date: new Date('2026-11-07T00:00:00.000Z') },
   ]);
 });
 
@@ -663,6 +743,8 @@ test('salary KM uses the configured round-trip load route when filling-order ret
     loadingLocation: 'AEGIS, Mangalore',
     unloadingLocation: 'Erode',
     fillingOrderLocation: 'Unknown Filling Order',
+    unloadingDate: new Date('2026-11-05T00:00:00.000Z'),
+    turnDate: new Date('2026-11-07T00:00:00.000Z'),
   }, [
     { loadingLocation: 'AEGIS, Mangalore', unloadingLocation: 'Erode', km: 992 },
   ]);
@@ -670,7 +752,8 @@ test('salary KM uses the configured round-trip load route when filling-order ret
   assert.equal(details.value, 992);
   assert.equal(details.source, 'km_table_load_only');
   assert.deepEqual(details.legs, [
-    { leg: 'load', km: 992, date: null },
+    { leg: 'load', km: 496, date: new Date('2026-11-05T00:00:00.000Z') },
+    { leg: 'return', km: 496, date: new Date('2026-11-07T00:00:00.000Z') },
   ]);
 });
 

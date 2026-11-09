@@ -70,10 +70,14 @@ function getCorporationKmDetails(trip, routeKmTable) {
       ? resolvedLeg0
       : (hasManualKmReturn ? manualKmReturn : null);
   if (leg1 == null && !hasManualKmReturn && resolvedLeg0 != null) {
+    const returnDate = trip.turnDate || trip.closedAt || trip.dieselEntries?.at(-1)?.filledAt || null;
     return {
       value: resolvedLeg0,
       source: leg0 != null ? 'km_table_load_only' : 'manual',
-      legs: [{ leg: 'load', km: resolvedLeg0, date: trip.unloadingDate || null }],
+      legs: [
+        { leg: 'load', km: resolvedLeg0 * 0.5, date: trip.unloadingDate || null },
+        { leg: 'return', km: resolvedLeg0 * 0.5, date: returnDate },
+      ],
     };
   }
   if (resolvedLeg0 != null && resolvedLeg1 != null) {
