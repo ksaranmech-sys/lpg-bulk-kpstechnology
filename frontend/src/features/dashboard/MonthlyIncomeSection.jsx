@@ -260,8 +260,19 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
              and the printout never ends with a blank sheet. */
           .topbar,
           .app-shell > *:not(.container),
-          .container > *:not(.monthly-income-print-area) {
+          .container > *:not(.monthly-income-print-wrapper) {
             display: none !important;
+          }
+          .app-shell,
+          .container,
+          .monthly-income-print-wrapper,
+          .monthly-income-print-wrapper > [data-dashboard-section="monthly-income"] {
+            display: block !important;
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
           }
           .monthly-income-print-area {
             display: block !important;

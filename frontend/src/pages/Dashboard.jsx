@@ -141,7 +141,7 @@ export default function Dashboard() {
         <ClosedTripHistory selectedVehicleId={selectedVehicleId} />
       )}
       {user?.role === 'customer_admin' && (
-        <div style={{ order: 0 }}>
+        <div className="monthly-income-print-wrapper" style={{ order: 0 }}>
           <div data-dashboard-section="monthly-income">
             <MonthlyIncomeSection customerId={user.customer} className="customer-admin-income-section" />
           </div>

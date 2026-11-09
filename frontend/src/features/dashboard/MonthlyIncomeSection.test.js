@@ -268,14 +268,31 @@ test('opens the browser print dialog for saving Monthly Income as PDF', async ()
   const print = jest.fn();
   window.print = print;
 
-  const { container, unmount } = await mount(<MemoryRouter><MonthlyIncomeSection customerId="c1" /></MemoryRouter>);
+  const { container, unmount } = await mount(
+    <MemoryRouter>
+      <div className="app-shell">
+        <div className="container">
+          <div className="monthly-income-print-wrapper">
+            <div data-dashboard-section="monthly-income">
+              <MonthlyIncomeSection customerId="c1" />
+            </div>
+          </div>
+          <div>Other dashboard content</div>
+        </div>
+      </div>
+    </MemoryRouter>
+  );
   const printButton = Array.from(container.querySelectorAll('button'))
     .find((button) => button.textContent.includes('Print / Save PDF'));
+  const printStyles = container.querySelector('.monthly-income-print-area style').textContent;
 
   await click(printButton);
 
   expect(print).toHaveBeenCalledTimes(1);
   expect(document.title).toBe('Monthly-Income_September-2026');
+  expect(printStyles).toContain('@page { size: A4 landscape');
+  expect(printStyles).toContain('.container > *:not(.monthly-income-print-wrapper)');
+  expect(container.querySelector('.monthly-income-print-wrapper .monthly-income-print-area')).not.toBeNull();
   window.dispatchEvent(new Event('afterprint'));
   expect(document.title).toBe(originalTitle);
 
