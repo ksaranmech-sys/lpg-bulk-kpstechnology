@@ -24,6 +24,20 @@ function pdfBuffer(lines) {
   });
 }
 
+function pdfTableBuffer(rows) {
+  return new Promise((resolve, reject) => {
+    const document = new PDFDocument({ margin: 20 });
+    const chunks = [];
+    document.on('data', (chunk) => chunks.push(chunk));
+    document.on('end', () => resolve(Buffer.concat(chunks)));
+    document.on('error', reject);
+    rows.forEach((row, rowIndex) => row.forEach((value, columnIndex) => (
+      document.text(String(value), 20 + columnIndex * 110, 40 + rowIndex * 24)
+    )));
+    document.end();
+  });
+}
+
 test('parses selectable-text PDF diesel statements', async () => {
   const buffer = await pdfBuffer([
     'Txn Date        Diesel Quantity (L)',
@@ -199,10 +213,10 @@ test('parses DEF quantities from selectable-text PDF transactions', async () => 
 });
 
 test('parses DEF amounts from selectable-text PDF transactions', async () => {
-  const buffer = await pdfBuffer([
-    'Transaction Date Product Quantity (L) Amount (Rs.) Vehicle No',
-    '13/10/2026 DEF - 2,190.32 TN28BL6304',
-    '14/10/2026 AdBlue 18.5 875.00 TN28BL6304',
+  const buffer = await pdfTableBuffer([
+    ['Transaction Date', 'Product', 'Quantity (L)', 'Amount (Rs.)', 'Vehicle No'],
+    ['13/10/2026', 'DEF', '6', '2,190.32', 'TN28BL6304'],
+    ['14/10/2026', 'AdBlue', '18.5', '875.00', 'TN28BL6304'],
   ]);
 
   assert.deepEqual((await parseFuelRecords(buffer, 'pdf')).defAmountRecords, [
@@ -210,9 +224,9 @@ test('parses DEF amounts from selectable-text PDF transactions', async () => {
     { date: new Date('2026-10-14T00:00:00.000Z'), amount: 875, vehicleNumber: 'TN28BL6304' },
   ]);
 
-  const amountOnlyBuffer = await pdfBuffer([
-    'Transaction Date DEF Amount (Rs.)',
-    '15/10/2026 111.50',
+  const amountOnlyBuffer = await pdfTableBuffer([
+    ['Transaction Date', 'DEF Amount (Rs.)'],
+    ['15/10/2026', '111.50'],
   ]);
   assert.deepEqual((await parseFuelRecords(amountOnlyBuffer, 'pdf')).defAmountRecords, [
     { date: new Date('2026-10-15T00:00:00.000Z'), amount: 111.5 },

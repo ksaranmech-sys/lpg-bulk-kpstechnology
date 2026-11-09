@@ -140,16 +140,64 @@ function isDieselProduct(value) {
   return /\bdiesel\b/i.test(String(value || ''));
 }
 
-function pdfDefAmountText(transactionText, dateMatch, hasDefAmountHeader) {
-  const productMatch = /\b(?:DEF|AD[\s-]?BLUE|UREA)\b/i.exec(transactionText);
-  if (!productMatch && !hasDefAmountHeader) return null;
-  const remainingText = transactionText
-    .slice(productMatch
-      ? productMatch.index + productMatch[0].length
-      : dateMatch.index + dateMatch[0].length)
-    .replace(/\b[A-Z]{2}\s*\d{2}\s*[A-Z]{1,3}\s*\d{4}\b/gi, ' ');
-  const values = [...remainingText.matchAll(/-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/g)];
-  return values.at(-1)?.[0] || null;
+async function getPdfTextLines(parser, pages) {
+  const lines = [];
+  for (const pageResult of pages) {
+    const page = await parser.doc.getPage(pageResult.num);
+    const { items } = await page.getTextContent();
+    let currentLine = null;
+    for (const item of items) {
+      if (!('str' in item) || !item.str) continue;
+      const x = item.transform[4];
+      const y = item.transform[5];
+      if (!currentLine || Math.abs(currentLine.y - y) > 2) {
+        currentLine = { y, items: [] };
+        lines.push(currentLine);
+      }
+      currentLine.items.push({ text: item.str, x, width: item.width });
+    }
+  }
+  return lines.map((line) => ({
+    ...line,
+    text: line.items.map((item) => item.text).join(''),
+  }));
+}
+
+function getPdfAmountColumn(lines) {
+  const headerLine = lines.slice(0, 40).find((line) => (
+    line.items.some((item) => /(?:^|(?:def|adblue|urea))amount/.test(normalizeHeader(item.text)))
+  ));
+  if (!headerLine) return null;
+  const headers = headerLine.items.filter((item) => item.text.trim());
+  const amountIndex = headers.findIndex((item) => /(?:^|(?:def|adblue|urea))amount/.test(normalizeHeader(item.text)));
+  if (amountIndex < 0) return null;
+  const amountHeader = headers[amountIndex];
+  const amountCenter = amountHeader.x + amountHeader.width / 2;
+  const previousHeader = headers[amountIndex - 1];
+  const nextHeader = headers[amountIndex + 1];
+  return {
+    min: previousHeader
+      ? (previousHeader.x + previousHeader.width / 2 + amountCenter) / 2
+      : Number.NEGATIVE_INFINITY,
+    max: nextHeader
+      ? (amountCenter + nextHeader.x + nextHeader.width / 2) / 2
+      : Number.POSITIVE_INFINITY,
+  };
+}
+
+function pdfDefAmountText(transactionLines, amountColumn) {
+  if (!amountColumn) return null;
+  for (const line of transactionLines) {
+    const amountItem = line.items.find((item) => {
+      const center = item.x + item.width / 2;
+      return center >= amountColumn.min && center < amountColumn.max
+        && /-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/.test(item.text);
+    });
+    if (amountItem) {
+      return amountItem.text.match(/-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/)?.[0] || null;
+    }
+  }
+  return null;
 }
 
 function fuelRecord(date, litresValue, vehicleNumber, label, rowNumber) {
@@ -268,24 +316,27 @@ async function loadFuelWorksheet(buffer, format) {
 async function parsePdfFuelRecords(buffer, targetVehicleNumber) {
   const parser = new PDFParse({ data: buffer });
   let text;
+  let lines;
   try {
-    ({ text } = await parser.getText());
+    const textResult = await parser.getText();
+    text = textResult.text;
+    lines = await getPdfTextLines(parser, textResult.pages);
   } catch (error) {
     throw new Error('The PDF could not be read. Upload a valid PDF with selectable text.');
   } finally {
     await parser.destroy();
   }
 
-  const lines = String(text || '')
-    .replace(/\u00a0/g, ' ')
-    .split(/\r?\n/)
-    .filter((line) => !/^\s*(?:page\s*)?[-–—]*\s*\d+\s+of\s+\d+\s*[-–—]*\s*$/i.test(line));
-  const normalizedHeaders = normalizeHeader(lines.slice(0, 40).join(' '));
+  lines = lines
+    .map((line) => ({ ...line, text: line.text.replace(/\u00a0/g, ' ') }))
+    .filter((line) => !/^\s*(?:page\s*)?[-–—]*\s*\d+\s+of\s+\d+\s*[-–—]*\s*$/i.test(line.text));
+  const normalizedHeaders = normalizeHeader(lines.slice(0, 40).map((line) => line.text).join(' '));
   const hasDateHeader = normalizedHeaders.includes('date');
   const hasDieselHeader = /diesel(litres?|liters?|quantity|qty|volume)/.test(normalizedHeaders);
   const hasDefHeader = /(def|adblue|urea)(litres?|liters?|quantity|qty|volume)/.test(normalizedHeaders);
   const hasDefAmountHeader = /(def|adblue|urea)amount/.test(normalizedHeaders);
   const hasAmountHeader = normalizedHeaders.includes('amount');
+  const amountColumn = getPdfAmountColumn(lines);
   const hasProductHeader = /(product|productname|fuel|fueltype|description)/.test(normalizedHeaders);
   const hasQuantityHeader = /(quantity|qty|volume|litres?|liters?)/.test(normalizedHeaders);
   if (!text || !hasDateHeader || (
@@ -307,26 +358,26 @@ async function parsePdfFuelRecords(buffer, targetVehicleNumber) {
   const defAmountRecords = [];
 
   lines.forEach((line, index) => {
-    if (/\boffline\b/i.test(line)) return;
-    const dateMatch = datePattern.exec(line);
+    if (/\boffline\b/i.test(line.text)) return;
+    const dateMatch = datePattern.exec(line.text);
     datePattern.lastIndex = 0;
     if (!dateMatch) return;
     const date = parseDate(dateMatch[0]);
     if (!date) return;
     const transactionLines = [line];
     for (let nextIndex = index + 1; nextIndex < Math.min(lines.length, index + 6); nextIndex += 1) {
-      if (datePattern.test(lines[nextIndex]) || /^\d+\s+\d{10}\b/.test(lines[nextIndex])) break;
+      if (datePattern.test(lines[nextIndex].text) || /^\d+\s+\d{10}\b/.test(lines[nextIndex].text)) break;
       transactionLines.push(lines[nextIndex]);
     }
-    const transactionText = transactionLines.join(' ');
+    const transactionText = transactionLines.map((entry) => entry.text).join(' ');
     const isDef = isDefProduct(transactionText);
     const isDiesel = isDieselProduct(transactionText);
-    const vehicleNumber = getVehicleNumber(line) || defaultVehicleNumber;
+    const vehicleNumber = getVehicleNumber(line.text) || defaultVehicleNumber;
     let litresText;
     let targetRecords;
     let label;
     if ((isDef || (hasDefAmountHeader && !hasProductHeader)) && (hasAmountHeader || hasDefAmountHeader)) {
-      const amountText = pdfDefAmountText(transactionText, dateMatch, hasDefAmountHeader);
+      const amountText = pdfDefAmountText(transactionLines, amountColumn);
       if (amountText != null) {
         const amountRecord = fuelAmountRecord(date, amountText, vehicleNumber, index + 1);
         if (amountRecord) defAmountRecords.push(amountRecord);
@@ -341,13 +392,13 @@ async function parsePdfFuelRecords(buffer, targetVehicleNumber) {
     } else if (isDiesel || (hasDieselHeader && !hasDefHeader)) {
       litresText = transactionText.match(dieselPattern)?.[1];
       if (litresText == null) {
-        const values = [...line.slice(dateMatch.index + dateMatch[0].length).matchAll(numberPattern)];
+        const values = [...line.text.slice(dateMatch.index + dateMatch[0].length).matchAll(numberPattern)];
         litresText = values.at(-1)?.[0];
       }
       targetRecords = dieselRecords;
       label = 'Diesel';
     } else if (hasDefHeader && !hasDieselHeader) {
-      const values = [...line.slice(dateMatch.index + dateMatch[0].length).matchAll(numberPattern)];
+      const values = [...line.text.slice(dateMatch.index + dateMatch[0].length).matchAll(numberPattern)];
       litresText = values.at(-1)?.[0];
       targetRecords = defRecords;
       label = 'DEF';

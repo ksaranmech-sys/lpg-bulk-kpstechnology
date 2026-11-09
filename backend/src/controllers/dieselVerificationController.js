@@ -13,7 +13,7 @@ const {
 const CSV_CONTENT_TYPE = 'text/csv';
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const RECORDS_PARSER_VERSION = 6;
+const RECORDS_PARSER_VERSION = 7;
 
 function safeFileName(value) {
   return String(value || 'diesel-report')
