@@ -77,6 +77,13 @@ test('parses withdrawal and debit values from statements, preferring them over o
     ['Date', 'Withdrawal Amount', 'Vehicle Number'],
     ['10/10/2026', 1250, 'KA01AH6269'],
   ]);
+  const bankStatementRows = Array.from({ length: 20 }, () => []);
+  bankStatementRows.push(
+    ['Date', 'Narration', 'Chq./Ref.No.', 'Value Dt', 'Withdrawal Amt.', 'Deposit Amt.', 'Closing Balance'],
+    ['01/10/2026', 'UPI credit', '00001234', '01/10/2026', '', 4000, 4281.59],
+    ['01/10/2026', 'IMPS-6269', '00005678', '01/10/2026', 4000, '', 281.59],
+  );
+  const bankStatement = await workbookBuffer(bankStatementRows);
 
   assert.deepEqual(await parseAdvanceRecords(csv, 'csv', 'KA01AH6269'), [{
     date: new Date('2026-10-10T00:00:00.000Z'),
@@ -91,6 +98,11 @@ test('parses withdrawal and debit values from statements, preferring them over o
   assert.deepEqual(await parseAdvanceRecords(withdrawalWorkbook, 'xlsx', 'KA01AH6269'), [{
     date: new Date('2026-10-10T00:00:00.000Z'),
     amount: 1250,
+    vehicleNumber: '6269',
+  }]);
+  assert.deepEqual(await parseAdvanceRecords(bankStatement, 'xlsx', 'KA01AH6269'), [{
+    date: new Date('2026-10-01T00:00:00.000Z'),
+    amount: 4000,
     vehicleNumber: '6269',
   }]);
 });

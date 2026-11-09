@@ -25,7 +25,7 @@ function getCellValue(cell) {
 }
 
 function findHeader(worksheet) {
-  const maxRow = Math.min(worksheet.rowCount, 20);
+  const maxRow = Math.min(worksheet.rowCount, 100);
   for (let rowNumber = 1; rowNumber <= maxRow; rowNumber += 1) {
     let dateColumn = 0;
     let amountColumn = 0;
@@ -56,6 +56,8 @@ function findHeader(worksheet) {
         'creditamount',
         'transferamount',
         'paidamount',
+        'withdrawalamt',
+        'debitamt',
       ].includes(header)) amountColumn = columnNumber;
       if ([
         'debit',
@@ -64,6 +66,8 @@ function findHeader(worksheet) {
         'withdrawal',
         'withdrawalamount',
         'withdrawalvalue',
+        'withdrawalamt',
+        'debitamt',
       ].includes(header)) debitColumn = columnNumber;
       if ([
         'vehicle',
