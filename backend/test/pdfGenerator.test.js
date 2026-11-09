@@ -59,7 +59,7 @@ test('keeps the single-trip summary, expenses, and balance on one A4 page', asyn
   }
 });
 
-test('renders monthly salary trip details and amounts in separate readable summary pages', async () => {
+test('renders monthly trip details, amounts, and salary calculation on one A4 page', async () => {
   const trip = {
     _id: 'trip-1',
     loadingLocation: 'IPPL, Chennai',
@@ -79,13 +79,24 @@ test('renders monthly salary trip details and amounts in separate readable summa
     settlement: { totalKm: 952, totalDieselLitres: 339.89 },
     status: 'closed',
   };
+  const trips = Array.from({ length: 5 }, (_, index) => ({
+    ...trip,
+    _id: `trip-${index + 1}`,
+    unloadingLocation: ['Erode', 'Chengalpattu', 'Trichy', 'Trichy', 'Cochin'][index],
+    corporationKm: [952, 192, 748, 748, 1190][index],
+    dieselLitres: [339.89, 0, 100.2, 372.01, 431.01][index],
+    dieselTotal: [42470.98, 0, 10020, 37239.8, 42470.98][index],
+    advanceTotal: [4000, 4000, 4000, 4000, 9000][index],
+    expenseTotal: [1200, 1200, 3200, 1200, 5740][index],
+    balance: [2800, 2800, 800, 2800, 3260][index],
+  }));
   const buffer = buildDriverMonthlySummaryPdf({
     driver: { name: 'MANIKANDAN' },
     vehicle: { vehicleNumber: 'TN28BL6304' },
     customer: { companyName: 'KPS Transports' },
     summary: {
       month: '2026-10',
-      trips: [trip],
+      trips,
       basicSalary: 15000,
       corporationKm: 952,
       kmCharges: 2,
@@ -102,15 +113,15 @@ test('renders monthly salary trip details and amounts in separate readable summa
   const parser = new PDFParse({ data: pdf });
   try {
     const result = await parser.getText();
-    assert.equal(result.pages.length, 3);
+    assert.equal(result.pages.length, 1);
     assert.match(result.pages[0].text, /Closed Trips/);
     assert.match(result.pages[0].text, /DRIVER KM/);
-    assert.match(result.pages[0].text, /DIESEL \(L\)/);
-    assert.match(result.pages[1].text, /Closed Trip Amounts/);
-    assert.match(result.pages[1].text, /TRIP ADVANCE/);
-    assert.match(result.pages[1].text, /TRIP EXPENSE/);
-    assert.match(result.pages[1].text, /42,470\.98/);
-    assert.match(result.pages[1].text, /Salary Calculation/);
+    assert.match(result.pages[0].text, /DIESEL L/);
+    assert.match(result.pages[0].text, /ADVANCE/);
+    assert.match(result.pages[0].text, /EXPENSE/);
+    assert.match(result.pages[0].text, /42,470\.98/);
+    assert.match(result.pages[0].text, /Salary Calculation/);
+    assert.match(result.pages[0].text, /Settlement to Driver/);
   } finally {
     await parser.destroy();
   }

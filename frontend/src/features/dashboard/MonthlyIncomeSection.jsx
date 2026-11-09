@@ -46,7 +46,7 @@ function IncomeTable({ vehicleCorporation, group }) {
         <span style={{ fontWeight: 400, color: '#4b5f52', fontSize: 12 }}> - {totals.trips} unloading{totals.trips === 1 ? '' : 's'}</span>
       </h6>
       <div style={{ overflowX: 'auto' }}>
-        <table className="trip-km-table" style={{ width: '100%', minWidth: 1100, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+        <table className="trip-km-table income-trip-table" style={{ width: '100%', minWidth: 1100, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <colgroup>
             {[4, 9, 11, 11, 9, 9, 8, 10, 7, 7, 7, 8].map((width, index) => (
               <col key={index} style={{ width: `${width}%` }} />
@@ -246,7 +246,7 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
   return (
     <div className={`card monthly-income-section monthly-income-print-area ${className}`} style={{ marginTop: 24 }} data-testid="monthly-income">
       <style>{`
-        @page { size: A4 landscape; margin: 10mm 12mm 12mm 12mm; }
+        @page { size: A4 landscape; margin: 8mm 9mm; }
 
         @media print {
           html, body {
@@ -254,6 +254,7 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
             margin: 0 !important;
             padding: 0 !important;
             color: #000 !important;
+            font-family: Arial, 'Segoe UI', sans-serif !important;
           }
           /* Hide everything else outright (not just visibility) so nothing keeps page height
              and the printout never ends with a blank sheet. */
@@ -268,37 +269,54 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
             max-width: 100% !important;
             box-sizing: border-box !important;
             margin: 0 !important;
-            padding: 6mm 10px !important;
-            border: 2px solid #1f4d2b !important;
+            padding: 0 !important;
+            border: 0 !important;
             border-radius: 0 !important;
             box-shadow: none !important;
             background: #fff !important;
-            font-size: 11pt !important;
-            line-height: 1.35 !important;
+            font-size: 8pt !important;
+            line-height: 1.25 !important;
           }
           .monthly-income-print-area .no-print { display: none !important; }
           .monthly-income-print-area .print-only { display: block !important; }
-          .monthly-income-print-area .monthly-income-header { display: block !important; margin: 0 0 2pt !important; page-break-after: avoid; break-after: avoid; }
+          .monthly-income-print-area .monthly-income-header { display: block !important; margin: 0 0 5pt !important; page-break-after: avoid; break-after: avoid; }
           .monthly-income-print-area h3 {
-            font-size: 14pt !important;
+            font-size: 16pt !important;
             margin: 0 !important;
-            padding: 6pt 8pt !important;
-            background: #f3f6f3 !important;
-            border-bottom: 1px solid #1f4d2b !important;
+            padding: 7pt 9pt !important;
+            background: #e8f1eb !important;
+            border: 1px solid #1f4d2b !important;
+            border-left-width: 4px !important;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
+          .monthly-income-print-area .monthly-income-print-note {
+            margin: 0 0 7pt !important;
+            padding: 4pt 7pt !important;
+            color: #34443a !important;
+            border-bottom: 1px solid #c5d0c7;
+            font-size: 8pt !important;
+          }
           .monthly-income-print-area h4 {
-            font-size: 12pt !important;
-            margin: 3pt 0 2pt !important;
+            padding: 4pt 6pt !important;
+            border-left: 3px solid #1f4d2b !important;
+            background: #edf3ee !important;
+            font-size: 10pt !important;
+            margin: 7pt 0 3pt !important;
             page-break-after: avoid;
             break-after: avoid;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           .monthly-income-print-area h5 {
-            font-size: 11pt !important;
-            margin: 2pt 0 1pt !important;
+            padding: 3pt 5pt !important;
+            background: #f5f7f5 !important;
+            font-size: 9pt !important;
+            margin: 4pt 0 2pt !important;
             page-break-after: avoid;
             break-after: avoid;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           .monthly-income-print-area .income-corporation,
           .monthly-income-print-area .income-period,
@@ -306,10 +324,12 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
             page-break-inside: auto !important;
             break-inside: auto !important;
           }
-          .monthly-income-print-area .income-period { border-color: #1f4d2b !important; background: #fff !important; }
+          .monthly-income-print-area .income-period { border-color: #b6c7ba !important; background: #fff !important; }
           .monthly-income-print-area h6 {
-            font-size: 10.5pt !important;
-            margin: 2pt 0 1pt !important;
+            font-size: 8pt !important;
+            margin: 4pt 0 2pt !important;
+            padding: 2pt 4pt !important;
+            background: #fafbfa !important;
             page-break-after: avoid;
             break-after: avoid;
           }
@@ -319,26 +339,47 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
             min-width: 0 !important;
             width: 100% !important;
             border-collapse: collapse !important;
-            font-size: 10.5pt !important;
+            table-layout: fixed !important;
+            font-size: 7.5pt !important;
           }
           .monthly-income-print-area thead { display: table-header-group; }
           .monthly-income-print-area tr { page-break-inside: avoid; }
           .monthly-income-print-area th,
           .monthly-income-print-area td {
-            padding: 5pt 6px !important;
+            padding: 3pt 3px !important;
             vertical-align: top !important;
             color: #000 !important;
-            border-color: #1f4d2b !important;
+            border: 0.5pt solid #9aa89e !important;
+            overflow-wrap: anywhere;
+          }
+          .monthly-income-print-area table.trip-km-table thead th {
+            background: #e3ebe5 !important;
+            font-size: 7pt !important;
+            vertical-align: middle !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .monthly-income-print-area .income-group table tbody tr:nth-child(even) td {
+            background: #f7f9f7 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .monthly-income-print-area .income-group table tbody tr:last-child td {
+            background: #eaf2ec !important;
+            font-weight: 700 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
           .monthly-income-print-area th div,
           .monthly-income-print-area td div,
           .monthly-income-print-area h6 span {
-            font-size: 9pt !important;
+            font-size: 7pt !important;
           }
-          /* Money columns and dates never wrap mid-number. */
-          .monthly-income-print-area td.num,
-          .monthly-income-print-area td:nth-child(5),
-          .monthly-income-print-area td:nth-child(6) { white-space: nowrap !important; }
+          .monthly-income-print-area table.income-trip-table td.num,
+          .monthly-income-print-area table.income-trip-table td:nth-child(2),
+          .monthly-income-print-area table.income-trip-table td:nth-child(5),
+          .monthly-income-print-area table.income-trip-table td:nth-child(6),
+          .monthly-income-print-area table.income-trip-table td:nth-child(7) { white-space: nowrap !important; }
           .monthly-income-print-area a { color: #000 !important; text-decoration: none !important; }
         }
         .monthly-income-print-area .print-only { display: none; }
@@ -355,11 +396,13 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
             title="Print / Save as PDF (A4 landscape)"
             style={{ padding: '6px 12px', fontSize: 13, display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
-            {'\uD83D\uDDA8\uFE0F'} Print
+            {'\uD83D\uDDA8\uFE0F'} Print / Save PDF
           </button>
         </div>
       </div>
-      <p className="print-only" style={{ margin: '0 0 8pt', fontSize: 9, color: '#4b5f52' }}>
+      <p className="print-only monthly-income-print-note" style={{ margin: '0 0 8pt', fontSize: 9, color: '#4b5f52' }}>
+        Monthly trip income by vehicle corporation and route. Includes unloadings dated in the selected billing period.
+        {' '}
         Printed on {formatDateLong(new Date())}
       </p>
       <p className="no-print" style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>

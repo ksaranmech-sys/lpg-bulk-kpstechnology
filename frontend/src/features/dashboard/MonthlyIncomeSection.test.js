@@ -252,3 +252,33 @@ test('the three most recent completed months are one click away; older months ar
   expect(container.querySelector('h3').textContent).toBe('Monthly Income (September 2026)');
   await unmount();
 });
+
+test('opens the browser print dialog for saving Monthly Income as PDF', async () => {
+  const totals = { trips: 0, pricedTrips: 0, tripIncome: 0, shortage: 0, tds: 0, diesel: 0, amount: 0 };
+  api.getCustomerMonthlyIncome.mockResolvedValue(response('2026-09', [{
+    vehicleCorporation: 'IOC',
+    known: true,
+    cutoffDay: 0,
+    halfMonth: true,
+    periods: [],
+    totals,
+  }]));
+  const originalTitle = document.title;
+  const originalPrint = window.print;
+  const print = jest.fn();
+  window.print = print;
+
+  const { container, unmount } = await mount(<MemoryRouter><MonthlyIncomeSection customerId="c1" /></MemoryRouter>);
+  const printButton = Array.from(container.querySelectorAll('button'))
+    .find((button) => button.textContent.includes('Print / Save PDF'));
+
+  await click(printButton);
+
+  expect(print).toHaveBeenCalledTimes(1);
+  expect(document.title).toBe('Monthly-Income_September-2026');
+  window.dispatchEvent(new Event('afterprint'));
+  expect(document.title).toBe(originalTitle);
+
+  await unmount();
+  window.print = originalPrint;
+});
