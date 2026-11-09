@@ -124,6 +124,7 @@ test('renders salary calculation first, followed by a single-trip report for eve
     customer: { companyName: 'KPS Transports' },
     summary: {
       month: '2026-10',
+      isLive: true,
       trips,
       basicSalary: 15000,
       corporationKm: 952,
@@ -149,6 +150,7 @@ test('renders salary calculation first, followed by a single-trip report for eve
     assert.match(result.pages[0].text, /ADVANCE/);
     assert.match(result.pages[0].text, /EXPENSE/);
     assert.match(result.pages[0].text, /42,470\.98/);
+    assert.match(result.pages[0].text, /Live calculation through today/);
     assert.match(result.pages[0].text, /Salary Calculation/);
     assert.match(result.pages[0].text, /Settlement to Driver/);
     result.pages.slice(1).forEach((page, index) => {
@@ -169,6 +171,7 @@ test('renders salary calculation first, followed by a single-trip report for eve
     customer: { companyName: 'KPS Transports' },
     summary: {
       month: '2026-10',
+      isLive: true,
       trips: [],
       temporaryDriver,
     },
@@ -179,6 +182,7 @@ test('renders salary calculation first, followed by a single-trip report for eve
     const result = await temporaryParser.getText();
     assert.equal(result.pages.length, 2);
     assert.match(result.pages[0].text, /Temporary Driver Salary Calculation/);
+    assert.match(result.pages[0].text, /Live calculation through today/);
     assert.match(result.pages[1].text, /temporary-trip-1/);
     assert.match(result.pages[1].text, /Single Trip 1 of 1/);
   } finally {

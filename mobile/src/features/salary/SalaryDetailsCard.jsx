@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { formatDate, formatMonthLabel, latestCalculableMonth } from '@kps/shared';
+import { currentMonth, formatDate, formatMonthLabel, latestCalculableMonth } from '@kps/shared';
 import { api } from '../../api';
 import { Button, Card, Loading, Muted, Row, Select } from '../../ui';
 import { spacing } from '../../theme';
@@ -9,7 +9,7 @@ import { calculableMonthOptions, leavesTakenInMonth } from './months';
 // Port of the web SalarySection: one salary summary per active driver for the selected month.
 export default function SalaryDetailsCard({ customerId, customerData, driverUsers, leaves }) {
   const router = useRouter();
-  const [salaryMonth, setSalaryMonth] = useState(latestCalculableMonth);
+  const [salaryMonth, setSalaryMonth] = useState(currentMonth);
   const [driverSalaries, setDriverSalaries] = useState({});
   const [salariesLoading, setSalariesLoading] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
@@ -31,7 +31,9 @@ export default function SalaryDetailsCard({ customerId, customerData, driverUser
   return (
     <Card title={`Salary Details (${formatMonthLabel(salaryMonth)})`}>
       <Muted style={{ marginBottom: spacing.md }}>
-        Salary for a month is calculated from the 5th of the following month (latest available: {formatMonthLabel(latestCalculableMonth())}).
+        {salaryMonth === currentMonth()
+          ? 'Current month is live and calculated through today. Previous months are finalized from the 5th of the following month.'
+          : `Salary for a month is calculated from the 5th of the following month (latest finalized: ${formatMonthLabel(latestCalculableMonth())}).`}
       </Muted>
       {driverUsers.length === 0 ? <Muted>No drivers found.</Muted> : null}
       {salariesLoading ? <Loading text="Loading salary details..." /> : driverUsers.map((driver) => {
@@ -52,7 +54,7 @@ export default function SalaryDetailsCard({ customerId, customerData, driverUser
                 <Row label="Balance" value={`Rs ${Math.round(salary.totalBalance || 0)}`} />
                 <Row label="Salary Balance" value={`Rs ${Math.round(salary.salaryBalance || 0)}`} bold />
                 <Row label="Payable Days" value={String(salary.payableDays ?? '-')} />
-                <Row label="Leaves Taken" value={String(leavesTakenInMonth(leaves, driverId, salaryMonth))} />
+                <Row label="Leaves Taken" value={String(salary.unpaidLeaveDays ?? leavesTakenInMonth(leaves, driverId, salaryMonth))} />
               </>
             )}
             {salary?.temporaryDriver && (

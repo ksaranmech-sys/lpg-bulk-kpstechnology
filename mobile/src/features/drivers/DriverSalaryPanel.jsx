@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { formatDate, formatMonthLabel, latestCalculableMonth } from '@kps/shared';
+import { currentMonth, formatDate, formatMonthLabel, latestCalculableMonth } from '@kps/shared';
 import { api, errorMessage } from '../../api';
 import { confirm } from '../../confirm';
 import { Button, Card, ErrorText, Loading, Muted, Row, Select } from '../../ui';
@@ -21,7 +21,7 @@ const totalsOf = (salary) => ({
 
 // Port of DriverSalaryPanel: month picker, per-trip rows with force-close, summary, PDF share.
 export default function DriverSalaryPanel({ customerId, driverId, data, driver, vehicle, setError }) {
-  const [salaryMonth, setSalaryMonth] = useState(latestCalculableMonth);
+  const [salaryMonth, setSalaryMonth] = useState(currentMonth);
   const [salary, setSalary] = useState(null);
   const [salaryLoading, setSalaryLoading] = useState(true);
   const [salaryError, setSalaryError] = useState('');
@@ -83,7 +83,9 @@ export default function DriverSalaryPanel({ customerId, driverId, data, driver, 
       <Row label="Vehicle" value={vehicle?.vehicleNumber || '-'} />
       <Row label="Month" value={formatMonthLabel(salaryMonth)} />
       <Muted style={{ marginVertical: spacing.md }}>
-        Salary for a month is calculated from the 5th of the following month (latest available: {formatMonthLabel(latestCalculableMonth())}).
+        {salaryMonth === currentMonth()
+          ? 'Current month is live and calculated through today. Previous months are finalized from the 5th of the following month.'
+          : `Salary for a month is calculated from the 5th of the following month (latest finalized: ${formatMonthLabel(latestCalculableMonth())}).`}
       </Muted>
       <Select label="Salary Month" value={salaryMonth} options={calculableMonthOptions()} onChange={(month) => { if (month) setSalaryMonth(month); }} />
       <Button

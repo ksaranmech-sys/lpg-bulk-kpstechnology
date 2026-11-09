@@ -256,7 +256,10 @@ async function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary
         month: summary.month,
         summary: temporaryDriver,
         trips,
-        subtitle: `Covering for ${driver?.name || driver?.username || '-'} (${period})`,
+        subtitle: [
+          `Covering for ${driver?.name || driver?.username || '-'} (${period})`,
+          summary.isLive ? 'Live calculation through today' : null,
+        ].filter(Boolean).join(' - '),
         basicSalaryLabel: `Basic Salary Payable (Days covered: ${temporaryDriver.days || 0})`,
       });
     } else {
@@ -268,6 +271,7 @@ async function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary
         month: summary.month,
         summary,
         trips,
+        subtitle: summary.isLive ? 'Live calculation through today' : undefined,
         basicSalaryLabel: `Basic Salary Payable (Payable days: ${summary.payableDays || 0}, Leaves taken: ${summary.unpaidLeaveDays || 0})`,
       });
     }

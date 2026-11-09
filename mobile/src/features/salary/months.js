@@ -1,8 +1,8 @@
-import { formatMonthLabel, latestCalculableMonth, monthKey } from '@kps/shared';
+import { currentMonth, formatMonthLabel, monthKey } from '@kps/shared';
 
 // Last `count` calculable months (newest first) as Select options - replaces <input type="month">.
 export function calculableMonthOptions(count = 12) {
-  const latest = latestCalculableMonth();
+  const latest = currentMonth();
   const [year, month] = latest.split('-').map(Number);
   return Array.from({ length: count }, (_, index) => {
     const key = monthKey(new Date(year, month - 1 - index, 1));

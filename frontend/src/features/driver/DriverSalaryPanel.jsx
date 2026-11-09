@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { latestCalculableMonth, formatMonthLabel } from '@kps/shared';
+import { currentMonth, latestCalculableMonth, formatMonthLabel } from '@kps/shared';
 import * as api from '../../api/api';
 import SalaryTripsTable from './SalaryTripsTable';
 import SalarySummaryTable from './SalarySummaryTable';
 
 export default function DriverSalaryPanel({ customerId, driverId, data, driver, vehicle, setError }) {
-  const [salaryMonth, setSalaryMonth] = useState(latestCalculableMonth);
+  const [salaryMonth, setSalaryMonth] = useState(currentMonth);
   const [salary, setSalary] = useState(null);
   const [salaryError, setSalaryError] = useState('');
   const [showArchivedSalary, setShowArchivedSalary] = useState(false);
@@ -87,7 +87,7 @@ export default function DriverSalaryPanel({ customerId, driverId, data, driver, 
               aria-label="Salary month"
               type="month"
               value={salaryMonth}
-              max={latestCalculableMonth()}
+              max={currentMonth()}
               onChange={(event) => setSalaryMonth(event.target.value)}
               style={{ maxWidth: 170 }}
             />
@@ -102,7 +102,9 @@ export default function DriverSalaryPanel({ customerId, driverId, data, driver, 
           </div>
         </div>
         <p style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
-          Salary for a month is calculated from the 5th of the following month (latest available: {formatMonthLabel(latestCalculableMonth())}).
+          {salaryMonth === currentMonth()
+            ? 'Current month is live and calculated through today. Previous months are finalized from the 5th of the following month.'
+            : `Salary for a month is calculated from the 5th of the following month (latest finalized: ${formatMonthLabel(latestCalculableMonth())}).`}
         </p>
         {salaryError ? <p className="error-text" style={{ margin: 0 }}>{salaryError}</p>
           : !salary ? <p style={{ margin: 0 }}>Loading salary calculation...</p> : (
@@ -176,7 +178,7 @@ export default function DriverSalaryPanel({ customerId, driverId, data, driver, 
             aria-label="Archived salary month"
             type="month"
             value={archivedSalaryMonth}
-            max={latestCalculableMonth()}
+            max={currentMonth()}
             onChange={(event) => setArchivedSalaryMonth(event.target.value)}
             style={{ maxWidth: 170 }}
           />

@@ -203,9 +203,11 @@ function getLatestCalculableSalaryMonth(today = new Date()) {
 }
 
 // Shared month validation for the salary endpoints - returns an error message or null.
-function validateSalaryMonth(month) {
+function validateSalaryMonth(month, today = new Date()) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return 'month must use YYYY-MM format';
-  const { available, availableFrom } = getSalaryMonthAvailability(month);
+  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  if (month === currentMonth) return null;
+  const { available, availableFrom } = getSalaryMonthAvailability(month, today);
   if (!available) {
     return `Salary for ${formatMonth(month)} can be calculated only from ${availableFrom.toLocaleDateString('en-IN')} (5th of the following month)`;
   }
@@ -268,10 +270,12 @@ function getCalendarDay(date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
-function calculateBasicSalary(month, monthlyBasicSalary, joiningDate, resigningDate, leaves = []) {
+function calculateBasicSalary(month, monthlyBasicSalary, joiningDate, resigningDate, leaves = [], asOfDate = null) {
   const { start: monthStart, end: monthEndExclusive } = getSalaryMonthBounds(month);
-  const monthEnd = new Date(monthEndExclusive.getTime() - MS_PER_DAY);
-  const daysInMonth = monthEnd.getDate();
+  const monthLastDay = new Date(monthEndExclusive.getTime() - MS_PER_DAY);
+  const asOfDay = asOfDate ? getCalendarDay(asOfDate) : monthLastDay;
+  const monthEnd = asOfDay < monthLastDay ? asOfDay : monthLastDay;
+  const daysInMonth = monthLastDay.getDate();
   const joiningDay = joiningDate ? getCalendarDay(new Date(joiningDate)) : null;
   const resigningDay = resigningDate ? getCalendarDay(new Date(resigningDate)) : null;
   const payableStart = joiningDay && joiningDay > monthStart ? joiningDay : monthStart;
@@ -313,12 +317,14 @@ function hasRowDetails(row) {
 // against joiningDate/returningDate - even entries within the same trip can land on either side.
 // KM (and the <200 KM special charge) is split leg by leg by the date each leg was completed -
 // see getTempKmShare.
-function calculateTemporaryDriverSegment(month, temporaryDriver, monthTrips, routeKmTable, driver) {
+function calculateTemporaryDriverSegment(month, temporaryDriver, monthTrips, routeKmTable, driver, asOfDate = null) {
   if (!temporaryDriver?.required || !temporaryDriver?.joiningDate) return null;
 
   const { start: monthStart, end: monthEndExclusive } = getSalaryMonthBounds(month);
-  const monthEnd = new Date(monthEndExclusive.getTime() - MS_PER_DAY);
-  const daysInMonth = monthEnd.getDate();
+  const monthLastDay = new Date(monthEndExclusive.getTime() - MS_PER_DAY);
+  const asOfDay = asOfDate ? getCalendarDay(asOfDate) : monthLastDay;
+  const monthEnd = asOfDay < monthLastDay ? asOfDay : monthLastDay;
+  const daysInMonth = monthLastDay.getDate();
   const joiningDate = new Date(temporaryDriver.joiningDate);
   const returningDate = temporaryDriver.returningDate ? new Date(temporaryDriver.returningDate) : null;
 
@@ -385,6 +391,9 @@ function calculateTemporaryDriverSegment(month, temporaryDriver, monthTrips, rou
 }
 
 async function calculateDriverMonthlySalary(customerId, userId, month) {
+  const today = new Date();
+  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const asOfDate = month === currentMonth ? today : null;
   const driver = await User.findOne({
     _id: userId,
     customer: customerId,
@@ -393,6 +402,9 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   if (!driver) return null;
 
   const { start: monthStart, end: monthEnd } = getSalaryMonthBounds(month);
+  const monthEndExclusive = asOfDate
+    ? new Date(Math.min(monthEnd.getTime(), getCalendarDay(asOfDate).getTime() + MS_PER_DAY))
+    : monthEnd;
   const leaves = await Leave.find({
     customer: customerId,
     driver: userId,
@@ -418,7 +430,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   // inside this driver's own joining/resigning window belong on their sheet.
   const monthTrips = trips.filter((trip) => (
     hasCompletedLoadTurn(trip)
-    && isTripInSalaryMonth(trip, monthStart, monthEnd)
+    && isTripInSalaryMonth(trip, monthStart, monthEndExclusive)
     && isDriverAssignedOn(driver, getTripSalaryDate(trip))
   ));
   const routeKmTable = loadRouteKmTable();
@@ -459,14 +471,16 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
     driver.basicSalary,
     driver.joiningDate,
     driver.resigningDate,
-    leaves
+    leaves,
+    asOfDate
   );
   const basicSalary = basicSalaryDetails.basicSalary;
   const kmCharges = Number(driver.kmCharges || 0);
   const kmBeta = round0(kmCharges * totalDriverKm);
-  const temporaryDriver = calculateTemporaryDriverSegment(month, driver.temporaryDriver, monthTrips, routeKmTable, driver);
+  const temporaryDriver = calculateTemporaryDriverSegment(month, driver.temporaryDriver, monthTrips, routeKmTable, driver, asOfDate);
   return {
     month,
+    isLive: Boolean(asOfDate),
     driver,
     trips: tripsWithBalances,
     closedTrips: tripsWithBalances.length,

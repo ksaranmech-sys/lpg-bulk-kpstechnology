@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { latestCalculableMonth, formatMonthLabel } from '@kps/shared';
+import { currentMonth, latestCalculableMonth, formatMonthLabel } from '@kps/shared';
 import * as api from '../../api/api';
 
 export default function SalarySection({ user, customerData, driverUsers, leaves, leavesLoading }) {
   const [driverSalaries, setDriverSalaries] = useState({});
   const [driverSalariesLoading, setDriverSalariesLoading] = useState(false);
-  const [salaryMonth, setSalaryMonth] = useState(latestCalculableMonth);
+  const [salaryMonth, setSalaryMonth] = useState(currentMonth);
   const [showArchivedSalary, setShowArchivedSalary] = useState(false);
 
   useEffect(() => {
@@ -31,7 +31,9 @@ export default function SalarySection({ user, customerData, driverUsers, leaves,
         <h3 className="section-title" style={{ marginTop: 0 }}>Salary Details ({formatMonthLabel(salaryMonth)})</h3>
       </div>
       <p style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
-        Salary for a month is calculated from the 5th of the following month (latest available: {formatMonthLabel(latestCalculableMonth())}).
+        {salaryMonth === currentMonth()
+          ? 'Current month is live and calculated through today. Previous months are finalized from the 5th of the following month.'
+          : `Salary for a month is calculated from the 5th of the following month (latest finalized: ${formatMonthLabel(latestCalculableMonth())}).`}
       </p>
       {driverUsers.length === 0 ? (
         <p>No drivers found.</p>
@@ -96,7 +98,7 @@ export default function SalarySection({ user, customerData, driverUsers, leaves,
                           <td style={{ padding: '8px 12px', textAlign: 'right' }}>Rs {Math.round(salary.totalBalance || 0)}</td>
                           <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700 }}>Rs {Math.round(salary.salaryBalance || 0)}</td>
                           <td style={{ padding: '8px 12px', textAlign: 'right' }}>{salary.payableDays}</td>
-                          <td style={{ padding: '8px 12px', textAlign: 'right' }}>{leavesLoading ? '...' : leavesTaken}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'right' }}>{leavesLoading ? '...' : (salary.unpaidLeaveDays ?? leavesTaken)}</td>
                         </>
                       )}
                     </tr>
@@ -163,7 +165,7 @@ export default function SalarySection({ user, customerData, driverUsers, leaves,
               id="salary-month"
               type="month"
               value={salaryMonth}
-              max={latestCalculableMonth()}
+              max={currentMonth()}
               onChange={(event) => setSalaryMonth(event.target.value)}
             />
           </div>

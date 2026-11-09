@@ -168,6 +168,25 @@ test('basic salary deducts unique unpaid leave days for a full month', () => {
   assert.equal(salary.basicSalary, 24000);
 });
 
+test('basic salary for the current month is prorated through the calculation date', () => {
+  const salary = customerController.calculateBasicSalary(
+    '2026-04',
+    30000,
+    new Date(2026, 3, 10),
+    null,
+    [
+      { startDate: new Date(2026, 3, 13), endDate: new Date(2026, 3, 17) },
+      { startDate: new Date(2026, 3, 14), endDate: new Date(2026, 3, 16) },
+    ],
+    new Date(2026, 3, 15)
+  );
+
+  assert.equal(salary.daysInMonth, 30);
+  assert.equal(salary.payableDays, 3);
+  assert.equal(salary.unpaidLeaveDays, 3);
+  assert.equal(salary.basicSalary, 3000);
+});
+
 test('monthly salary calculates balance for closed trips pending settlement', () => {
   const balance = customerController.calculateTripBalance({
     driverAdvances: [{ amount: 2000 }],
@@ -263,6 +282,14 @@ test('salary month is calculable from the 5th of the following month', () => {
   assert.equal(customerController.getLatestCalculableSalaryMonth(new Date(2026, 8, 5)), '2026-08');
   assert.equal(customerController.getLatestCalculableSalaryMonth(new Date(2027, 0, 3)), '2026-11');
   assert.equal(customerController.getLatestCalculableSalaryMonth(new Date(2027, 0, 5)), '2026-12');
+});
+
+test('salary month validation permits a live current month but not a future month', () => {
+  const today = new Date(2026, 8, 20);
+  assert.equal(customerController.validateSalaryMonth('2026-09', today), null);
+  assert.match(customerController.validateSalaryMonth('2026-10', today), /calculated only from/);
+  assert.match(customerController.validateSalaryMonth('2026-08', new Date(2026, 8, 4)), /calculated only from/);
+  assert.equal(customerController.validateSalaryMonth('2026-08', new Date(2026, 8, 5)), null);
 });
 
 test('single trip pages name the regular driver, the temporary driver, or both when a trip straddles the handover', () => {
