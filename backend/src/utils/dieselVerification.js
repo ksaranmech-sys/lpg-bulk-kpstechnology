@@ -23,7 +23,7 @@ function parseDate(value) {
   if (typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 2958465) {
     return new Date(Date.UTC(1899, 11, 30) + Math.round(value) * 86400000);
   }
-  const text = String(value || '').trim();
+  const text = String(value || '').trim().replace(/^'+|'+$/g, '');
   const isoDate = text.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})(?:[ T]\d{1,2}:\d{2}(?::\d{2})?\s*(AM|PM)?)?$/i);
   if (isoDate) {
     const [, yearText, monthText, dayText] = isoDate;
@@ -85,17 +85,27 @@ function findFuelHeader(worksheet) {
   ]);
   const vehicleHeaders = new Set([
     'vehicle', 'vehicleno', 'vehiclenumber', 'vehicleregistration', 'registrationno',
-    'registrationnumber', 'regno', 'truckno', 'trucknumber',
+    'registrationnumber', 'regno', 'truckno', 'trucknumber', 'vehiclenocard', 'vehiclenouserentry',
   ]);
   const quantityHeaders = new Set(['quantity', 'qty', 'volume', 'litres', 'litre', 'liters', 'liter']);
   const productHeaders = new Set(['product', 'productname', 'fuel', 'fueltype', 'type', 'item', 'description']);
   for (let rowNumber = 1; rowNumber <= Math.min(worksheet.rowCount, 20); rowNumber += 1) {
-    const header = { rowNumber, dieselColumn: 0, defColumn: 0, quantityColumn: 0, productColumn: 0, dateColumn: 0, vehicleColumn: 0 };
+    const header = {
+      rowNumber,
+      dieselColumn: 0,
+      defColumn: 0,
+      quantityColumn: 0,
+      productColumn: 0,
+      dateColumn: 0,
+      vehicleColumns: [],
+    };
     worksheet.getRow(rowNumber).eachCell({ includeEmpty: false }, (cell, columnNumber) => {
       const value = normalizeHeader(getCellValue(cell));
-      if (dateHeaders.has(value)) header.dateColumn = columnNumber;
-      if (vehicleHeaders.has(value)) header.vehicleColumn = columnNumber;
-      if (productHeaders.has(value)) header.productColumn = columnNumber;
+      if (dateHeaders.has(value) && !header.dateColumn) header.dateColumn = columnNumber;
+      if (vehicleHeaders.has(value)) header.vehicleColumns.push(columnNumber);
+      if (productHeaders.has(value) && (value !== 'description' || !header.productColumn)) {
+        header.productColumn = columnNumber;
+      }
       if (quantityHeaders.has(value) || /(quantity|qty|volume|litres?|liters?)$/.test(value)) {
         header.quantityColumn = columnNumber;
       }
@@ -143,17 +153,19 @@ function parseFuelWorksheet(worksheet, targetVehicleNumber) {
     const dateValue = getCellValue(row.getCell(header.dateColumn));
     const date = parseDate(dateValue);
     if (!date) continue;
-    const vehicleNumber = normalizeVehicleNumber(
-      header.vehicleColumn ? getCellValue(row.getCell(header.vehicleColumn)) : ''
-    ) || normalizedTargetVehicle;
+    const vehicleNumber = header.vehicleColumns
+      .map((columnNumber) => normalizeVehicleNumber(getCellValue(row.getCell(columnNumber))))
+      .find(Boolean) || normalizedTargetVehicle;
 
     if (header.quantityColumn && header.productColumn && !header.dieselColumn && !header.defColumn) {
       const product = getCellValue(row.getCell(header.productColumn));
       const quantity = getCellValue(row.getCell(header.quantityColumn));
       if (isDefProduct(product)) {
+        if (quantity == null || ['-', ''].includes(String(quantity).trim())) continue;
         const record = fuelRecord(date, quantity, vehicleNumber, 'DEF', rowNumber);
         if (record) defRecords.push(record);
       } else if (isDieselProduct(product)) {
+        if (quantity == null || ['-', ''].includes(String(quantity).trim())) continue;
         const record = fuelRecord(date, quantity, vehicleNumber, 'Diesel', rowNumber);
         if (record) dieselRecords.push(record);
       }

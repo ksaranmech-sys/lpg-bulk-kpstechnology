@@ -183,6 +183,35 @@ test('parses vendor CSV transaction date and diesel quantity headers while ignor
   ]);
 });
 
+test('parses fuel card CSV timestamps with trailing apostrophes and product values', async () => {
+  const csv = [
+    'Txn Date,Settlement Date,Txn Type,Product,Quantity,Vehicle No. (Card),VehicleNo (User Entry)',
+    '31/10/2026 19:42:20\',01/11/2026 10:33:00\',Sale,\'DIESEL,100,TN28BJ6378,-',
+    '30/10/2026 10:28:24\',30/10/2026 11:20:02\',Sale,\'DIESEL,320.27,KA01AH6269,-',
+    '29/10/2026 10:28:24\',29/10/2026 11:20:02\',Sale,\'DIESEL,50,-,KA02AB1234',
+    '31/10/2026 19:06:08\',31/10/2026 19:34:06\',Recharge,\'pay_reference,-,-,-',
+    '13/10/2026 12:33:32\',13/10/2026 12:52:48\',Sale,\'DEF,-,TN28BL6304,TN28BL6304',
+  ].join('\r\n');
+
+  assert.deepEqual(await parseDieselRecords(Buffer.from(csv), 'csv', 'KA01AH6269'), [
+    {
+      date: new Date('2026-10-31T00:00:00.000Z'),
+      litres: 100,
+      vehicleNumber: 'TN28BJ6378',
+    },
+    {
+      date: new Date('2026-10-30T00:00:00.000Z'),
+      litres: 320.27,
+      vehicleNumber: 'KA01AH6269',
+    },
+    {
+      date: new Date('2026-10-29T00:00:00.000Z'),
+      litres: 50,
+      vehicleNumber: 'KA02AB1234',
+    },
+  ]);
+});
+
 test('accepts Txn Date in Excel and CSV statements', async () => {
   const workbook = await workbookBuffer([
     ['Txn Date', 'Quantity'],
