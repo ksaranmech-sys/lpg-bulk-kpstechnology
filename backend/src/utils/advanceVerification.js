@@ -3,6 +3,8 @@ const { Readable } = require('stream');
 const { parseDate, getVehicleNumber } = require('./dieselVerification');
 const { loadSpreadsheetWorkbook } = require('./spreadsheet');
 
+const MOBILE_NUMBER_PATTERN = /(?<!\d)(?:\+?91[ \t()-]*)?[6-9](?:[ \t()-]*\d){9}(?!\d)/;
+
 function getLastFourVehicleDigits(value) {
   const digits = String(value || '').replace(/\D/g, '');
   return digits.length >= 4 ? digits.slice(-4) : '';
@@ -11,6 +13,18 @@ function getLastFourVehicleDigits(value) {
 function normalizeMobileNumber(value) {
   const digits = String(value || '').replace(/\D/g, '');
   return digits.length >= 10 ? digits.slice(-10) : '';
+}
+
+function findMobileNumber(value) {
+  const match = String(value || '').match(MOBILE_NUMBER_PATTERN);
+  return match ? normalizeMobileNumber(match[0]) : '';
+}
+
+function findVehicleSuffix(value) {
+  const fullVehicleNumber = getVehicleNumber(value);
+  if (fullVehicleNumber) return getLastFourVehicleDigits(fullVehicleNumber);
+  const matches = [...String(value || '').matchAll(/(?<!\d)\d{4}(?!\d)/g)];
+  return matches.at(-1)?.[0] || '';
 }
 
 function normalizeHeader(value) {
@@ -155,12 +169,20 @@ function parseWorksheetRecords(worksheet, targetVehicleNumber) {
     const row = worksheet.getRow(rowNumber);
     const dateValue = getCellValue(row.getCell(header.dateColumn));
     const amountValue = getCellValue(row.getCell(header.amountColumn));
-    const rowVehicleNumber = header.vehicleColumn
+    const rowValues = [];
+    row.eachCell({ includeEmpty: false }, (cell, columnNumber) => {
+      if (columnNumber !== header.dateColumn && columnNumber !== header.amountColumn) {
+        const value = getCellValue(cell);
+        if (!(value instanceof Date) && !parseDate(value)) rowValues.push(value);
+      }
+    });
+    const rowText = rowValues.join(' ');
+    const rowVehicleNumber = (header.vehicleColumn
       ? getLastFourVehicleDigits(getCellValue(row.getCell(header.vehicleColumn)))
-      : '';
-    const driverMobileNumber = header.driverMobileColumn
+      : '') || findVehicleSuffix(rowText);
+    const driverMobileNumber = (header.driverMobileColumn
       ? normalizeMobileNumber(getCellValue(row.getCell(header.driverMobileColumn)))
-      : '';
+      : '') || findMobileNumber(rowText);
     if ((dateValue == null || dateValue === '') && (amountValue == null || amountValue === '')) continue;
     if (header.debitColumn && (amountValue == null || String(amountValue).trim() === '')) continue;
 
@@ -241,8 +263,15 @@ async function parsePdfRecords(buffer, targetVehicleNumber) {
       .slice(dateMatch.index + dateMatch[0].length)
       .replace(/\b[A-Z]{2}\s*\d{2}\s*[A-Z]{1,3}\s*\d{4}\b/ig, '');
     let values = [...transactionText.matchAll(numberPattern)];
-    let driverMobileNumber = '';
-    if (driverMobileHeaderPosition >= 0) {
+    let driverMobileNumber = findMobileNumber(transactionText);
+    if (driverMobileNumber) {
+      const mobileMatch = MOBILE_NUMBER_PATTERN.exec(transactionText);
+      if (mobileMatch) {
+        transactionText = transactionText.slice(0, mobileMatch.index)
+          + transactionText.slice(mobileMatch.index + mobileMatch[0].length);
+        values = [...transactionText.matchAll(numberPattern)];
+      }
+    } else if (driverMobileHeaderPosition >= 0) {
       const mobile = findPdfMobileValue(values, driverMobileIsAfterAmount);
       if (mobile) {
         driverMobileNumber = normalizeMobileNumber(mobile.value);
@@ -262,6 +291,14 @@ async function parsePdfRecords(buffer, targetVehicleNumber) {
         numericVehicleNumber = vehicleValue[0];
         transactionText = transactionText.slice(0, vehicleValue.index)
           + transactionText.slice(vehicleValue.index + vehicleValue[0].length);
+        values = [...transactionText.matchAll(numberPattern)];
+      }
+    } else if (!fullVehicleNumber) {
+      const numericVehicleValue = values.slice(0, -1).filter((value) => /^\d{4}$/.test(value[0])).at(-1);
+      numericVehicleNumber = numericVehicleValue?.[0] || '';
+      if (numericVehicleValue) {
+        transactionText = transactionText.slice(0, numericVehicleValue.index)
+          + transactionText.slice(numericVehicleValue.index + numericVehicleValue[0].length);
         values = [...transactionText.matchAll(numberPattern)];
       }
     }
