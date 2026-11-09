@@ -267,7 +267,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
               />
               <small>
                 One customer statement can include multiple vehicles. Upload each distinct file once; exact duplicate files are rejected.
-                Statement date columns may be Date, Settlement Date, Transaction Date, or Txn Date. Include Diesel / DEF quantity columns or a Product and Quantity column; DEF amounts are read from the Amount column in CSV/Excel statements. PDFs must contain selectable text.
+                Statement date columns may be Date, Settlement Date, Transaction Date, or Txn Date. Include Diesel / DEF quantity columns or Product and Quantity / Amount columns; DEF amounts are read from the Amount column in CSV, Excel, or selectable-text PDF statements.
               </small>
             </div>
             {file && (

@@ -198,6 +198,27 @@ test('parses DEF quantities from selectable-text PDF transactions', async () => 
   });
 });
 
+test('parses DEF amounts from selectable-text PDF transactions', async () => {
+  const buffer = await pdfBuffer([
+    'Transaction Date Product Quantity (L) Amount (Rs.) Vehicle No',
+    '13/10/2026 DEF - 2,190.32 TN28BL6304',
+    '14/10/2026 AdBlue 18.5 875.00 TN28BL6304',
+  ]);
+
+  assert.deepEqual((await parseFuelRecords(buffer, 'pdf')).defAmountRecords, [
+    { date: new Date('2026-10-13T00:00:00.000Z'), amount: 2190.32, vehicleNumber: 'TN28BL6304' },
+    { date: new Date('2026-10-14T00:00:00.000Z'), amount: 875, vehicleNumber: 'TN28BL6304' },
+  ]);
+
+  const amountOnlyBuffer = await pdfBuffer([
+    'Transaction Date DEF Amount (Rs.)',
+    '15/10/2026 111.50',
+  ]);
+  assert.deepEqual((await parseFuelRecords(amountOnlyBuffer, 'pdf')).defAmountRecords, [
+    { date: new Date('2026-10-15T00:00:00.000Z'), amount: 111.5 },
+  ]);
+});
+
 test('parses vendor CSV transaction date and diesel quantity headers while ignoring time', async () => {
   const csv = 'Transaction Date,Diesel Quantity (L)\r\n10-Nov-2026 14:30,18.75\r\n';
   const records = await parseDieselRecords(Buffer.from(csv), 'csv');

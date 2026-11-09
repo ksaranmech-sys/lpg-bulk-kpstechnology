@@ -123,7 +123,7 @@ test('filters uploaded statements by their diesel record dates and selected vehi
     litres: 20,
     vehicleNumber: 'KA01AH6269',
   }]);
-  assert.equal(legacyUpload.recordsParserVersion, 5);
+  assert.equal(legacyUpload.recordsParserVersion, 6);
   assert.deepEqual(legacyUpload.defRecords, []);
   assert.deepEqual(legacyUpload.defAmountRecords, []);
   assert.equal(response.body.uploads[0]._id, 'upload-1');

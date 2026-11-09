@@ -140,6 +140,18 @@ function isDieselProduct(value) {
   return /\bdiesel\b/i.test(String(value || ''));
 }
 
+function pdfDefAmountText(transactionText, dateMatch, hasDefAmountHeader) {
+  const productMatch = /\b(?:DEF|AD[\s-]?BLUE|UREA)\b/i.exec(transactionText);
+  if (!productMatch && !hasDefAmountHeader) return null;
+  const remainingText = transactionText
+    .slice(productMatch
+      ? productMatch.index + productMatch[0].length
+      : dateMatch.index + dateMatch[0].length)
+    .replace(/\b[A-Z]{2}\s*\d{2}\s*[A-Z]{1,3}\s*\d{4}\b/gi, ' ');
+  const values = [...remainingText.matchAll(/-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/g)];
+  return values.at(-1)?.[0] || null;
+}
+
 function fuelRecord(date, litresValue, vehicleNumber, label, rowNumber) {
   if (litresValue == null || String(litresValue).trim() === '') {
     throw new Error(`Row ${rowNumber} needs a non-negative ${label} (litres) value.`);
@@ -264,15 +276,25 @@ async function parsePdfFuelRecords(buffer, targetVehicleNumber) {
     await parser.destroy();
   }
 
-  const lines = String(text || '').replace(/\u00a0/g, ' ').split(/\r?\n/);
+  const lines = String(text || '')
+    .replace(/\u00a0/g, ' ')
+    .split(/\r?\n/)
+    .filter((line) => !/^\s*(?:page\s*)?[-–—]*\s*\d+\s+of\s+\d+\s*[-–—]*\s*$/i.test(line));
   const normalizedHeaders = normalizeHeader(lines.slice(0, 40).join(' '));
   const hasDateHeader = normalizedHeaders.includes('date');
   const hasDieselHeader = /diesel(litres?|liters?|quantity|qty|volume)/.test(normalizedHeaders);
   const hasDefHeader = /(def|adblue|urea)(litres?|liters?|quantity|qty|volume)/.test(normalizedHeaders);
+  const hasDefAmountHeader = /(def|adblue|urea)amount/.test(normalizedHeaders);
+  const hasAmountHeader = normalizedHeaders.includes('amount');
   const hasProductHeader = /(product|productname|fuel|fueltype|description)/.test(normalizedHeaders);
   const hasQuantityHeader = /(quantity|qty|volume|litres?|liters?)/.test(normalizedHeaders);
-  if (!text || !hasDateHeader || ((!hasDieselHeader && !hasDefHeader) && !(hasProductHeader && hasQuantityHeader))) {
-    throw new Error('The PDF must contain a date and Diesel or DEF (litres) quantity.');
+  if (!text || !hasDateHeader || (
+    !hasDieselHeader
+    && !hasDefHeader
+    && !hasDefAmountHeader
+    && !(hasProductHeader && (hasQuantityHeader || hasAmountHeader))
+  )) {
+    throw new Error('The PDF must contain a date and Diesel or DEF quantity or amount.');
   }
 
   const datePattern = /\b(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{1,2}[- ](?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[- ]\d{2,4})(?:[ T]\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)?/i;
@@ -303,10 +325,19 @@ async function parsePdfFuelRecords(buffer, targetVehicleNumber) {
     let litresText;
     let targetRecords;
     let label;
+    if ((isDef || (hasDefAmountHeader && !hasProductHeader)) && (hasAmountHeader || hasDefAmountHeader)) {
+      const amountText = pdfDefAmountText(transactionText, dateMatch, hasDefAmountHeader);
+      if (amountText != null) {
+        const amountRecord = fuelAmountRecord(date, amountText, vehicleNumber, index + 1);
+        if (amountRecord) defAmountRecords.push(amountRecord);
+      }
+    }
     if (isDef) {
-      litresText = transactionText.match(defPattern)?.[1];
-      targetRecords = defRecords;
-      label = 'DEF';
+      if (hasDefHeader || (hasProductHeader && hasQuantityHeader)) {
+        litresText = transactionText.match(defPattern)?.[1];
+        targetRecords = defRecords;
+        label = 'DEF';
+      }
     } else if (isDiesel || (hasDieselHeader && !hasDefHeader)) {
       litresText = transactionText.match(dieselPattern)?.[1];
       if (litresText == null) {
