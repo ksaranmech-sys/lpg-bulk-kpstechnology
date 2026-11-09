@@ -83,6 +83,8 @@ test('parses withdrawal and debit values from statements, preferring them over o
     ['01/10/2026', 'UPI credit', '00001234', '01/10/2026', '', 4000, 4281.59],
     ['01/10/2026', 'IMPS-6269', '00005678', '01/10/2026', 4000, '', 281.59],
     ['02/10/2026', 'IMPS vehicle 1234 Driver 9876543210', '00005679', '02/10/2026', 2000, '', 2281.59],
+    ['03/10/2026', 'IMPS transfer', '00001234', '03/10/2026', 1500, '', 781.59],
+    ['04/10/2026', 'IMPS-6269 reference 1234', '00005680', '04/10/2026', 500, '', 281.59],
   );
   const bankStatement = await workbookBuffer(bankStatementRows);
 
@@ -110,6 +112,14 @@ test('parses withdrawal and debit values from statements, preferring them over o
     amount: 2000,
     vehicleNumber: '1234',
     driverMobileNumber: '9876543210',
+  }, {
+    date: new Date('2026-10-03T00:00:00.000Z'),
+    amount: 1500,
+    vehicleNumber: '6269',
+  }, {
+    date: new Date('2026-10-04T00:00:00.000Z'),
+    amount: 500,
+    vehicleNumber: '6269',
   }]);
 });
 

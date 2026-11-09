@@ -20,7 +20,11 @@ function findMobileNumber(value) {
   return match ? normalizeMobileNumber(match[0]) : '';
 }
 
-function findVehicleSuffix(value) {
+function findVehicleSuffix(value, targetVehicleNumber = '') {
+  const targetSuffix = getLastFourVehicleDigits(targetVehicleNumber);
+  if (targetSuffix && new RegExp(`(?<!\\d)${targetSuffix}(?!\\d)`).test(String(value || ''))) {
+    return targetSuffix;
+  }
   const fullVehicleNumber = getVehicleNumber(value);
   if (fullVehicleNumber) return getLastFourVehicleDigits(fullVehicleNumber);
   const matches = [...String(value || '').matchAll(/(?<!\d)\d{4}(?!\d)/g)];
@@ -46,6 +50,7 @@ function findHeader(worksheet) {
     let debitColumn = 0;
     let vehicleColumn = 0;
     let driverMobileColumn = 0;
+    let narrationColumn = 0;
     worksheet.getRow(rowNumber).eachCell({ includeEmpty: false }, (cell, columnNumber) => {
       const header = normalizeHeader(getCellValue(cell));
       if ([
@@ -105,6 +110,13 @@ function findHeader(worksheet) {
         'drivernumber',
         'phonenumber',
       ].includes(header)) driverMobileColumn = columnNumber;
+      if ([
+        'narration',
+        'description',
+        'particulars',
+        'transactiondetails',
+        'remarks',
+      ].includes(header)) narrationColumn = columnNumber;
     });
     if (dateColumn && (debitColumn || amountColumn)) {
       return {
@@ -114,6 +126,7 @@ function findHeader(worksheet) {
         debitColumn: Boolean(debitColumn),
         vehicleColumn,
         driverMobileColumn,
+        narrationColumn,
       };
     }
   }
@@ -169,17 +182,13 @@ function parseWorksheetRecords(worksheet, targetVehicleNumber) {
     const row = worksheet.getRow(rowNumber);
     const dateValue = getCellValue(row.getCell(header.dateColumn));
     const amountValue = getCellValue(row.getCell(header.amountColumn));
-    const rowValues = [];
-    row.eachCell({ includeEmpty: false }, (cell, columnNumber) => {
-      if (columnNumber !== header.dateColumn && columnNumber !== header.amountColumn) {
-        const value = getCellValue(cell);
-        if (!(value instanceof Date) && !parseDate(value)) rowValues.push(value);
-      }
-    });
-    const rowText = rowValues.join(' ');
+    const narration = header.narrationColumn
+      ? getCellValue(row.getCell(header.narrationColumn))
+      : '';
+    const rowText = narration == null ? '' : String(narration);
     const rowVehicleNumber = (header.vehicleColumn
       ? getLastFourVehicleDigits(getCellValue(row.getCell(header.vehicleColumn)))
-      : '') || findVehicleSuffix(rowText);
+      : '') || findVehicleSuffix(rowText, targetVehicleNumber);
     const driverMobileNumber = (header.driverMobileColumn
       ? normalizeMobileNumber(getCellValue(row.getCell(header.driverMobileColumn)))
       : '') || findMobileNumber(rowText);
@@ -291,14 +300,6 @@ async function parsePdfRecords(buffer, targetVehicleNumber) {
         numericVehicleNumber = vehicleValue[0];
         transactionText = transactionText.slice(0, vehicleValue.index)
           + transactionText.slice(vehicleValue.index + vehicleValue[0].length);
-        values = [...transactionText.matchAll(numberPattern)];
-      }
-    } else if (!fullVehicleNumber) {
-      const numericVehicleValue = values.slice(0, -1).filter((value) => /^\d{4}$/.test(value[0])).at(-1);
-      numericVehicleNumber = numericVehicleValue?.[0] || '';
-      if (numericVehicleValue) {
-        transactionText = transactionText.slice(0, numericVehicleValue.index)
-          + transactionText.slice(numericVehicleValue.index + numericVehicleValue[0].length);
         values = [...transactionText.matchAll(numberPattern)];
       }
     }
