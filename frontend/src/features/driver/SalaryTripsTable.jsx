@@ -1,5 +1,15 @@
 import React from 'react';
 
+const dieselNumber = new Intl.NumberFormat('en-IN', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+function formatDieselValue(value) {
+  const number = Number(value);
+  return dieselNumber.format(Number.isFinite(number) ? number : 0);
+}
+
 // Manual KM entered per leg (one way), shown under Driver KM like the single-trip print.
 function manualKmLines(trip) {
   const hasValue = (value) => value != null && value !== '';
@@ -51,8 +61,8 @@ export default function SalaryTripsTable({ trips, closingTripId, onCloseTrip, to
                   <div key={line} style={{ fontSize: 11, color: '#4b5f52', whiteSpace: 'nowrap' }}>{line}</div>
                 ))}
               </td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{trip.dieselLitres ?? 0} L</td>
-              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.dieselTotal ?? 0}</td>
+              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{formatDieselValue(trip.dieselLitres)} L</td>
+              <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {formatDieselValue(trip.dieselTotal)}</td>
               <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.advanceTotal ?? 0}</td>
               <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.expenseTotal ?? 0}</td>
               <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.balance ?? 0}</td>
@@ -70,8 +80,8 @@ export default function SalaryTripsTable({ trips, closingTripId, onCloseTrip, to
           <tr>
             <td colSpan="6" style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
             <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>{Math.round(totals.corporationKm || 0)} km</td>
-            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>{totals.totalDieselLitres || 0} L</td>
-            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {totals.totalDiesel}</td>
+            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>{formatDieselValue(totals.totalDieselLitres)} L</td>
+            <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {formatDieselValue(totals.totalDiesel)}</td>
             <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {totals.totalAdvance}</td>
             <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {totals.totalExpense}</td>
             <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {totals.totalBalance}</td>
