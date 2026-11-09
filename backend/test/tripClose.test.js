@@ -638,11 +638,23 @@ test('salary splits trip KM between drivers when an assignment changes at unload
     fillingOrderLocation: 'Load',
     turnDate: new Date('2026-11-02T00:00:00.000Z'),
     closedAt: new Date('2026-11-03T00:00:00.000Z'),
-    driverAdvances: [{ amount: 100, date: new Date('2026-10-30T00:00:00.000Z') }],
+    driverAdvances: [
+      { amount: 100, date: new Date('2026-10-31T12:00:00.000Z') },
+      { amount: 200, date: new Date('2026-11-01T12:00:00.000Z') },
+    ],
     loadingExpense: 20,
-    dieselEntries: [],
-    rtoEntries: [],
-    otherExpenses: [],
+    unloadingExpense: 30,
+    dieselEntries: [
+      { amount: 12, volumeLitres: 5, paymentMethod: 'cash', filledAt: new Date('2026-10-31T18:00:00.000Z') },
+      { amount: 15, volumeLitres: 6, paymentMethod: 'cash', filledAt: new Date('2026-11-01T18:00:00.000Z') },
+    ],
+    rtoEntries: [
+      { amount: 5, date: new Date('2026-10-31T18:00:00.000Z') },
+      { amount: 7, date: new Date('2026-11-01T18:00:00.000Z') },
+    ],
+    otherExpenses: [
+      { amount: 8, date: new Date('2026-11-01T18:00:00.000Z'), description: 'Repair' },
+    ],
     settlement: {},
     toObject() {
       const plainTrip = { ...this };
@@ -694,14 +706,18 @@ test('salary splits trip KM between drivers when an assignment changes at unload
   assert.equal(resignedSalary.trips[0].corporationKm, 500);
   assert.equal(resignedSalary.corporationKm, 500);
   assert.equal(resignedSalary.kmBeta, 1000);
-  assert.equal(resignedSalary.totalAdvance, 0);
-  assert.equal(resignedSalary.totalExpense, 0);
+  assert.equal(resignedSalary.totalAdvance, 100);
+  assert.equal(resignedSalary.totalDiesel, 12);
+  assert.equal(resignedSalary.totalExpense, 67);
+  assert.equal(resignedSalary.totalBalance, 33);
   assert.equal(replacementSalary.trips.length, 1);
   assert.equal(replacementSalary.trips[0].corporationKm, 500);
   assert.equal(replacementSalary.corporationKm, 500);
   assert.equal(replacementSalary.kmBeta, 1000);
-  assert.equal(replacementSalary.totalAdvance, 100);
-  assert.equal(replacementSalary.totalExpense, 20);
+  assert.equal(replacementSalary.totalAdvance, 200);
+  assert.equal(replacementSalary.totalDiesel, 15);
+  assert.equal(replacementSalary.totalExpense, 30);
+  assert.equal(replacementSalary.totalBalance, 170);
 });
 
 test('salary KM prefers configured routes and falls back to settled odometer KM when a route is missing', () => {

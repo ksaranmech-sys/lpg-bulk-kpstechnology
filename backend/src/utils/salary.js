@@ -109,6 +109,28 @@ function splitTripEntriesByDate(trip, joiningDate, returningDate) {
   return { driverTrip: buildVariant(false), tempTrip: buildVariant(true) };
 }
 
+function getTripEntriesForDriverAssignment(trip, driver) {
+  const closedDate = getTripClosedDate(trip);
+  const isAssignedOnEntryDate = (date) => Boolean(date && isDriverAssignedOn(driver, date));
+  const isAssignedOrClosedOn = (date) => isAssignedOnEntryDate(date || closedDate);
+  const assignedEntries = (entries, dateField) => (entries || [])
+    .filter((entry) => isAssignedOrClosedOn(entry[dateField]));
+  const loadingAssigned = isAssignedOrClosedOn(trip.loadingDate);
+  const unloadingAssigned = isAssignedOrClosedOn(trip.unloadingDate);
+
+  return {
+    ...trip,
+    driverAdvances: assignedEntries(trip.driverAdvances, 'date'),
+    dieselEntries: assignedEntries(trip.dieselEntries, 'filledAt'),
+    rtoEntries: assignedEntries(trip.rtoEntries, 'date'),
+    otherExpenses: assignedEntries(trip.otherExpenses, 'date'),
+    loadingExpense: loadingAssigned ? Number(trip.loadingExpense || 0) : 0,
+    turnExpense: loadingAssigned ? Number(trip.turnExpense || 0) : 0,
+    parkingExpense: loadingAssigned ? Number(trip.parkingExpense || 0) : 0,
+    unloadingExpense: unloadingAssigned ? Number(trip.unloadingExpense || 0) : 0,
+  };
+}
+
 function sumTripBalances(trips) {
   const total = trips.reduce((sum, trip) => {
     const value = trip.balance != null
@@ -388,7 +410,8 @@ function calculateTemporaryDriverSegment(month, temporaryDriver, monthTrips, rou
     const trip = tripDoc.toObject();
     const tempShare = tempShareOf(trip);
 
-    const { tempTrip } = splitTripEntriesByDate(trip, joiningDate, returningDate);
+    const assignedTrip = getTripEntriesForDriverAssignment(trip, driver);
+    const { tempTrip } = splitTripEntriesByDate(assignedTrip, joiningDate, returningDate);
     const tempRow = buildTripRow(tempTrip, routeKmTable);
     tempRow.corporationKm = round2(tempRow.corporationKm * tempShare);
     if (tempShare <= 0) tempRow.corpKm = null;
@@ -479,7 +502,11 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   const monthTrips = trips.filter((trip) => (
     isSalaryTripReady(trip)
     && isTripInSalaryMonth(trip, monthStart, monthEndExclusive)
-    && (isDriverAssignedOn(driver, getTripSalaryDate(trip)) || getDriverKmShare(trip, driver, routeKmTable) > 0)
+    && (
+      isDriverAssignedOn(driver, getTripSalaryDate(trip))
+      || getDriverKmShare(trip, driver, routeKmTable) > 0
+      || hasTripMoney(getTripEntriesForDriverAssignment(trip, driver))
+    )
   ));
 
   const tempDriverInfo = driver.temporaryDriver?.required && driver.temporaryDriver?.joiningDate
@@ -488,8 +515,8 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   const joiningDate = tempDriverInfo ? new Date(tempDriverInfo.joiningDate) : null;
   const returningDate = tempDriverInfo?.returningDate ? new Date(tempDriverInfo.returningDate) : null;
 
-  // KM is attributed to the assigned driver when each leg is completed; temporary coverage then
-  // splits only the KM that belongs to this driver's assignment window.
+  // KM is attributed to the assigned driver when each leg is completed. Advances and expenses
+  // are attributed by their own dates within that driver's assignment window.
   const assignmentKmShareOf = (trip) => getDriverKmShare(trip, driver, routeKmTable);
   const tempKmShareOf = (trip) => tempDriverInfo
     ? getDriverTempKmShare(trip, driver, joiningDate, returningDate, routeKmTable)
@@ -497,22 +524,10 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   const driverShareOf = (trip) => assignmentKmShareOf(trip) - tempKmShareOf(trip);
   const tripsWithBalances = monthTrips.map((tripDoc) => {
     const trip = tripDoc.toObject();
-    const salaryDate = getTripSalaryDate(trip);
-    const assignedOnSalaryDate = isDriverAssignedOn(driver, salaryDate);
-    const driverTrip = tempDriverInfo
-      ? splitTripEntriesByDate(trip, joiningDate, returningDate).driverTrip
-      : trip;
-    const rowTrip = assignedOnSalaryDate ? driverTrip : {
-      ...driverTrip,
-      driverAdvances: [],
-      dieselEntries: [],
-      rtoEntries: [],
-      otherExpenses: [],
-      loadingExpense: 0,
-      turnExpense: 0,
-      parkingExpense: 0,
-      unloadingExpense: 0,
-    };
+    const assignedTrip = getTripEntriesForDriverAssignment(trip, driver);
+    const rowTrip = tempDriverInfo
+      ? splitTripEntriesByDate(assignedTrip, joiningDate, returningDate).driverTrip
+      : assignedTrip;
     const row = buildTripRow(rowTrip, routeKmTable);
     const driverShare = driverShareOf(trip);
     row.corporationKm = round2(row.corporationKm * driverShare);
