@@ -161,6 +161,30 @@ test('parses Diesel and DEF product rows from a statement quantity column', asyn
   });
 });
 
+test('parses DEF transaction amounts from CSV and Excel statement rows without requiring litres', async () => {
+  const rows = [
+    ['Txn Date', 'Product', 'Quantity', 'Amount (Rs.)', 'Vehicle No'],
+    ['13/10/2026', 'DEF', '-', 2190.32, 'TN28BL6304'],
+  ];
+  const expected = [{
+    date: new Date('2026-10-13T00:00:00.000Z'),
+    amount: 2190.32,
+    vehicleNumber: 'TN28BL6304',
+  }];
+
+  const csv = Buffer.from('Txn Date,Product,Quantity,Amount (Rs.),Vehicle No\n'
+    + '13/10/2026,DEF,-,2190.32,TN28BL6304\n');
+  const workbook = await workbookBuffer(rows);
+  const legacyWorkbook = XLSX.write({
+    SheetNames: ['DEF Statement'],
+    Sheets: { 'DEF Statement': XLSX.utils.aoa_to_sheet(rows) },
+  }, { type: 'buffer', bookType: 'xls' });
+
+  assert.deepEqual((await parseFuelRecords(csv, 'csv')).defAmountRecords, expected);
+  assert.deepEqual((await parseFuelRecords(workbook, 'xlsx')).defAmountRecords, expected);
+  assert.deepEqual((await parseFuelRecords(legacyWorkbook, 'xls')).defAmountRecords, expected);
+});
+
 test('parses DEF quantities from selectable-text PDF transactions', async () => {
   const buffer = await pdfBuffer([
     'Transaction Date Product Quantity (L)',

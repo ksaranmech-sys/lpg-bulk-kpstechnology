@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as api from '../../api/api';
 import {
   buildDieselVerificationRows,
+  formatVerificationAmount,
   formatVerificationDate,
   formatVerificationKilometres,
   formatVerificationLitres,
@@ -266,7 +267,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
               />
               <small>
                 One customer statement can include multiple vehicles. Upload each distinct file once; exact duplicate files are rejected.
-                Statement date columns may be Date, Settlement Date, Transaction Date, or Txn Date. Include Diesel / DEF quantity columns or a Product and Quantity column. PDFs must contain selectable text.
+                Statement date columns may be Date, Settlement Date, Transaction Date, or Txn Date. Include Diesel / DEF quantity columns or a Product and Quantity column; DEF amounts are read from the Amount column in CSV/Excel statements. PDFs must contain selectable text.
               </small>
             </div>
             {file && (
@@ -340,7 +341,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                     <th style={cellStyle}>Diesel for Trip</th>
                     <th style={cellStyle}>Diesel added in trip</th>
                     <th style={cellStyle}>Diesel from Document</th>
-                    <th style={cellStyle}>DEF from Document</th>
+                    <th style={cellStyle}>DEF Amount from Document</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -358,7 +359,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                       <td style={cellStyle}>{formatVerificationLitres(row.dieselForTrip)}</td>
                       <td style={cellStyle}>{formatVerificationLitres(row.tripDiesel)}</td>
                       <td style={cellStyle}>{formatVerificationLitres(row.dieselFromDocument)}</td>
-                      <td style={cellStyle}>{formatVerificationLitres(row.defFromDocument)}</td>
+                      <td style={cellStyle}>{formatVerificationAmount(row.defAmountFromDocument)}</td>
                     </tr>
                   ))}
                 </tbody>

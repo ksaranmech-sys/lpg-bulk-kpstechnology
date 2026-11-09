@@ -9,6 +9,15 @@ const dieselRecordSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const defAmountRecordSchema = new mongoose.Schema(
+  {
+    date: { type: Date, required: true },
+    amount: { type: Number, required: true, min: 0 },
+    vehicleNumber: { type: String, trim: true, uppercase: true, default: null },
+  },
+  { _id: false }
+);
+
 const dieselVerificationSchema = new mongoose.Schema(
   {
     customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true, index: true },
@@ -28,6 +37,7 @@ const dieselVerificationSchema = new mongoose.Schema(
     fileData: { type: Buffer, required: true, select: false },
     dieselRecords: { type: [dieselRecordSchema], default: [] },
     defRecords: { type: [dieselRecordSchema], default: [] },
+    defAmountRecords: { type: [defAmountRecordSchema], default: [] },
     recordsParserVersion: { type: Number, default: 0 },
     fileHash: { type: String, default: null, index: true },
     uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },

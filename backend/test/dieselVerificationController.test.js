@@ -51,6 +51,7 @@ test('filters uploaded statements by their diesel record dates and selected vehi
         _id: this._id,
         dieselRecords: this.dieselRecords,
         defRecords: this.defRecords,
+        defAmountRecords: this.defAmountRecords,
         recordsParserVersion: this.recordsParserVersion,
       };
     },
@@ -112,14 +113,19 @@ test('filters uploaded statements by their diesel record dates and selected vehi
       $gte: new Date('2026-10-01T00:00:00.000Z'),
       $lte: new Date('2026-10-15T00:00:00.000Z'),
     } } } },
+    { defAmountRecords: { $elemMatch: { date: {
+      $gte: new Date('2026-10-01T00:00:00.000Z'),
+      $lte: new Date('2026-10-15T00:00:00.000Z'),
+    } } } },
   ]);
   assert.deepEqual(migratedRecords, [{
     date: new Date('2026-10-10T00:00:00.000Z'),
     litres: 20,
     vehicleNumber: 'KA01AH6269',
   }]);
-  assert.equal(legacyUpload.recordsParserVersion, 4);
+  assert.equal(legacyUpload.recordsParserVersion, 5);
   assert.deepEqual(legacyUpload.defRecords, []);
+  assert.deepEqual(legacyUpload.defAmountRecords, []);
   assert.equal(response.body.uploads[0]._id, 'upload-1');
   assert.equal(response.body.uploads.length, 1);
   assert.equal(response.body.uploads[0].fileHash, undefined);
@@ -217,10 +223,11 @@ test('uploads all vehicle rows and assigns rows without a vehicle number to the 
     file: {
       originalname: 'fleet.csv',
       buffer: Buffer.from(
-        'Date,Diesel Quantity,DEF Quantity,Vehicle No\n'
-        + '10/10/2026,20,2,KA01AH6269\n'
-        + '10/10/2026,30,3,KA02AB1234\n'
-        + '11/10/2026,15,1,\n'
+        'Date,Diesel Quantity,DEF Quantity,Product,Amount,Vehicle No\n'
+        + '10/10/2026,20,2,,,KA01AH6269\n'
+        + '10/10/2026,30,3,,,KA02AB1234\n'
+        + '11/10/2026,15,1,,,\n'
+        + '12/10/2026,,,DEF,2190.32,KA01AH6269\n'
       ),
     },
     user: { role: 'super_admin', id: 'user-id' },
@@ -236,6 +243,9 @@ test('uploads all vehicle rows and assigns rows without a vehicle number to the 
     [2, 'KA01AH6269'],
     [3, 'KA02AB1234'],
     [1, 'KA01AH6269'],
+  ]);
+  assert.deepEqual(savedUpload.defAmountRecords.map(({ amount, vehicleNumber }) => [amount, vehicleNumber]), [
+    [2190.32, 'KA01AH6269'],
   ]);
   assert.equal(savedUpload.fileHash.length, 64);
 });

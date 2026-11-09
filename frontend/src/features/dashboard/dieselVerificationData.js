@@ -24,7 +24,12 @@ function recordsForVehicle(uploads, vehicleNumber, recordType = 'dieselRecords')
 export function getDieselVerificationDateRange(trips, month, uploads = [], vehicleNumber = '') {
   const dieselRecords = recordsForVehicle(uploads, vehicleNumber);
   const defRecords = recordsForVehicle(uploads, vehicleNumber, 'defRecords');
-  const intervals = buildTripVerificationIntervals(trips, month, [...dieselRecords, ...defRecords]);
+  const defAmountRecords = recordsForVehicle(uploads, vehicleNumber, 'defAmountRecords');
+  const intervals = buildTripVerificationIntervals(
+    trips,
+    month,
+    [...dieselRecords, ...defRecords, ...defAmountRecords]
+  );
   if (!intervals.length) return null;
   const fromDate = Math.min(...intervals.map((interval) => interval.previousTurnDate));
   const toDate = Math.max(...intervals.map((interval) => interval.currentTurnDate));
@@ -36,16 +41,17 @@ export function getDieselVerificationDateRange(trips, month, uploads = [], vehic
 
 export function buildDieselVerificationRows(trips, month, uploads, vehicleNumber = '') {
   const dieselRecords = recordsForVehicle(uploads, vehicleNumber);
-  const defRecords = recordsForVehicle(uploads, vehicleNumber, 'defRecords');
+  const defAmountRecords = recordsForVehicle(uploads, vehicleNumber, 'defAmountRecords');
   const intervalsByTrip = new Map(
     buildTripVerificationIntervals(trips, month, dieselRecords).map((interval) => [interval.trip._id, interval])
   );
-  const defIntervalsByTrip = new Map(
-    buildTripVerificationIntervals(trips, month, defRecords).map((interval) => [interval.trip._id, interval])
+  const defAmountIntervalsByTrip = new Map(
+    buildTripVerificationIntervals(trips, month, defAmountRecords)
+      .map((interval) => [interval.trip._id, interval])
   );
   const ordered = orderedTrips(trips);
   const countedStatementDates = new Set();
-  const countedDefStatementDates = new Set();
+  const countedDefAmountStatementDates = new Set();
 
   return ordered
     .filter((trip) => monthOf(trip.loadingDate) === month)
@@ -70,22 +76,24 @@ export function buildDieselVerificationRows(trips, month, uploads, vehicleNumber
       const dieselFromDocument = matchingRecords.length
         ? matchingRecords.reduce((sum, record) => sum + (Number(record.litres) || 0), 0)
         : null;
-      const defInterval = defIntervalsByTrip.get(trip._id);
-      const matchingDefRecords = defInterval
-        ? defRecords.filter((record) => {
+      const defAmountInterval = defAmountIntervalsByTrip.get(trip._id);
+      const matchingDefAmountRecords = defAmountInterval
+        ? defAmountRecords.filter((record) => {
           const recordDate = dateKey(record.date);
           if (
             recordDate == null
-            || recordDate < defInterval.previousTurnDate
-            || recordDate > defInterval.currentTurnDate
-            || countedDefStatementDates.has(recordDate)
+            || recordDate < defAmountInterval.previousTurnDate
+            || recordDate > defAmountInterval.currentTurnDate
+            || countedDefAmountStatementDates.has(recordDate)
           ) return false;
           return true;
         })
         : [];
-      matchingDefRecords.forEach((record) => countedDefStatementDates.add(dateKey(record.date)));
-      const defFromDocument = matchingDefRecords.length
-        ? matchingDefRecords.reduce((sum, record) => sum + (Number(record.litres) || 0), 0)
+      matchingDefAmountRecords.forEach((record) => (
+        countedDefAmountStatementDates.add(dateKey(record.date))
+      ));
+      const defAmountFromDocument = matchingDefAmountRecords.length
+        ? matchingDefAmountRecords.reduce((sum, record) => sum + (Number(record.amount) || 0), 0)
         : null;
       const dieselEntries = Array.isArray(trip.dieselEntries) ? trip.dieselEntries : [];
       const dieselAdded = dieselEntries.length
@@ -105,7 +113,7 @@ export function buildDieselVerificationRows(trips, month, uploads, vehicleNumber
         dieselForTrip: trip.settlement?.totalDieselLitres ?? null,
         tripDiesel: dieselAdded,
         dieselFromDocument,
-        defFromDocument,
+        defAmountFromDocument,
       };
     });
 }
@@ -119,6 +127,15 @@ export function formatVerificationLitres(value) {
   return value == null
     ? '—'
     : `${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 2 })} L`;
+}
+
+export function formatVerificationAmount(value) {
+  return value == null
+    ? '—'
+    : `₹${Number(value).toLocaleString('en-IN', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
 }
 
 export function formatVerificationKilometres(value) {

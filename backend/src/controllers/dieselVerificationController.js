@@ -13,7 +13,7 @@ const {
 const CSV_CONTENT_TYPE = 'text/csv';
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const RECORDS_PARSER_VERSION = 4;
+const RECORDS_PARSER_VERSION = 5;
 
 function safeFileName(value) {
   return String(value || 'diesel-report')
@@ -92,6 +92,7 @@ async function reprocessLegacyUploads(customerId, month) {
     );
     upload.dieselRecords = records.dieselRecords;
     upload.defRecords = records.defRecords;
+    upload.defAmountRecords = records.defAmountRecords || [];
     upload.recordsParserVersion = RECORDS_PARSER_VERSION;
     upload.fileHash ||= crypto.createHash('sha256').update(upload.fileData).digest('hex');
     await upload.save();
@@ -120,7 +121,11 @@ async function listDieselVerifications(req, res) {
       return res.status(400).json({ error: 'fromDate and toDate must be valid dates with fromDate on or before toDate' });
     }
     const dateMatch = { $elemMatch: { date: { $gte: start, $lte: end } } };
-    filter.$or = [{ dieselRecords: dateMatch }, { defRecords: dateMatch }];
+    filter.$or = [
+      { dieselRecords: dateMatch },
+      { defRecords: dateMatch },
+      { defAmountRecords: dateMatch },
+    ];
   } else {
     filter.month = month;
   }
@@ -165,24 +170,37 @@ async function createDieselVerification(req, res) {
   let contentType;
   let dieselRecords = [];
   let defRecords = [];
+  let defAmountRecords = [];
   if (extension === 'pdf' && req.file.buffer.subarray(0, 5).toString('ascii') === '%PDF-') {
     contentType = 'application/pdf';
     try {
-      ({ dieselRecords, defRecords } = await parseFuelRecords(req.file.buffer, 'pdf', vehicle.vehicleNumber));
+      ({ dieselRecords, defRecords, defAmountRecords = [] } = await parseFuelRecords(
+        req.file.buffer,
+        'pdf',
+        vehicle.vehicleNumber
+      ));
     } catch (parseError) {
       return res.status(400).json({ error: parseError.message || 'The PDF could not be read' });
     }
   } else if (['xls', 'xlsx'].includes(extension) && getSpreadsheetFormat(req.file.buffer) === extension) {
     contentType = extension === 'xls' ? XLS_CONTENT_TYPE : XLSX_CONTENT_TYPE;
     try {
-      ({ dieselRecords, defRecords } = await parseFuelRecords(req.file.buffer, extension, vehicle.vehicleNumber));
+      ({ dieselRecords, defRecords, defAmountRecords = [] } = await parseFuelRecords(
+        req.file.buffer,
+        extension,
+        vehicle.vehicleNumber
+      ));
     } catch (parseError) {
       return res.status(400).json({ error: parseError.message || 'The Excel workbook could not be read' });
     }
   } else if (extension === 'csv') {
     contentType = CSV_CONTENT_TYPE;
     try {
-      ({ dieselRecords, defRecords } = await parseFuelRecords(req.file.buffer, 'csv', vehicle.vehicleNumber));
+      ({ dieselRecords, defRecords, defAmountRecords = [] } = await parseFuelRecords(
+        req.file.buffer,
+        'csv',
+        vehicle.vehicleNumber
+      ));
     } catch (parseError) {
       return res.status(400).json({ error: parseError.message || 'The CSV file could not be read' });
     }
@@ -199,6 +217,7 @@ async function createDieselVerification(req, res) {
     fileData: req.file.buffer,
     dieselRecords,
     defRecords,
+    defAmountRecords,
     recordsParserVersion: RECORDS_PARSER_VERSION,
     fileHash,
     uploadedBy: req.user.id,

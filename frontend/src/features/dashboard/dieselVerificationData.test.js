@@ -1,5 +1,6 @@
 import {
   buildDieselVerificationRows,
+  formatVerificationAmount,
   formatVerificationDate,
   formatVerificationKilometres,
   formatVerificationLitres,
@@ -65,7 +66,7 @@ test('shows diesel entry totals before a trip settlement is available', () => {
   expect(row.dieselForTrip).toBeNull();
 });
 
-test('calculates DEF statement totals independently from diesel', () => {
+test('calculates DEF statement amount totals independently from diesel', () => {
   const rows = buildDieselVerificationRows([
     {
       _id: 'trip-1',
@@ -83,19 +84,20 @@ test('calculates DEF statement totals independently from diesel', () => {
     },
   ], '2026-10', [{
     dieselRecords: [{ date: '2026-10-10T00:00:00.000Z', litres: 300 }],
-    defRecords: [
-      { date: '2026-10-10T00:00:00.000Z', litres: 10 },
-      { date: '2026-10-12T00:00:00.000Z', litres: 4.5 },
+    defAmountRecords: [
+      { date: '2026-10-10T00:00:00.000Z', amount: 2190.32 },
+      { date: '2026-10-12T00:00:00.000Z', amount: 875 },
     ],
   }]);
 
   expect(rows[0]).toMatchObject({
     dieselFromDocument: 300,
-    defFromDocument: 10,
+    defAmountFromDocument: 2190.32,
   });
   expect(rows[1]).toMatchObject({
-    defFromDocument: 4.5,
+    defAmountFromDocument: 875,
   });
+  expect(formatVerificationAmount(rows[0].defAmountFromDocument)).toBe('₹2,190.32');
 });
 
 test('shows no diesel amount when a trip has no diesel entries', () => {
@@ -240,6 +242,7 @@ test('includes DEF-only statement dates when loading cross-month trip comparison
 
   expect(getDieselVerificationDateRange(trips, '2026-10', [{
     defRecords: [{ date: '2026-09-25T00:00:00.000Z', litres: 8 }],
+    defAmountRecords: [{ date: '2026-09-26T00:00:00.000Z', amount: 25 }],
   }])).toEqual({
     fromDate: '2026-09-28',
     toDate: '2026-10-12',

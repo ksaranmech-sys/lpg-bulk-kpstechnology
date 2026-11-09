@@ -88,6 +88,7 @@ function findFuelHeader(worksheet) {
     'registrationnumber', 'regno', 'truckno', 'trucknumber', 'vehiclenocard', 'vehiclenouserentry',
   ]);
   const quantityHeaders = new Set(['quantity', 'qty', 'volume', 'litres', 'litre', 'liters', 'liter']);
+  const amountHeaders = new Set(['amount', 'transactionamount', 'saleamount', 'value']);
   const productHeaders = new Set(['product', 'productname', 'fuel', 'fueltype', 'type', 'item', 'description']);
   for (let rowNumber = 1; rowNumber <= Math.min(worksheet.rowCount, 20); rowNumber += 1) {
     const header = {
@@ -97,6 +98,7 @@ function findFuelHeader(worksheet) {
       quantityColumn: 0,
       productColumn: 0,
       dateColumn: 0,
+      amountColumn: 0,
       vehicleColumns: [],
     };
     worksheet.getRow(rowNumber).eachCell({ includeEmpty: false }, (cell, columnNumber) => {
@@ -105,6 +107,9 @@ function findFuelHeader(worksheet) {
       if (vehicleHeaders.has(value)) header.vehicleColumns.push(columnNumber);
       if (productHeaders.has(value) && (value !== 'description' || !header.productColumn)) {
         header.productColumn = columnNumber;
+      }
+      if ((amountHeaders.has(value) || value.startsWith('amount')) && !header.amountColumn) {
+        header.amountColumn = columnNumber;
       }
       if (quantityHeaders.has(value) || /(quantity|qty|volume|litres?|liters?)$/.test(value)) {
         header.quantityColumn = columnNumber;
@@ -117,7 +122,12 @@ function findFuelHeader(worksheet) {
         header.defColumn = columnNumber;
       }
     });
-    if (header.dateColumn && (header.dieselColumn || header.defColumn || header.quantityColumn)) return header;
+    if (header.dateColumn && (
+      header.dieselColumn
+      || header.defColumn
+      || header.quantityColumn
+      || (header.productColumn && header.amountColumn)
+    )) return header;
   }
   return null;
 }
@@ -142,12 +152,25 @@ function fuelRecord(date, litresValue, vehicleNumber, label, rowNumber) {
   return { date, litres, ...(vehicleNumber ? { vehicleNumber } : {}) };
 }
 
+function fuelAmountRecord(date, amountValue, vehicleNumber, rowNumber) {
+  if (amountValue == null || ['-', ''].includes(String(amountValue).trim())) return null;
+  const text = typeof amountValue === 'string'
+    ? amountValue.replace(/,/g, '').replace(/₹|rs\.?/gi, '').replace(/^'+|'+$/g, '').trim()
+    : amountValue;
+  const amount = Number(text);
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new Error(`Row ${rowNumber} needs a non-negative DEF Amount value.`);
+  }
+  return { date, amount, ...(vehicleNumber ? { vehicleNumber } : {}) };
+}
+
 function parseFuelWorksheet(worksheet, targetVehicleNumber) {
   const header = findFuelHeader(worksheet);
   if (!header) return { foundHeaders: false, dieselRecords: [], defRecords: [] };
   const normalizedTargetVehicle = normalizeVehicleNumber(targetVehicleNumber);
   const dieselRecords = [];
   const defRecords = [];
+  const defAmountRecords = [];
   for (let rowNumber = header.rowNumber + 1; rowNumber <= worksheet.rowCount; rowNumber += 1) {
     const row = worksheet.getRow(rowNumber);
     const dateValue = getCellValue(row.getCell(header.dateColumn));
@@ -161,9 +184,14 @@ function parseFuelWorksheet(worksheet, targetVehicleNumber) {
       const product = getCellValue(row.getCell(header.productColumn));
       const quantity = getCellValue(row.getCell(header.quantityColumn));
       if (isDefProduct(product)) {
-        if (quantity == null || ['-', ''].includes(String(quantity).trim())) continue;
-        const record = fuelRecord(date, quantity, vehicleNumber, 'DEF', rowNumber);
-        if (record) defRecords.push(record);
+        const amountRecord = header.amountColumn
+          ? fuelAmountRecord(date, getCellValue(row.getCell(header.amountColumn)), vehicleNumber, rowNumber)
+          : null;
+        if (amountRecord) defAmountRecords.push(amountRecord);
+        if (quantity != null && !['-', ''].includes(String(quantity).trim())) {
+          const record = fuelRecord(date, quantity, vehicleNumber, 'DEF', rowNumber);
+          if (record) defRecords.push(record);
+        }
       } else if (isDieselProduct(product)) {
         if (quantity == null || ['-', ''].includes(String(quantity).trim())) continue;
         const record = fuelRecord(date, quantity, vehicleNumber, 'Diesel', rowNumber);
@@ -172,19 +200,41 @@ function parseFuelWorksheet(worksheet, targetVehicleNumber) {
       continue;
     }
 
+    let hasDefAmount = false;
+    if (header.productColumn && isDefProduct(getCellValue(row.getCell(header.productColumn)))) {
+      const amountRecord = header.amountColumn
+        ? fuelAmountRecord(date, getCellValue(row.getCell(header.amountColumn)), vehicleNumber, rowNumber)
+        : null;
+      if (amountRecord) {
+        defAmountRecords.push(amountRecord);
+        hasDefAmount = true;
+      }
+    }
+
     if (header.dieselColumn) {
-      const record = fuelRecord(date, getCellValue(row.getCell(header.dieselColumn)), vehicleNumber, 'Diesel', rowNumber);
-      if (record) dieselRecords.push(record);
+      const value = getCellValue(row.getCell(header.dieselColumn));
+      if (!(hasDefAmount && (value == null || ['-', ''].includes(String(value).trim())))) {
+        const record = fuelRecord(date, value, vehicleNumber, 'Diesel', rowNumber);
+        if (record) dieselRecords.push(record);
+      }
     } else if (header.quantityColumn && !header.defColumn) {
       const record = fuelRecord(date, getCellValue(row.getCell(header.quantityColumn)), vehicleNumber, 'Diesel', rowNumber);
       if (record) dieselRecords.push(record);
     }
     if (header.defColumn) {
-      const record = fuelRecord(date, getCellValue(row.getCell(header.defColumn)), vehicleNumber, 'DEF', rowNumber);
-      if (record) defRecords.push(record);
+      const value = getCellValue(row.getCell(header.defColumn));
+      if (!(hasDefAmount && (value == null || ['-', ''].includes(String(value).trim())))) {
+        const record = fuelRecord(date, value, vehicleNumber, 'DEF', rowNumber);
+        if (record) defRecords.push(record);
+      }
     }
   }
-  return { foundHeaders: true, dieselRecords, defRecords };
+  return {
+    foundHeaders: true,
+    dieselRecords,
+    defRecords,
+    ...(defAmountRecords.length ? { defAmountRecords } : {}),
+  };
 }
 
 async function loadFuelWorksheet(buffer, format) {
@@ -232,6 +282,7 @@ async function parsePdfFuelRecords(buffer, targetVehicleNumber) {
   const defaultVehicleNumber = normalizeVehicleNumber(targetVehicleNumber);
   const dieselRecords = [];
   const defRecords = [];
+  const defAmountRecords = [];
 
   lines.forEach((line, index) => {
     if (/\boffline\b/i.test(line)) return;
@@ -274,34 +325,40 @@ async function parsePdfFuelRecords(buffer, targetVehicleNumber) {
     const record = fuelRecord(date, litresText, vehicleNumber, label, index + 1);
     if (record) targetRecords.push(record);
   });
-  return { dieselRecords, defRecords };
+  return {
+    dieselRecords,
+    defRecords,
+    ...(defAmountRecords.length ? { defAmountRecords } : {}),
+  };
 }
 
 async function parseFuelRecords(buffer, format = 'xlsx', targetVehicleNumber = '') {
   if (format === 'pdf') {
     const records = await parsePdfFuelRecords(buffer, targetVehicleNumber);
-    if (!records.dieselRecords.length && !records.defRecords.length) {
+    if (!records.dieselRecords.length && !records.defRecords.length && !records.defAmountRecords?.length) {
       throw new Error('No dated Diesel or DEF records were found in the PDF.');
     }
     return records;
   }
 
   const workbook = await loadFuelWorksheet(buffer, format);
-  const records = { dieselRecords: [], defRecords: [] };
+  const records = { dieselRecords: [], defRecords: [], defAmountRecords: [] };
   let foundHeaders = false;
   workbook.worksheets.forEach((worksheet) => {
     const parsed = parseFuelWorksheet(worksheet, targetVehicleNumber);
     foundHeaders ||= parsed.foundHeaders;
     records.dieselRecords.push(...parsed.dieselRecords);
     records.defRecords.push(...parsed.defRecords);
+    records.defAmountRecords.push(...(parsed.defAmountRecords || []));
   });
   if (!foundHeaders) {
     const formatName = format === 'csv' ? 'CSV' : 'workbook';
     throw new Error(`The ${formatName} must contain columns named "Date" and "Diesel (litres)" or "DEF (litres)".`);
   }
-  if (!records.dieselRecords.length && !records.defRecords.length) {
+  if (!records.dieselRecords.length && !records.defRecords.length && !records.defAmountRecords.length) {
     throw new Error('No dated Diesel or DEF records were found in the file.');
   }
+  if (!records.defAmountRecords.length) delete records.defAmountRecords;
   return records;
 }
 
