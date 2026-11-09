@@ -564,15 +564,22 @@ test('L Turn date takes precedence as the salary close date', () => {
   assert.equal(customerController.getTripClosedDate(trip).toISOString(), '2026-08-31T00:00:00.000Z');
 });
 
-test('monthly salary includes a trip only after its Load Turn is recorded', () => {
+test('salary includes closed trips or trips with a completed Load Turn', () => {
   assert.equal(customerController.hasCompletedLoadTurn({ turnDate: null }), false);
   assert.equal(customerController.hasCompletedLoadTurn({}), false);
   assert.equal(customerController.hasCompletedLoadTurn({ turnDate: 'not-a-date' }), false);
   assert.equal(customerController.hasCompletedLoadTurn({ unTurnDate: new Date('2026-09-28T00:00:00.000Z') }), false);
   assert.equal(customerController.hasCompletedLoadTurn({ turnDate: new Date('2026-09-28T00:00:00.000Z') }), true);
+  assert.equal(customerController.isSalaryTripReady({ status: 'pending_close' }), false);
+  assert.equal(customerController.isSalaryTripReady({ status: 'closed' }), true);
+  assert.equal(customerController.isSalaryTripReady({ status: 'open', turnDate: new Date('2026-09-28T00:00:00.000Z') }), true);
+  const { start, end } = customerController.getSalaryMonthBounds('2026-11');
+  const adminClosedTrip = { status: 'closed', closedAt: new Date('2026-11-09T00:00:00.000Z') };
+  assert.equal(customerController.isSalaryTripReady(adminClosedTrip), true);
+  assert.equal(customerController.isTripInSalaryMonth(adminClosedTrip, start, end), true);
 });
 
-test('COP KM is the sum of matching route KM table entries for closed trips', () => {
+test('salary KM prefers configured routes and falls back to settled odometer KM when a route is missing', () => {
   const total = customerController.sumRouteTableKm([
     { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', fillingOrderLocation: 'MRPL', settlement: { totalKm: 999 } },
     { loadingLocation: 'AEGIS', unloadingLocation: 'Belgaum', fillingOrderLocation: 'AEGIS', settlement: { totalKm: 1 } },
@@ -584,7 +591,7 @@ test('COP KM is the sum of matching route KM table entries for closed trips', ()
     { loadingLocation: 'AEGIS', unloadingLocation: 'Belgaum', km: 275.5 },
   ]);
 
-  assert.equal(total, 725.5);
+  assert.equal(total, 1225.5);
 });
 
 test('special trip charges use the configured Less than 200 KM amount only below 200 KM', () => {

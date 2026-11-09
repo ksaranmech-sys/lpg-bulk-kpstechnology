@@ -47,12 +47,16 @@ function calculateTripBalance(trip) {
 // wouldn't be correct for a row split between a driver and a temporary driver.
 function buildTripRow(trip, routeKmTable) {
   const corporationKmDetails = getCorporationKmDetails(trip, routeKmTable);
+  const corporationKm = getTripCorporationKm(trip, routeKmTable);
+  const corporationKmSource = corporationKmDetails.value != null
+    ? corporationKmDetails.source
+    : corporationKm != null ? 'settlement_odometer' : corporationKmDetails.source;
   return {
     ...trip,
     balance: calculateTripBalance(trip),
     corpKm: findRouteKm(routeKmTable, trip.loadingLocation, trip.unloadingLocation),
-    corporationKm: corporationKmDetails.value || 0,
-    corporationKmSource: corporationKmDetails.source,
+    corporationKm: corporationKm || 0,
+    corporationKmSource,
     advanceTotal: (trip.driverAdvances || []).reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
     dieselTotal: (trip.dieselEntries || []).reduce((sum, entry) => sum + Number(entry.amount || 0), 0),
     dieselLitres: (trip.dieselEntries || []).reduce((sum, entry) => sum + Number(entry.volumeLitres || 0), 0),
@@ -215,8 +219,8 @@ function validateSalaryMonth(month, today = new Date()) {
 }
 
 function getClosedTripsMonthFilter(monthStart, monthEnd) {
-  // Keep open trips with a Load Turn available; salary calculation later excludes trips
-  // that have not completed the Load Turn.
+  // Keep closed trips and trips with a Load Turn available; salary calculation excludes other
+  // open or pending-close trips.
   return { status: { $in: ['open', 'pending_close', 'closed'] } };
 }
 
@@ -230,6 +234,10 @@ function hasCompletedLoadTurn(trip) {
   return !Number.isNaN(new Date(trip.turnDate).getTime());
 }
 
+function isSalaryTripReady(trip) {
+  return trip?.status === 'closed' || hasCompletedLoadTurn(trip);
+}
+
 // `shareOf(trip)` returns the 0..1 fraction of that trip's KM owed to the driver being summed -
 // 1 for every trip when no temporary driver is involved.
 function sumRouteTableKm(trips, routeKmTable, excludeShortTrips = false, shareOf = () => 1) {
@@ -241,7 +249,13 @@ function sumRouteTableKm(trips, routeKmTable, excludeShortTrips = false, shareOf
 }
 
 function getTripCorporationKm(trip, routeKmTable) {
-  return getCorporationKmDetails(trip, routeKmTable).value;
+  const routeKm = getCorporationKmDetails(trip, routeKmTable).value;
+  if (routeKm != null) return routeKm;
+
+  const settlementKm = trip.settlement?.totalKm;
+  if (settlementKm == null || settlementKm === '') return null;
+  const parsedKm = Number(settlementKm);
+  return Number.isFinite(parsedKm) && parsedKm >= 0 ? parsedKm : null;
 }
 
 // Apply the driver's configured Less than 200 KM charge only to routes under 200 KM.
@@ -429,7 +443,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
   // A vehicle can carry several drivers over time (one per date range) - only trips that fall
   // inside this driver's own joining/resigning window belong on their sheet.
   const monthTrips = trips.filter((trip) => (
-    hasCompletedLoadTurn(trip)
+    isSalaryTripReady(trip)
     && isTripInSalaryMonth(trip, monthStart, monthEndExclusive)
     && isDriverAssignedOn(driver, getTripSalaryDate(trip))
   ));
@@ -521,6 +535,7 @@ module.exports = {
   getTripSalaryDate,
   isTripInSalaryMonth,
   hasCompletedLoadTurn,
+  isSalaryTripReady,
   loadRouteKmTable,
   getTripCorporationKm,
   sumRouteTableKm,
