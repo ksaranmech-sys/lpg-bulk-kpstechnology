@@ -55,8 +55,7 @@ test('keeps the single-trip summary, expenses, and balance on one A4 page', asyn
     assert.match(result.pages[0].text, /Expenses/);
     assert.match(result.pages[0].text, /Trip Balance/);
     assert.match(result.pages[0].text, /Driver KM/);
-    assert.match(result.pages[0].text, /KM Beta/);
-    assert.match(result.pages[0].text, /2,856/);
+    assert.doesNotMatch(result.pages[0].text, /KM Beta/);
     assert.match(result.pages[0].text, /Generated on/);
   } finally {
     await parser.destroy();
@@ -156,7 +155,7 @@ test('renders salary calculation first, followed by a single-trip report for eve
     assert.match(result.pages[0].text, /42,470\.98/);
     assert.match(result.pages[0].text, /Live calculation through today/);
     assert.match(result.pages[1].text, /Driver KM/);
-    assert.match(result.pages[1].text, /KM Beta/);
+    assert.doesNotMatch(result.pages[1].text, /KM Beta/);
     assert.match(result.pages[0].text, /Salary Calculation/);
     assert.match(result.pages[0].text, /Settlement to Driver/);
     result.pages.slice(1).forEach((page, index) => {

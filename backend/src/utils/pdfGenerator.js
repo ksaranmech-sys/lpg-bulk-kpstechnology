@@ -70,10 +70,7 @@ function renderTripSettlementSheet(doc, trip, photos, nextTrip = null, title = '
   compactStyledSectionHeader(doc, 'Odometer & Mileage');
   renderSalaryRows(doc, [
     ['Odometer KM', formatKm(odometerKm)],
-    ...(driverKmRate != null ? [
-      ['Driver KM', formatKm(salaryDriverKm)],
-      ['KM Beta', salaryDriverKm == null ? 'Not available' : `Rs ${fmtMoney(salaryDriverKm * driverKmRate)}`],
-    ] : []),
+    ...(driverKmRate != null ? [['Driver KM', formatKm(salaryDriverKm)]] : []),
     ...manualKmRows(trip).map(([label, value, legText]) => [`${label} (${legText})`, value]),
   ], { compact: true });
 
