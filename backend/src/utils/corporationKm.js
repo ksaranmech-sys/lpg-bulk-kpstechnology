@@ -69,6 +69,13 @@ function getCorporationKmDetails(trip, routeKmTable) {
     : (fillingOrderLocation && fillingOrderLocation === loadingLocation)
       ? resolvedLeg0
       : (hasManualKmReturn ? manualKmReturn : null);
+  if (!fillingOrderLocation && !hasManualKmReturn && resolvedLeg0 != null) {
+    return {
+      value: resolvedLeg0,
+      source: leg0 != null ? 'km_table_load_only' : 'manual',
+      legs: [{ leg: 'load', km: resolvedLeg0, date: trip.unloadingDate || null }],
+    };
+  }
   if (resolvedLeg0 != null && resolvedLeg1 != null) {
     const allFromTable = leg0 != null && leg1 != null;
     const legs = [
@@ -84,4 +91,14 @@ function getCorporationKmDetails(trip, routeKmTable) {
   return { value: null, source: 'manual_required', legs: [] };
 }
 
-module.exports = { findRouteKm, getCorporationKmDetails };
+function getTripCorporationKm(trip, routeKmTable) {
+  const routeKm = getCorporationKmDetails(trip, routeKmTable).value;
+  if (routeKm != null) return routeKm;
+
+  const settlementKm = trip.settlement?.totalKm;
+  if (settlementKm == null || settlementKm === '') return null;
+  const parsedKm = Number(settlementKm);
+  return Number.isFinite(parsedKm) && parsedKm >= 0 ? parsedKm : null;
+}
+
+module.exports = { findRouteKm, getCorporationKmDetails, getTripCorporationKm };

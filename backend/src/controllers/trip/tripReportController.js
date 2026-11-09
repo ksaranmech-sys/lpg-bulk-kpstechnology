@@ -3,7 +3,18 @@ const Trip = require('../../models/Trip');
 const { buildTripSettlementPdf } = require('../../utils/pdfGenerator');
 const { sendTripSettlementEmail } = require('../../utils/mailer');
 const { TRIP_STATUS } = require('../../config/constants');
+const { findCurrentDriverForVehicle } = require('../../utils/driverAssignment');
+const { getTripSalaryDate } = require('../../utils/tripSalaryDate');
 const { refreshTripSettlement } = require('./tripHelpers');
+
+async function getTripDriverKmRate(trip) {
+  const driver = await findCurrentDriverForVehicle(
+    trip.vehicle._id,
+    getTripSalaryDate(trip) || trip.loadingDate || trip.createdAt || new Date(),
+    'kmCharges'
+  );
+  return driver?.kmCharges ?? null;
+}
 
 // POST /api/v1/trips/:tripId/send-report
 // Generates the printable PDF settlement and emails it to the company (and
@@ -24,7 +35,8 @@ async function sendReport(req, res) {
     });
   }
 
-  const pdfBuffer = await buildTripSettlementPdf(trip, nextTrip);
+  const driverKmRate = await getTripDriverKmRate(trip);
+  const pdfBuffer = await buildTripSettlementPdf(trip, nextTrip, driverKmRate);
   const companyEmail = process.env.COMPANY_EMAIL;
   const customerEmail = trip.customer?.email;
 
@@ -56,7 +68,8 @@ async function downloadReport(req, res) {
     createdAt: { $gt: trip.createdAt },
   }).sort('createdAt');
 
-  const pdfBuffer = await buildTripSettlementPdf(trip, nextTrip);
+  const driverKmRate = await getTripDriverKmRate(trip);
+  const pdfBuffer = await buildTripSettlementPdf(trip, nextTrip, driverKmRate);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `inline; filename="trip-${trip._id}.pdf"`);
   res.send(pdfBuffer);

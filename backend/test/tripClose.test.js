@@ -9,7 +9,9 @@ const vehicleController = require('../src/controllers/vehicleController');
 const { ROUTE_KM_TABLE, LOADING_LOCATIONS, UNLOADING_LOCATIONS } = require('../src/config/constants');
 const User = require('../src/models/User');
 const Trip = require('../src/models/Trip');
+const Leave = require('../src/models/Leave');
 const metaRoutes = require('../src/routes/metaRoutes');
+const settings = require('../src/utils/settings');
 const {
   calculateTripKm,
   computeTripSettlement,
@@ -564,19 +566,64 @@ test('L Turn date takes precedence as the salary close date', () => {
   assert.equal(customerController.getTripClosedDate(trip).toISOString(), '2026-08-31T00:00:00.000Z');
 });
 
-test('salary includes closed trips or trips with a completed Load Turn', () => {
+test('salary includes close-requested trips, closed trips, or trips with a completed Load Turn', () => {
   assert.equal(customerController.hasCompletedLoadTurn({ turnDate: null }), false);
   assert.equal(customerController.hasCompletedLoadTurn({}), false);
   assert.equal(customerController.hasCompletedLoadTurn({ turnDate: 'not-a-date' }), false);
   assert.equal(customerController.hasCompletedLoadTurn({ unTurnDate: new Date('2026-09-28T00:00:00.000Z') }), false);
   assert.equal(customerController.hasCompletedLoadTurn({ turnDate: new Date('2026-09-28T00:00:00.000Z') }), true);
-  assert.equal(customerController.isSalaryTripReady({ status: 'pending_close' }), false);
+  assert.equal(customerController.isSalaryTripReady({ status: 'pending_close' }), true);
   assert.equal(customerController.isSalaryTripReady({ status: 'closed' }), true);
   assert.equal(customerController.isSalaryTripReady({ status: 'open', turnDate: new Date('2026-09-28T00:00:00.000Z') }), true);
   const { start, end } = customerController.getSalaryMonthBounds('2026-11');
   const adminClosedTrip = { status: 'closed', closedAt: new Date('2026-11-09T00:00:00.000Z') };
   assert.equal(customerController.isSalaryTripReady(adminClosedTrip), true);
   assert.equal(customerController.isTripInSalaryMonth(adminClosedTrip, start, end), true);
+});
+
+test('monthly salary includes a pending-close trip and calculates KM Beta from its configured route', async (t) => {
+  const trip = {
+    _id: 'latest-pending-trip',
+    status: 'pending_close',
+    loadingLocation: 'AEGIS, Mangalore',
+    loadingDate: new Date('2026-08-10T00:00:00.000Z'),
+    unloadingLocation: 'Erode',
+    unloadingDate: new Date('2026-08-12T00:00:00.000Z'),
+    closedAt: new Date('2026-08-15T00:00:00.000Z'),
+    fillingOrderLocation: '',
+    dieselEntries: [],
+    driverAdvances: [{ amount: 100, date: new Date('2026-08-10T00:00:00.000Z') }],
+    rtoEntries: [],
+    otherExpenses: [],
+    settlement: {},
+    toObject() { return { ...this, toObject: undefined }; },
+  };
+  const driver = {
+    _id: 'driver-1',
+    name: 'MANITemp',
+    vehicle: 'vehicle-1',
+    basicSalary: 30000,
+    kmCharges: 3,
+    minKmCharges: 0,
+    joiningDate: null,
+    resigningDate: null,
+  };
+  t.mock.method(User, 'findOne', () => ({ select: async () => driver }));
+  t.mock.method(Leave, 'find', () => ({ select: async () => [] }));
+  t.mock.method(Trip, 'find', () => ({
+    select() { return this; },
+    sort: async () => [trip],
+  }));
+  t.mock.method(settings, 'getRouteKmTable', () => [
+    { loadingLocation: 'AEGIS, Mangalore', unloadingLocation: 'Erode', km: 992 },
+  ]);
+
+  const salary = await customerController.calculateDriverMonthlySalary('customer-1', 'driver-1', '2026-08');
+
+  assert.equal(salary.trips.length, 1);
+  assert.equal(salary.trips[0].corporationKm, 992);
+  assert.equal(salary.corporationKm, 992);
+  assert.equal(salary.kmBeta, 2976);
 });
 
 test('salary KM prefers configured routes and falls back to settled odometer KM when a route is missing', () => {
@@ -592,6 +639,23 @@ test('salary KM prefers configured routes and falls back to settled odometer KM 
   ]);
 
   assert.equal(total, 1225.5);
+});
+
+test('salary KM uses the configured round-trip load route when filling-order location is blank', () => {
+  const details = getCorporationKmDetails({
+    loadingLocation: 'AEGIS, Mangalore',
+    unloadingLocation: 'Erode',
+    fillingOrderLocation: '',
+    unloadingDate: new Date('2026-11-05T00:00:00.000Z'),
+  }, [
+    { loadingLocation: 'AEGIS, Mangalore', unloadingLocation: 'Erode', km: 992 },
+  ]);
+
+  assert.equal(details.value, 992);
+  assert.equal(details.source, 'km_table_load_only');
+  assert.deepEqual(details.legs, [
+    { leg: 'load', km: 992, date: new Date('2026-11-05T00:00:00.000Z') },
+  ]);
 });
 
 test('special trip charges use the configured Less than 200 KM amount only below 200 KM', () => {
@@ -699,7 +763,7 @@ test('Driver KM uses Manual KM for missing route legs, doubling one-way entries 
   assert.equal(customerController.sumRouteTableKm(trips, [], true), 1520);
 });
 
-test('Driver KM falls back to Manual KM Return when the filling-order leg is missing from the table', () => {
+test('Driver KM prefers Manual KM Return when filling-order location is blank', () => {
   const trips = [
     { loadingLocation: 'MRPL', unloadingLocation: 'Trichy', manualKmReturn: 772 },
   ];

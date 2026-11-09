@@ -3,13 +3,15 @@ const fs = require('fs/promises');
 const path = require('path');
 const config = require('../config/env');
 const { calculateTripKm } = require('./tripCalculations');
+const settings = require('./settings');
+const { getTripCorporationKm } = require('./corporationKm');
 
 /**
  * Builds a printable trip settlement report as a PDF Buffer.
  * `trip` must be populated with .vehicle and .customer, and must already
  * have `trip.settlement` calculated (see tripCalculations.js).
  */
-async function buildTripSettlementPdf(trip, nextTrip = null) {
+async function buildTripSettlementPdf(trip, nextTrip = null, driverKmRate = null) {
   // Photos are fetched up front - pdfkit's drawing API is synchronous.
   const photos = await loadTripPhotos(trip);
   return new Promise((resolve, reject) => {
@@ -19,17 +21,18 @@ async function buildTripSettlementPdf(trip, nextTrip = null) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    renderTripSettlementSheet(doc, trip, photos, nextTrip);
+    renderTripSettlementSheet(doc, trip, photos, nextTrip, 'Single Trip', driverKmRate);
     doc.end();
   });
 }
 
-function renderTripSettlementSheet(doc, trip, photos, nextTrip = null, title = 'Single Trip') {
+function renderTripSettlementSheet(doc, trip, photos, nextTrip = null, title = 'Single Trip', driverKmRate = null) {
   const reportStartY = doc.page.margins.top - 10;
   const advances = trip.driverAdvances || [];
   const dieselEntries = trip.dieselEntries || [];
   const rtoEntries = trip.rtoEntries || [];
   const otherExpenses = trip.otherExpenses || [];
+  const salaryDriverKm = trip.corporationKm ?? getTripCorporationKm(trip, settings.getRouteKmTable());
   const odometerKm = trip.status === 'closed' && trip.settlement?.totalKm != null
     ? trip.settlement.totalKm
     : calculateTripKm(trip, nextTrip);
@@ -68,6 +71,10 @@ function renderTripSettlementSheet(doc, trip, photos, nextTrip = null, title = '
   compactStyledSectionHeader(doc, 'Odometer & Mileage');
   renderSalaryRows(doc, [
     ['Odometer KM', formatKm(odometerKm)],
+    ...(driverKmRate != null ? [
+      ['Driver KM', formatKm(salaryDriverKm)],
+      ['KM Beta', salaryDriverKm == null ? 'Not available' : `Rs ${fmtMoney(salaryDriverKm * driverKmRate)}`],
+    ] : []),
     ...manualKmRows(trip).map(([label, value, legText]) => [`${label} (${legText})`, value]),
   ], { compact: true });
 
@@ -234,7 +241,7 @@ async function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary
   const tripReports = [];
   for (const trip of trips) {
     tripReports.push({
-      trip: { ...trip, customer, vehicle },
+    trip: { ...trip, customer, vehicle, driverKmRate: sheetSummary.kmCharges },
       photos: await loadTripPhotos(trip),
     });
   }
@@ -278,7 +285,7 @@ async function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary
 
     tripReports.forEach(({ trip, photos }, index) => {
       doc.addPage({ size: 'A4', layout: 'portrait', margin: 24 });
-      renderTripSettlementSheet(doc, trip, photos, null, `Single Trip ${index + 1} of ${tripReports.length}`);
+      renderTripSettlementSheet(doc, trip, photos, null, `Single Trip ${index + 1} of ${tripReports.length}`, sheetSummary.kmCharges);
     });
 
     doc.end();

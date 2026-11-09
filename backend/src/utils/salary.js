@@ -4,7 +4,7 @@ const Trip = require('../models/Trip');
 const Leave = require('../models/Leave');
 const { ROLES } = require('../config/constants');
 const { formatMonth } = require('./pdfGenerator');
-const { findRouteKm, getCorporationKmDetails } = require('./corporationKm');
+const { findRouteKm, getCorporationKmDetails, getTripCorporationKm } = require('./corporationKm');
 const settings = require('./settings');
 const { isDriverAssignedOn } = require('./driverAssignment');
 const { getTripClosedDate, getTripSalaryDate } = require('./tripSalaryDate');
@@ -219,8 +219,8 @@ function validateSalaryMonth(month, today = new Date()) {
 }
 
 function getClosedTripsMonthFilter(monthStart, monthEnd) {
-  // Keep closed trips and trips with a Load Turn available; salary calculation excludes other
-  // open or pending-close trips.
+  // Include open trips here because a completed Load Turn can make them salary-ready; readiness
+  // filtering below excludes other open trips while retaining close-requested trips.
   return { status: { $in: ['open', 'pending_close', 'closed'] } };
 }
 
@@ -235,7 +235,7 @@ function hasCompletedLoadTurn(trip) {
 }
 
 function isSalaryTripReady(trip) {
-  return trip?.status === 'closed' || hasCompletedLoadTurn(trip);
+  return ['pending_close', 'closed'].includes(trip?.status) || hasCompletedLoadTurn(trip);
 }
 
 // `shareOf(trip)` returns the 0..1 fraction of that trip's KM owed to the driver being summed -
@@ -246,16 +246,6 @@ function sumRouteTableKm(trips, routeKmTable, excludeShortTrips = false, shareOf
     if (!Number.isFinite(routeKm) || (excludeShortTrips && routeKm < 200)) return total;
     return total + routeKm * shareOf(trip);
   }, 0);
-}
-
-function getTripCorporationKm(trip, routeKmTable) {
-  const routeKm = getCorporationKmDetails(trip, routeKmTable).value;
-  if (routeKm != null) return routeKm;
-
-  const settlementKm = trip.settlement?.totalKm;
-  if (settlementKm == null || settlementKm === '') return null;
-  const parsedKm = Number(settlementKm);
-  return Number.isFinite(parsedKm) && parsedKm >= 0 ? parsedKm : null;
 }
 
 // Apply the driver's configured Less than 200 KM charge only to routes under 200 KM.
