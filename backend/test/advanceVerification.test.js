@@ -63,6 +63,83 @@ test('parses CSV and Excel advance statements with optional vehicle numbers', as
   assert.deepEqual(await parseAdvanceRecords(workbook, 'xlsx', 'KA01AH6269'), expected);
 });
 
+test('parses withdrawal and debit values from statements, preferring them over other amounts', async () => {
+  const csv = Buffer.from(
+    'Date,Withdrawal,Deposit,Vehicle Number\n'
+    + '10/10/2026,"1,250","5,000",6269\n'
+    + '11/10/2026,,"2,000",6269\n'
+  );
+  const workbook = await workbookBuffer([
+    ['Date', 'Amount', 'Debit Amount', 'Driver Mobile Number'],
+    ['10/10/2026', 5000, 1250, '9876543210'],
+  ]);
+  const withdrawalWorkbook = await workbookBuffer([
+    ['Date', 'Withdrawal Amount', 'Vehicle Number'],
+    ['10/10/2026', 1250, 'KA01AH6269'],
+  ]);
+
+  assert.deepEqual(await parseAdvanceRecords(csv, 'csv', 'KA01AH6269'), [{
+    date: new Date('2026-10-10T00:00:00.000Z'),
+    amount: 1250,
+    vehicleNumber: '6269',
+  }]);
+  assert.deepEqual(await parseAdvanceRecords(workbook, 'xlsx', 'KA01AH6269'), [{
+    date: new Date('2026-10-10T00:00:00.000Z'),
+    amount: 1250,
+    driverMobileNumber: '9876543210',
+  }]);
+  assert.deepEqual(await parseAdvanceRecords(withdrawalWorkbook, 'xlsx', 'KA01AH6269'), [{
+    date: new Date('2026-10-10T00:00:00.000Z'),
+    amount: 1250,
+    vehicleNumber: '6269',
+  }]);
+});
+
+test('parses driver mobile number identifiers from spreadsheet and PDF statements', async () => {
+  const csv = Buffer.from(
+    'Date,Amount,Driver Mobile Number\n'
+    + '10/10/2026,1250,9876543210\n'
+  );
+  const workbook = await workbookBuffer([
+    ['Txn Date', 'Advance Amount', 'Driver Mobile No'],
+    ['10/10/2026', 1250, '+91 98765 43210'],
+  ]);
+  const pdfBeforeAmount = await pdfBuffer([
+    'Transaction Date Driver Mobile Number Amount',
+    '10-Nov-2026 9876543210 1,250.50',
+  ]);
+  const pdfAfterAmount = await pdfBuffer([
+    'Transaction Date Amount Driver Mobile Number',
+    '11-Nov-2026 750.00 919123456789',
+    '12-Nov-2026 600.00 98765 43210',
+  ]);
+
+  assert.deepEqual(await parseAdvanceRecords(csv, 'csv', 'KA01AH6269'), [{
+    date: new Date('2026-10-10T00:00:00.000Z'),
+    amount: 1250,
+    driverMobileNumber: '9876543210',
+  }]);
+  assert.deepEqual(await parseAdvanceRecords(workbook, 'xlsx', 'KA01AH6269'), [{
+    date: new Date('2026-10-10T00:00:00.000Z'),
+    amount: 1250,
+    driverMobileNumber: '9876543210',
+  }]);
+  assert.deepEqual(await parseAdvanceRecords(pdfBeforeAmount, 'pdf', 'KA01AH6269'), [{
+    date: new Date('2026-11-10T00:00:00.000Z'),
+    amount: 1250.5,
+    driverMobileNumber: '9876543210',
+  }]);
+  assert.deepEqual(await parseAdvanceRecords(pdfAfterAmount, 'pdf', 'KA01AH6269'), [{
+    date: new Date('2026-11-11T00:00:00.000Z'),
+    amount: 750,
+    driverMobileNumber: '9123456789',
+  }, {
+    date: new Date('2026-11-12T00:00:00.000Z'),
+    amount: 600,
+    driverMobileNumber: '9876543210',
+  }]);
+});
+
 test('parses selectable-text PDF full and numeric vehicle suffixes before amounts', async () => {
   const pdf = await pdfBuffer([
     'Transaction Date Vehicle Number Amount',
@@ -115,7 +192,7 @@ test('parses legacy .xls advance statements', async () => {
 test('rejects statements without Date and Amount columns and negative advance amounts', async () => {
   await assert.rejects(
     parseAdvanceRecords(Buffer.from('Date,Quantity\n10/10/2026,50\n'), 'csv'),
-    /columns named "Date" and "Amount"/
+    /Date column and an Amount, Debit, or Withdrawal column/
   );
   await assert.rejects(
     parseAdvanceRecords(Buffer.from('Date,Amount\n10/10/2026,-50\n'), 'csv'),

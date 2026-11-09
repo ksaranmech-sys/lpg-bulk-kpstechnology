@@ -19,8 +19,14 @@ function errorMessage(error, fallback) {
   return error.response?.data?.error || fallback;
 }
 
-async function loadComparisonUploads(vehicleId, vehicleNumber, trips, month, monthUploads = []) {
-  const dateRange = getAdvanceVerificationDateRange(trips, month, monthUploads, vehicleNumber);
+async function loadComparisonUploads(vehicleId, vehicleNumber, driverMobileNumber, trips, month, monthUploads = []) {
+  const dateRange = getAdvanceVerificationDateRange(
+    trips,
+    month,
+    monthUploads,
+    vehicleNumber,
+    driverMobileNumber
+  );
   if (!dateRange) return monthUploads;
   const response = await api.listAdvanceVerifications({ vehicleId, ...dateRange });
   const uploadsById = new Map(
@@ -96,6 +102,7 @@ export default function AdvanceVerificationSection({ vehicles, loading: vehicles
         const nextComparisonUploads = await loadComparisonUploads(
           vehicleId,
           selectedVehicleNumberRef.current,
+          selectedVehicle?.driverMobile,
           nextTrips,
           month,
           monthUploads
@@ -127,11 +134,17 @@ export default function AdvanceVerificationSection({ vehicles, loading: vehicles
       window.clearInterval(intervalId);
       window.removeEventListener('focus', refreshOnFocus);
     };
-  }, [vehicleId, month]);
+  }, [vehicleId, month, selectedVehicle?.driverMobile]);
 
   const rows = useMemo(
-    () => buildAdvanceVerificationRows(trips, month, comparisonUploads, selectedVehicle?.vehicleNumber),
-    [trips, month, comparisonUploads, selectedVehicle?.vehicleNumber]
+    () => buildAdvanceVerificationRows(
+      trips,
+      month,
+      comparisonUploads,
+      selectedVehicle?.vehicleNumber,
+      selectedVehicle?.driverMobile
+    ),
+    [trips, month, comparisonUploads, selectedVehicle?.vehicleNumber, selectedVehicle?.driverMobile]
   );
 
   async function handleUpload(event) {
@@ -151,6 +164,7 @@ export default function AdvanceVerificationSection({ vehicles, loading: vehicles
         const nextComparisonUploads = await loadComparisonUploads(
           vehicleId,
           selectedVehicle?.vehicleNumber,
+          selectedVehicle?.driverMobile,
           trips,
           month,
           monthUploads
@@ -263,7 +277,7 @@ export default function AdvanceVerificationSection({ vehicles, loading: vehicles
                 onChange={(event) => setFile(event.target.files?.[0] || null)}
               />
               <small>
-                The statement must contain Date and Amount columns. Vehicle Number is optional; matching uses its last four digits. Rows without it are assigned to the selected vehicle.
+                Include Date and an Amount, Debit, or Withdrawal column. Match rows by the vehicle&apos;s last four digits or Driver Mobile Number; rows without either identifier use the selected vehicle.
                 PDFs must contain selectable text.
               </small>
             </div>

@@ -43,7 +43,7 @@ test('offers vehicle/month statement upload and compares advances with the state
       }],
     },
   });
-  const vehicles = [{ _id: 'vehicle-1', vehicleNumber: 'KA01AB1234' }];
+  const vehicles = [{ _id: 'vehicle-1', vehicleNumber: 'KA01AB1234', driverMobile: '9876543210' }];
   const container = document.createElement('div');
   const root = createRoot(container);
 

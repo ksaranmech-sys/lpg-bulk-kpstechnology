@@ -8,6 +8,11 @@ function getLastFourVehicleDigits(value) {
   return digits.length >= 4 ? digits.slice(-4) : '';
 }
 
+function normalizeMobileNumber(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits.length >= 10 ? digits.slice(-10) : '';
+}
+
 function normalizeHeader(value) {
   return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 }
@@ -24,7 +29,9 @@ function findHeader(worksheet) {
   for (let rowNumber = 1; rowNumber <= maxRow; rowNumber += 1) {
     let dateColumn = 0;
     let amountColumn = 0;
+    let debitColumn = 0;
     let vehicleColumn = 0;
+    let driverMobileColumn = 0;
     worksheet.getRow(rowNumber).eachCell({ includeEmpty: false }, (cell, columnNumber) => {
       const header = normalizeHeader(getCellValue(cell));
       if ([
@@ -51,6 +58,14 @@ function findHeader(worksheet) {
         'paidamount',
       ].includes(header)) amountColumn = columnNumber;
       if ([
+        'debit',
+        'debitamount',
+        'debitvalue',
+        'withdrawal',
+        'withdrawalamount',
+        'withdrawalvalue',
+      ].includes(header)) debitColumn = columnNumber;
+      if ([
         'vehicle',
         'vehicleno',
         'vehiclenumber',
@@ -61,8 +76,28 @@ function findHeader(worksheet) {
         'truckno',
         'trucknumber',
       ].includes(header)) vehicleColumn = columnNumber;
+      if ([
+        'mobile',
+        'mobileno',
+        'mobilenumber',
+        'drivermobile',
+        'drivermobileno',
+        'drivermobilenumber',
+        'driverphone',
+        'drivernumber',
+        'phonenumber',
+      ].includes(header)) driverMobileColumn = columnNumber;
     });
-    if (dateColumn && amountColumn) return { rowNumber, dateColumn, amountColumn, vehicleColumn };
+    if (dateColumn && (debitColumn || amountColumn)) {
+      return {
+        rowNumber,
+        dateColumn,
+        amountColumn: debitColumn || amountColumn,
+        debitColumn: Boolean(debitColumn),
+        vehicleColumn,
+        driverMobileColumn,
+      };
+    }
   }
   return null;
 }
@@ -78,6 +113,35 @@ function parseAmount(value, rowDescription) {
   return amount;
 }
 
+function findPdfMobileValue(values, isAfterAmount) {
+  const completeNumbers = values.filter((value) => /^\d{10,12}$/.test(value[0].replace(/\D/g, '')));
+  if (completeNumbers.length) {
+    const match = completeNumbers[isAfterAmount ? completeNumbers.length - 1 : 0];
+    return { value: match[0], matches: [match] };
+  }
+
+  const orderedValues = isAfterAmount ? [...values].reverse() : values;
+  const mobileParts = [];
+  let digitCount = 0;
+  for (const value of orderedValues) {
+    if (!/^\d+$/.test(value[0])) break;
+    mobileParts.push(value);
+    digitCount += value[0].length;
+    if (digitCount >= 10) {
+      if (digitCount <= 12) {
+        const matches = isAfterAmount ? mobileParts : [...mobileParts].reverse();
+        const value = [...matches]
+          .sort((a, b) => a.index - b.index)
+          .map((part) => part[0])
+          .join('');
+        return { value, matches };
+      }
+      break;
+    }
+  }
+  return null;
+}
+
 function parseWorksheetRecords(worksheet, targetVehicleNumber) {
   const records = [];
   const header = findHeader(worksheet);
@@ -90,7 +154,11 @@ function parseWorksheetRecords(worksheet, targetVehicleNumber) {
     const rowVehicleNumber = header.vehicleColumn
       ? getLastFourVehicleDigits(getCellValue(row.getCell(header.vehicleColumn)))
       : '';
+    const driverMobileNumber = header.driverMobileColumn
+      ? normalizeMobileNumber(getCellValue(row.getCell(header.driverMobileColumn)))
+      : '';
     if ((dateValue == null || dateValue === '') && (amountValue == null || amountValue === '')) continue;
+    if (header.debitColumn && (amountValue == null || String(amountValue).trim() === '')) continue;
 
     const date = parseDate(dateValue);
     if (!date) continue;
@@ -100,7 +168,10 @@ function parseWorksheetRecords(worksheet, targetVehicleNumber) {
     records.push({
       date,
       amount: parseAmount(amountValue, `Row ${rowNumber} in "${worksheet.name}"`),
-      vehicleNumber: rowVehicleNumber || getLastFourVehicleDigits(targetVehicleNumber),
+      ...(rowVehicleNumber || !driverMobileNumber
+        ? { vehicleNumber: rowVehicleNumber || getLastFourVehicleDigits(targetVehicleNumber) }
+        : {}),
+      ...(driverMobileNumber ? { driverMobileNumber } : {}),
     });
   }
   return { foundHeaders: true, records };
@@ -119,15 +190,35 @@ async function parsePdfRecords(buffer, targetVehicleNumber) {
 
   const lines = String(text || '').replace(/\u00a0/g, ' ').split(/\r?\n/);
   const normalizedHeaders = normalizeHeader(lines.slice(0, 40).join(' '));
-  if (!normalizedHeaders.includes('date') || !normalizedHeaders.includes('amount')) {
-    throw new Error('The PDF must contain selectable text with Date and Amount columns.');
+  const hasValueHeader = ['amount', 'debit', 'withdrawal'].some((header) => normalizedHeaders.includes(header));
+  if (!normalizedHeaders.includes('date') || !hasValueHeader) {
+    throw new Error('The PDF must contain selectable text with a Date and Amount, Debit, or Withdrawal column.');
   }
   const vehicleHeaderPosition = Math.max(
     normalizedHeaders.indexOf('vehiclenumber'),
     normalizedHeaders.indexOf('vehicleno'),
     normalizedHeaders.indexOf('vehicle')
   );
-  const vehicleIsAfterAmount = vehicleHeaderPosition > normalizedHeaders.indexOf('amount');
+  const valueHeaderPosition = Math.max(
+    normalizedHeaders.indexOf('debit'),
+    normalizedHeaders.indexOf('debitamount'),
+    normalizedHeaders.indexOf('withdrawal'),
+    normalizedHeaders.indexOf('withdrawalamount'),
+    normalizedHeaders.indexOf('amount')
+  );
+  const vehicleIsAfterAmount = vehicleHeaderPosition > valueHeaderPosition;
+  const driverMobileHeaderPosition = Math.max(
+    normalizedHeaders.indexOf('drivermobilenumber'),
+    normalizedHeaders.indexOf('drivermobileno'),
+    normalizedHeaders.indexOf('drivermobile'),
+    normalizedHeaders.indexOf('mobilenumber'),
+    normalizedHeaders.indexOf('mobileno'),
+    normalizedHeaders.indexOf('mobile'),
+    normalizedHeaders.indexOf('driverphone'),
+    normalizedHeaders.indexOf('drivernumber'),
+    normalizedHeaders.indexOf('phonenumber')
+  );
+  const driverMobileIsAfterAmount = driverMobileHeaderPosition > valueHeaderPosition;
 
   const datePattern = /\b(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}|\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}|\d{1,2}[- ](?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*[- ]\d{2,4})(?:[ T]\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?)?/i;
   const numberPattern = /-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/g;
@@ -146,6 +237,20 @@ async function parsePdfRecords(buffer, targetVehicleNumber) {
       .slice(dateMatch.index + dateMatch[0].length)
       .replace(/\b[A-Z]{2}\s*\d{2}\s*[A-Z]{1,3}\s*\d{4}\b/ig, '');
     let values = [...transactionText.matchAll(numberPattern)];
+    let driverMobileNumber = '';
+    if (driverMobileHeaderPosition >= 0) {
+      const mobile = findPdfMobileValue(values, driverMobileIsAfterAmount);
+      if (mobile) {
+        driverMobileNumber = normalizeMobileNumber(mobile.value);
+        mobile.matches
+          .sort((a, b) => b.index - a.index)
+          .forEach((match) => {
+            transactionText = transactionText.slice(0, match.index)
+              + transactionText.slice(match.index + match[0].length);
+          });
+        values = [...transactionText.matchAll(numberPattern)];
+      }
+    }
     let numericVehicleNumber = '';
     if (!fullVehicleNumber && vehicleHeaderPosition >= 0) {
       const vehicleValue = vehicleIsAfterAmount ? values.at(-1) : values[0];
@@ -160,12 +265,14 @@ async function parsePdfRecords(buffer, targetVehicleNumber) {
     if (amountText == null) {
       throw new Error(`PDF row ${index + 1} needs a non-negative Amount value.`);
     }
+    const vehicleNumber = getLastFourVehicleDigits(fullVehicleNumber)
+      || numericVehicleNumber
+      || (!driverMobileNumber && defaultVehicleNumber);
     records.push({
       date,
       amount: parseAmount(amountText, `PDF row ${index + 1}`),
-      vehicleNumber: getLastFourVehicleDigits(fullVehicleNumber)
-        || numericVehicleNumber
-        || defaultVehicleNumber,
+      ...(vehicleNumber ? { vehicleNumber } : {}),
+      ...(driverMobileNumber ? { driverMobileNumber } : {}),
     });
   });
 
@@ -185,7 +292,7 @@ async function parseAdvanceRecords(buffer, format = 'xlsx', targetVehicleNumber 
     });
     const result = parseWorksheetRecords(worksheet, targetVehicleNumber);
     if (!result.foundHeaders) {
-      throw new Error('The CSV must contain columns named "Date" and "Amount".');
+      throw new Error('The CSV must contain a Date column and an Amount, Debit, or Withdrawal column.');
     }
     if (!result.records.length) throw new Error('No dated advance records were found in the CSV.');
     return result.records;
@@ -203,7 +310,7 @@ async function parseAdvanceRecords(buffer, format = 'xlsx', targetVehicleNumber 
     records.push(...result.records);
   });
   if (!hasExpectedHeaders) {
-    throw new Error('The workbook must contain columns named "Date" and "Amount".');
+    throw new Error('The workbook must contain a Date column and an Amount, Debit, or Withdrawal column.');
   }
   if (!records.length) throw new Error('No dated advance records were found in the workbook.');
   return records;

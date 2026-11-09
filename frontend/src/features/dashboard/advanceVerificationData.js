@@ -9,15 +9,34 @@ function normalizeVehicleNumber(value) {
   return digits.length >= 4 ? digits.slice(-4) : '';
 }
 
-function recordsForVehicle(uploads, vehicleNumber) {
-  const targetVehicleNumber = normalizeVehicleNumber(vehicleNumber);
-  return uploads.flatMap((upload) => (upload.advanceRecords || [])
-    .filter((record) => !targetVehicleNumber
-      || normalizeVehicleNumber(record.vehicleNumber || upload.defaultVehicleNumber) === targetVehicleNumber));
+function normalizeMobileNumber(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits.length >= 10 ? digits.slice(-10) : '';
 }
 
-export function getAdvanceVerificationDateRange(trips, month, uploads = [], vehicleNumber = '') {
-  const records = recordsForVehicle(uploads, vehicleNumber);
+function recordsForVehicle(uploads, vehicleNumber, driverMobileNumber) {
+  const targetVehicleNumber = normalizeVehicleNumber(vehicleNumber);
+  const targetMobileNumber = normalizeMobileNumber(driverMobileNumber);
+  return uploads.flatMap((upload) => (upload.advanceRecords || [])
+    .filter((record) => {
+      const recordVehicleNumber = normalizeVehicleNumber(
+        record.vehicleNumber || (!record.driverMobileNumber ? upload.defaultVehicleNumber : '')
+      );
+      const recordMobileNumber = normalizeMobileNumber(record.driverMobileNumber);
+      return (!recordVehicleNumber && !recordMobileNumber)
+        || (targetVehicleNumber && recordVehicleNumber === targetVehicleNumber)
+        || (targetMobileNumber && recordMobileNumber === targetMobileNumber);
+    }));
+}
+
+export function getAdvanceVerificationDateRange(
+  trips,
+  month,
+  uploads = [],
+  vehicleNumber = '',
+  driverMobileNumber = ''
+) {
+  const records = recordsForVehicle(uploads, vehicleNumber, driverMobileNumber);
   const intervals = buildTripVerificationIntervals(trips, month, records);
   if (!intervals.length) return null;
   const fromDate = Math.min(...intervals.map((interval) => interval.previousTurnDate));
@@ -28,12 +47,18 @@ export function getAdvanceVerificationDateRange(trips, month, uploads = [], vehi
   };
 }
 
-export function buildAdvanceVerificationRows(trips, month, uploads, vehicleNumber = '') {
-  const records = recordsForVehicle(uploads, vehicleNumber);
+export function buildAdvanceVerificationRows(
+  trips,
+  month,
+  uploads,
+  vehicleNumber = '',
+  driverMobileNumber = ''
+) {
+  const records = recordsForVehicle(uploads, vehicleNumber, driverMobileNumber);
   const intervalsByTrip = new Map(
     buildTripVerificationIntervals(trips, month, records).map((interval) => [interval.trip._id, interval])
   );
-  const countedStatementDates = new Set();
+  const countedStatementRecords = new Set();
 
   return trips
     .filter((trip) => monthOf(trip.loadingDate) === month)
@@ -51,12 +76,12 @@ export function buildAdvanceVerificationRows(trips, month, uploads, vehicleNumbe
             recordDate == null
             || recordDate < interval.previousTurnDate
             || recordDate > interval.currentTurnDate
-            || countedStatementDates.has(recordDate)
+            || countedStatementRecords.has(record)
           ) return false;
           return true;
         })
         : [];
-      matchingRecords.forEach((record) => countedStatementDates.add(dateKey(record.date)));
+      matchingRecords.forEach((record) => countedStatementRecords.add(record));
 
       const advances = Array.isArray(trip.driverAdvances) ? trip.driverAdvances : [];
       const advancesAdded = advances.length

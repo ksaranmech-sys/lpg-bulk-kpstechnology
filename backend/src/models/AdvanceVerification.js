@@ -5,6 +5,7 @@ const advanceRecordSchema = new mongoose.Schema(
     date: { type: Date, required: true },
     amount: { type: Number, required: true, min: 0 },
     vehicleNumber: { type: String, trim: true, uppercase: true, default: null },
+    driverMobileNumber: { type: String, trim: true, default: null },
   },
   { _id: false }
 );
