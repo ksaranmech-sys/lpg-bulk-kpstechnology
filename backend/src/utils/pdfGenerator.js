@@ -61,7 +61,6 @@ function renderTripSettlementSheet(doc, trip, photos, nextTrip = null, title = '
   renderSalaryRows(doc, [
     ['Customer', trip.customer?.companyName || '-'],
     ['Vehicle Number', trip.vehicle?.vehicleNumber || '-'],
-    ['Trip ID', String(trip._id || '-')],
     ['Loading Location', `${trip.loadingLocation || '-'} (${fmtDate(trip.loadingDate)})`],
     ['Unloading Location', `${trip.unloadingLocation || '-'} (${fmtDate(trip.unloadingDate)})`],
     ...(trip.isDiverted ? [['Divert Location', `${trip.divertUnloadingLocation ? `${trip.divertUnloadingLocation} (Divert)` : '-'} (${fmtDate(trip.divertDate)})`]] : []),

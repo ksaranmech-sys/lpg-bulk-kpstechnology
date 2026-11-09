@@ -50,6 +50,7 @@ test('keeps the single-trip summary, expenses, and balance on one A4 page', asyn
     const result = await parser.getText();
     assert.equal(result.pages.length, 1);
     assert.match(result.pages[0].text, /Trip Details/);
+    assert.doesNotMatch(result.pages[0].text, /Trip ID|single-trip-1/);
     assert.match(result.pages[0].text, /Diesel Filled Details/);
     assert.match(result.pages[0].text, /Expenses/);
     assert.match(result.pages[0].text, /Trip Balance/);
@@ -160,7 +161,7 @@ test('renders salary calculation first, followed by a single-trip report for eve
     assert.match(result.pages[0].text, /Settlement to Driver/);
     result.pages.slice(1).forEach((page, index) => {
       assert.match(page.text, new RegExp(`Single Trip ${index + 1} of 5`));
-      assert.match(page.text, new RegExp(`trip-${index + 1}`));
+      assert.doesNotMatch(page.text, /Trip ID|trip-[1-5]/);
       assert.match(page.text, /Trip Details/);
       assert.match(page.text, /Diesel Filled Details/);
       assert.match(page.text, /Expenses/);
@@ -188,7 +189,7 @@ test('renders salary calculation first, followed by a single-trip report for eve
     assert.equal(result.pages.length, 2);
     assert.match(result.pages[0].text, /Temporary Driver Salary Calculation/);
     assert.match(result.pages[0].text, /Live calculation through today/);
-    assert.match(result.pages[1].text, /temporary-trip-1/);
+    assert.doesNotMatch(result.pages[1].text, /Trip ID|temporary-trip-1/);
     assert.match(result.pages[1].text, /Single Trip 1 of 1/);
   } finally {
     await temporaryParser.destroy();
