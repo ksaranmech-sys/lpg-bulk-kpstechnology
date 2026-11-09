@@ -69,7 +69,7 @@ function getCorporationKmDetails(trip, routeKmTable) {
     : (fillingOrderLocation && fillingOrderLocation === loadingLocation)
       ? resolvedLeg0
       : (hasManualKmReturn ? manualKmReturn : null);
-  if (!fillingOrderLocation && !hasManualKmReturn && resolvedLeg0 != null) {
+  if (leg1 == null && !hasManualKmReturn && resolvedLeg0 != null) {
     return {
       value: resolvedLeg0,
       source: leg0 != null ? 'km_table_load_only' : 'manual',

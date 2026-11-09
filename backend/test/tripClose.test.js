@@ -590,7 +590,7 @@ test('monthly salary includes a pending-close trip and calculates KM Beta from i
     unloadingLocation: 'Erode',
     unloadingDate: new Date('2026-08-12T00:00:00.000Z'),
     closedAt: new Date('2026-08-15T00:00:00.000Z'),
-    fillingOrderLocation: '',
+    fillingOrderLocation: 'Unknown Filling Order',
     dieselEntries: [],
     driverAdvances: [{ amount: 100, date: new Date('2026-08-10T00:00:00.000Z') }],
     rtoEntries: [],
@@ -655,6 +655,22 @@ test('salary KM uses the configured round-trip load route when filling-order loc
   assert.equal(details.source, 'km_table_load_only');
   assert.deepEqual(details.legs, [
     { leg: 'load', km: 992, date: new Date('2026-11-05T00:00:00.000Z') },
+  ]);
+});
+
+test('salary KM uses the configured round-trip load route when filling-order return route is missing', () => {
+  const details = getCorporationKmDetails({
+    loadingLocation: 'AEGIS, Mangalore',
+    unloadingLocation: 'Erode',
+    fillingOrderLocation: 'Unknown Filling Order',
+  }, [
+    { loadingLocation: 'AEGIS, Mangalore', unloadingLocation: 'Erode', km: 992 },
+  ]);
+
+  assert.equal(details.value, 992);
+  assert.equal(details.source, 'km_table_load_only');
+  assert.deepEqual(details.legs, [
+    { leg: 'load', km: 992, date: null },
   ]);
 });
 
