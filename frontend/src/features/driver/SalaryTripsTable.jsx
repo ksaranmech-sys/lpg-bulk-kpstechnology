@@ -30,7 +30,7 @@ export default function SalaryTripsTable({ trips, closingTripId, onCloseTrip, to
         <thead>
           <tr>
             <th style={{ width: '4%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>S.No</th>
-            <th style={{ width: '9%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Turn Date</th>
+            <th style={{ width: '9%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Load Turn Date</th>
             <th style={{ width: '11%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Location</th>
             <th style={{ width: '9%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Date</th>
             <th style={{ width: '11%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Unloading Location</th>

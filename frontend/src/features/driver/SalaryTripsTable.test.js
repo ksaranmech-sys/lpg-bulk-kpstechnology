@@ -36,7 +36,7 @@ test('formats diesel litres and amounts to exactly two decimal places', async ()
   const tripCells = rows[0].querySelectorAll('td');
   expect(tripCells[1].textContent).toBe(new Date('2026-11-05T00:00:00.000Z').toLocaleDateString('en-IN'));
   expect(tripCells[2].textContent).toBe('-');
-  expect(container.querySelectorAll('thead th')[1].textContent).toBe('Loading Turn Date');
+  expect(container.querySelectorAll('thead th')[1].textContent).toBe('Load Turn Date');
   expect(container.querySelectorAll('thead th')[2].textContent).toBe('Loading Location');
   expect(tripCells[8].textContent).toBe('431.01 L');
   expect(tripCells[9].textContent).toBe('Rs 42,470.98');
