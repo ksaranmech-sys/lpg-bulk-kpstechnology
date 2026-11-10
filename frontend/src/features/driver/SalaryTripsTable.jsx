@@ -32,6 +32,7 @@ export default function SalaryTripsTable({ trips, closingTripId, onCloseTrip, to
             <th style={{ width: '4%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>S.No</th>
             <th style={{ width: '11%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Location</th>
             <th style={{ width: '9%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Date</th>
+            <th style={{ width: '9%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Loading Turn Date</th>
             <th style={{ width: '11%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Unloading Location</th>
             <th style={{ width: '9%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Unloading Date</th>
             <th style={{ width: '11%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Divert Location</th>
@@ -46,12 +47,13 @@ export default function SalaryTripsTable({ trips, closingTripId, onCloseTrip, to
         </thead>
         <tbody>
           {(trips || []).length === 0 ? (
-            <tr><td colSpan="13" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No trips for this month.</td></tr>
+            <tr><td colSpan="14" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No trips for this month.</td></tr>
           ) : (trips || []).map((trip, index) => (
             <tr key={trip._id || index}>
               <td style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>{index + 1}</td>
               <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingLocation || '-'}</td>
               <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}</td>
+              <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.turnDate ? new Date(trip.turnDate).toLocaleDateString('en-IN') : '-'}</td>
               <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingLocation || '-'}</td>
               <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingDate ? new Date(trip.unloadingDate).toLocaleDateString('en-IN') : '-'}</td>
               <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.isDiverted ? trip.divertUnloadingLocation || '-' : '-'}</td>
@@ -78,7 +80,7 @@ export default function SalaryTripsTable({ trips, closingTripId, onCloseTrip, to
             </tr>
           ))}
           <tr>
-            <td colSpan="6" style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
+            <td colSpan="7" style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
             <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>{Math.round(totals.corporationKm || 0)} km</td>
             <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>{formatDieselValue(totals.totalDieselLitres)} L</td>
             <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {formatDieselValue(totals.totalDiesel)}</td>

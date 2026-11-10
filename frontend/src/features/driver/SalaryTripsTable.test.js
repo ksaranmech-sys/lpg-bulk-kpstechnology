@@ -13,6 +13,7 @@ test('formats diesel litres and amounts to exactly two decimal places', async ()
       <SalaryTripsTable
         trips={[{
           _id: 'trip-1',
+          turnDate: '2026-11-05T00:00:00.000Z',
           dieselLitres: 431.01,
           dieselTotal: 42470.979999996,
         }]}
@@ -31,8 +32,10 @@ test('formats diesel litres and amounts to exactly two decimal places', async ()
   });
 
   const rows = container.querySelectorAll('tbody tr');
-  expect(rows[0].querySelectorAll('td')[7].textContent).toBe('431.01 L');
-  expect(rows[0].querySelectorAll('td')[8].textContent).toBe('Rs 42,470.98');
+  const tripCells = rows[0].querySelectorAll('td');
+  expect(tripCells[3].textContent).toBe(new Date('2026-11-05T00:00:00.000Z').toLocaleDateString('en-IN'));
+  expect(tripCells[8].textContent).toBe('431.01 L');
+  expect(tripCells[9].textContent).toBe('Rs 42,470.98');
   expect(rows[1].querySelectorAll('td')[2].textContent).toBe('431.01 L');
   expect(rows[1].querySelectorAll('td')[3].textContent).toBe('Rs 42,470.98');
 
