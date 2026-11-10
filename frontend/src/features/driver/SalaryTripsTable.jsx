@@ -51,7 +51,7 @@ export default function SalaryTripsTable({ trips, closingTripId, onCloseTrip, to
           ) : (trips || []).map((trip, index) => (
             <tr key={trip._id || index}>
               <td style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>{index + 1}</td>
-              <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.previousTripLoadingDate ? new Date(trip.previousTripLoadingDate).toLocaleDateString('en-IN') : '-'}</td>
+              <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.previousTripTurnDate ? new Date(trip.previousTripTurnDate).toLocaleDateString('en-IN') : '-'}</td>
               <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingLocation || '-'}</td>
               <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.loadingDate ? new Date(trip.loadingDate).toLocaleDateString('en-IN') : '-'}</td>
               <td style={{ padding: '8px 12px', border: '1px solid #d0d7de' }}>{trip.unloadingLocation || '-'}</td>

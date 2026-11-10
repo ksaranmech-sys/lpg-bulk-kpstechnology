@@ -614,8 +614,8 @@ test('monthly salary includes a pending-close trip and calculates KM Beta from i
   t.mock.method(Trip, 'find', (filter) => {
     const results = filter.nextTrip
       ? [
-        { nextTrip: trip._id, loadingDate: new Date('2026-07-20T00:00:00.000Z'), createdAt: new Date('2026-07-21T00:00:00.000Z') },
-        { nextTrip: trip._id, loadingDate: new Date('2026-07-28T00:00:00.000Z'), createdAt: new Date('2026-07-29T00:00:00.000Z') },
+        { nextTrip: trip._id, loadingDate: new Date('2026-07-20T00:00:00.000Z'), turnDate: new Date('2026-07-22T00:00:00.000Z'), createdAt: new Date('2026-07-21T00:00:00.000Z') },
+        { nextTrip: trip._id, loadingDate: new Date('2026-07-28T00:00:00.000Z'), turnDate: new Date('2026-07-30T00:00:00.000Z'), createdAt: new Date('2026-07-29T00:00:00.000Z') },
       ]
       : [trip];
     return {
@@ -634,7 +634,7 @@ test('monthly salary includes a pending-close trip and calculates KM Beta from i
   const salary = await customerController.calculateDriverMonthlySalary('customer-1', 'driver-1', '2026-08');
 
   assert.equal(salary.trips.length, 1);
-  assert.equal(salary.trips[0].previousTripLoadingDate.toISOString(), '2026-07-28T00:00:00.000Z');
+  assert.equal(salary.trips[0].previousTripTurnDate.toISOString(), '2026-07-30T00:00:00.000Z');
   assert.equal(salary.trips[0].corporationKm, 992);
   assert.equal(salary.corporationKm, 992);
   assert.equal(salary.kmBeta, 2976);

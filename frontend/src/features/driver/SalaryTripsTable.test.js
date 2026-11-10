@@ -13,7 +13,7 @@ test('formats diesel litres and amounts to exactly two decimal places', async ()
       <SalaryTripsTable
         trips={[{
           _id: 'trip-1',
-          previousTripLoadingDate: '2026-11-05T00:00:00.000Z',
+          previousTripTurnDate: '2026-11-05T00:00:00.000Z',
           turnDate: '2026-11-10T00:00:00.000Z',
           dieselLitres: 431.01,
           dieselTotal: 42470.979999996,

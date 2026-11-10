@@ -385,7 +385,7 @@ function hasRowDetails(row) {
 // against joiningDate/returningDate - even entries within the same trip can land on either side.
 // KM (and the <200 KM special charge) is split leg by leg by the date each leg was completed -
 // see getTempKmShare.
-function calculateTemporaryDriverSegment(month, temporaryDriver, monthTrips, routeKmTable, driver, asOfDate = null, temporaryKmShareOf = () => 0, previousTripLoadingDates = new Map()) {
+function calculateTemporaryDriverSegment(month, temporaryDriver, monthTrips, routeKmTable, driver, asOfDate = null, temporaryKmShareOf = () => 0, previousTripTurnDates = new Map()) {
   if (!temporaryDriver?.required || !temporaryDriver?.joiningDate) return null;
 
   const { start: monthStart, end: monthEndExclusive } = getSalaryMonthBounds(month);
@@ -413,7 +413,7 @@ function calculateTemporaryDriverSegment(month, temporaryDriver, monthTrips, rou
     const assignedTrip = getTripEntriesForDriverAssignment(trip, driver);
     const { tempTrip } = splitTripEntriesByDate(assignedTrip, joiningDate, returningDate);
     const tempRow = buildTripRow(tempTrip, routeKmTable);
-    tempRow.previousTripLoadingDate = previousTripLoadingDates.get(String(trip._id)) || null;
+    tempRow.previousTripTurnDate = previousTripTurnDates.get(String(trip._id)) || null;
     tempRow.corporationKm = round2(tempRow.corporationKm * tempShare);
     if (tempShare <= 0) tempRow.corpKm = null;
 
@@ -514,13 +514,13 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
       customer: customerId,
       vehicle: driver.vehicle,
       nextTrip: { $in: monthTrips.map((trip) => trip._id) },
-    }).sort({ createdAt: -1 }).select('nextTrip loadingDate createdAt')
+    }).sort({ createdAt: -1 }).select('nextTrip turnDate createdAt')
     : [];
-  const previousTripLoadingDates = new Map();
+  const previousTripTurnDates = new Map();
   previousTrips.forEach((trip) => {
     const nextTripId = String(trip.nextTrip);
-    if (!previousTripLoadingDates.has(nextTripId)) {
-      previousTripLoadingDates.set(nextTripId, trip.loadingDate || null);
+    if (!previousTripTurnDates.has(nextTripId)) {
+      previousTripTurnDates.set(nextTripId, trip.turnDate || null);
     }
   });
 
@@ -544,7 +544,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
       ? splitTripEntriesByDate(assignedTrip, joiningDate, returningDate).driverTrip
       : assignedTrip;
     const row = buildTripRow(rowTrip, routeKmTable);
-    row.previousTripLoadingDate = previousTripLoadingDates.get(String(trip._id)) || null;
+    row.previousTripTurnDate = previousTripTurnDates.get(String(trip._id)) || null;
     const driverShare = driverShareOf(trip);
     row.corporationKm = round2(row.corporationKm * driverShare);
     if (driverShare <= 0) row.corpKm = null;
@@ -579,7 +579,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
     driver,
     asOfDate,
     tempKmShareOf,
-    previousTripLoadingDates
+    previousTripTurnDates
   );
   return {
     month,
