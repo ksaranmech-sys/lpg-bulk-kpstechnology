@@ -514,11 +514,15 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
       customer: customerId,
       vehicle: driver.vehicle,
       nextTrip: { $in: monthTrips.map((trip) => trip._id) },
-    }).select('nextTrip loadingDate')
+    }).sort({ createdAt: -1 }).select('nextTrip loadingDate createdAt')
     : [];
-  const previousTripLoadingDates = new Map(
-    previousTrips.map((trip) => [String(trip.nextTrip), trip.loadingDate || null])
-  );
+  const previousTripLoadingDates = new Map();
+  previousTrips.forEach((trip) => {
+    const nextTripId = String(trip.nextTrip);
+    if (!previousTripLoadingDates.has(nextTripId)) {
+      previousTripLoadingDates.set(nextTripId, trip.loadingDate || null);
+    }
+  });
 
   const tempDriverInfo = driver.temporaryDriver?.required && driver.temporaryDriver?.joiningDate
     ? driver.temporaryDriver

@@ -613,11 +613,17 @@ test('monthly salary includes a pending-close trip and calculates KM Beta from i
   t.mock.method(Leave, 'find', () => ({ select: async () => [] }));
   t.mock.method(Trip, 'find', (filter) => {
     const results = filter.nextTrip
-      ? [{ nextTrip: trip._id, loadingDate: new Date('2026-07-28T00:00:00.000Z') }]
+      ? [
+        { nextTrip: trip._id, loadingDate: new Date('2026-07-20T00:00:00.000Z'), createdAt: new Date('2026-07-21T00:00:00.000Z') },
+        { nextTrip: trip._id, loadingDate: new Date('2026-07-28T00:00:00.000Z'), createdAt: new Date('2026-07-29T00:00:00.000Z') },
+      ]
       : [trip];
     return {
       select() { return this; },
-      sort: async () => results,
+      sort(order) {
+        if (order.createdAt === -1) results.sort((left, right) => right.createdAt - left.createdAt);
+        return this;
+      },
       then(resolve, reject) { return Promise.resolve(results).then(resolve, reject); },
     };
   });
@@ -698,7 +704,7 @@ test('salary splits trip KM between drivers when an assignment changes at unload
     const results = filter.nextTrip ? [] : [trip];
     return {
       select() { return this; },
-      sort: async () => results,
+      sort() { return this; },
       then(resolve, reject) { return Promise.resolve(results).then(resolve, reject); },
     };
   });
