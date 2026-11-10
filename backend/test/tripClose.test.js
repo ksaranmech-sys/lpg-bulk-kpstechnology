@@ -611,10 +611,16 @@ test('monthly salary includes a pending-close trip and calculates KM Beta from i
   };
   t.mock.method(User, 'findOne', () => ({ select: async () => driver }));
   t.mock.method(Leave, 'find', () => ({ select: async () => [] }));
-  t.mock.method(Trip, 'find', () => ({
-    select() { return this; },
-    sort: async () => [trip],
-  }));
+  t.mock.method(Trip, 'find', (filter) => {
+    const results = filter.nextTrip
+      ? [{ nextTrip: trip._id, loadingDate: new Date('2026-07-28T00:00:00.000Z') }]
+      : [trip];
+    return {
+      select() { return this; },
+      sort: async () => results,
+      then(resolve, reject) { return Promise.resolve(results).then(resolve, reject); },
+    };
+  });
   t.mock.method(settings, 'getRouteKmTable', () => [
     { loadingLocation: 'AEGIS, Mangalore', unloadingLocation: 'Erode', km: 992 },
   ]);
@@ -622,6 +628,7 @@ test('monthly salary includes a pending-close trip and calculates KM Beta from i
   const salary = await customerController.calculateDriverMonthlySalary('customer-1', 'driver-1', '2026-08');
 
   assert.equal(salary.trips.length, 1);
+  assert.equal(salary.trips[0].previousTripLoadingDate.toISOString(), '2026-07-28T00:00:00.000Z');
   assert.equal(salary.trips[0].corporationKm, 992);
   assert.equal(salary.corporationKm, 992);
   assert.equal(salary.kmBeta, 2976);
@@ -687,10 +694,14 @@ test('salary splits trip KM between drivers when an assignment changes at unload
   let selectedDriver = drivers.resigned;
   t.mock.method(User, 'findOne', () => ({ select: async () => selectedDriver }));
   t.mock.method(Leave, 'find', () => ({ select: async () => [] }));
-  t.mock.method(Trip, 'find', () => ({
-    select() { return this; },
-    sort: async () => [trip],
-  }));
+  t.mock.method(Trip, 'find', (filter) => {
+    const results = filter.nextTrip ? [] : [trip];
+    return {
+      select() { return this; },
+      sort: async () => results,
+      then(resolve, reject) { return Promise.resolve(results).then(resolve, reject); },
+    };
+  });
   t.mock.method(settings, 'getRouteKmTable', () => [
     { loadingLocation: 'Load', unloadingLocation: 'Route', km: 1000 },
   ]);
