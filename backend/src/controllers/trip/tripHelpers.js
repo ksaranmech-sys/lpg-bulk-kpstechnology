@@ -50,13 +50,23 @@ async function getEntryFloorDate(trip) {
   return driverJoiningDate || previousTripCloseDate || null;
 }
 
+function dateOnlyUtcValue(date) {
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+function isWithinInclusiveDateRange(date, minDate, maxDate) {
+  const dateValue = dateOnlyUtcValue(date);
+  return (!minDate || dateValue >= dateOnlyUtcValue(minDate))
+    && (!maxDate || dateValue <= dateOnlyUtcValue(maxDate));
+}
+
 async function validateEntryDate(trip, date, label) {
   const floor = await getEntryFloorDate(trip);
-  if (floor && date < floor) {
+  if (floor && !isWithinInclusiveDateRange(date, floor, null)) {
     return `${label} date cannot be before the driver's joining date or the previous trip's close date.`;
   }
   const upperBound = trip.turnDate || new Date();
-  if (date > upperBound) {
+  if (!isWithinInclusiveDateRange(date, null, upperBound)) {
     return trip.turnDate
       ? `${label} date must be on or before this trip's Load Turn (close) date.`
       : `${label} date cannot be in the future.`;
@@ -253,6 +263,7 @@ module.exports = {
   getPreviousTripCloseDate,
   getEntryFloorDate,
   validateEntryDate,
+  isWithinInclusiveDateRange,
   getPreviousTripMaxOdometer,
   validateOdometerKm,
   getHighestOdometerReading,
