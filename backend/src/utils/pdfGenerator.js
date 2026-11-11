@@ -70,6 +70,12 @@ function renderTripSettlementSheet(doc, trip, photos, nextTrip = null, title = '
   compactStyledSectionHeader(doc, 'Odometer & Mileage');
   renderSalaryRows(doc, [
     ['Odometer KM', formatKm(odometerKm)],
+    ['Mileage', trip.settlement?.mileageKmPerLitre == null
+      ? 'NA'
+      : `${fmtMoney(trip.settlement.mileageKmPerLitre)} km/L`],
+    ['Diesel for Trip', trip.settlement?.totalDieselLitres == null
+      ? 'NA'
+      : `${fmtMoney(trip.settlement.totalDieselLitres)} L`],
     ...(driverKmRate != null ? [['Driver KM', formatKm(salaryDriverKm)]] : []),
     ...manualKmRows(trip).map(([label, value, legText]) => [`${label} (${legText})`, value]),
   ], { compact: true });
@@ -86,7 +92,7 @@ function renderTripSettlementSheet(doc, trip, photos, nextTrip = null, title = '
       d.paymentMethod === 'cash' ? 'Cash' : 'Diesel Card',
       d.odometerKm != null ? `${fmtMoney(d.odometerKm)} km` : '-',
       d.volumeLitres != null ? `${fmtMoney(d.volumeLitres)} L` : '-',
-      d.loadingPointTankFill ? '✓' : '-',
+      Boolean(d.loadingPointTankFill),
       `Rs ${fmtMoney(d.amount)}`,
     ]) : [['-', 'No diesel entries', '-', '-', '-', '-']],
     { totalLabel: 'Diesel Card', totalValue: `Rs ${fmtMoney(dieselCardTotal)}`, extraRows: [
@@ -612,10 +618,28 @@ function renderStyledReportTable(doc, headers, rows, summary, options = {}) {
     if (rowIndex % 2 === 1) doc.rect(x, rowY, width, rowHeight).fill('#f8fbfc');
     doc.moveTo(x, rowY).lineTo(x + width, rowY).lineWidth(0.5).strokeColor('#b8c9d1').stroke();
     row.forEach((cell, index) => {
-      doc.fillColor('#102f52').font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(options.compact ? 7.5 : 9).text(
-        String(cell), x + index * columnWidth + (options.compact ? 5 : 8), rowY + (options.compact ? 3 : 5),
-        { width: columnWidth - (options.compact ? 10 : 24), align: index === row.length - 1 ? 'right' : 'left', lineBreak: false }
-      );
+      if (headers[index] === 'Tank Fill') {
+        if (cell === true) {
+          const tickSize = Math.min(9, rowHeight - 4);
+          const tickX = x + index * columnWidth + (columnWidth - tickSize) / 2;
+          const tickY = rowY + (rowHeight - tickSize) / 2;
+          doc.lineWidth(1.4).lineCap('round').lineJoin('round').strokeColor('#102f52')
+            .moveTo(tickX + tickSize * 0.12, tickY + tickSize * 0.52)
+            .lineTo(tickX + tickSize * 0.4, tickY + tickSize * 0.82)
+            .lineTo(tickX + tickSize * 0.9, tickY + tickSize * 0.18)
+            .stroke();
+        } else {
+          doc.fillColor('#102f52').font('Helvetica').fontSize(options.compact ? 7.5 : 9).text(
+            '-', x + index * columnWidth + (options.compact ? 5 : 8), rowY + (options.compact ? 3 : 5),
+            { width: columnWidth - (options.compact ? 10 : 24), align: 'center', lineBreak: false }
+          );
+        }
+      } else {
+        doc.fillColor('#102f52').font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(options.compact ? 7.5 : 9).text(
+          String(cell), x + index * columnWidth + (options.compact ? 5 : 8), rowY + (options.compact ? 3 : 5),
+          { width: columnWidth - (options.compact ? 10 : 24), align: index === row.length - 1 ? 'right' : 'left', lineBreak: false }
+        );
+      }
     });
   };
 

@@ -81,7 +81,8 @@ test('offers vehicle and monthly file selection for diesel verification', async 
   expect(container.textContent).toContain('17.5 t');
   expect(container.textContent).toContain('Customer site');
   expect(container.textContent).toContain('Diesel added in trip');
-  expect(container.textContent).toContain('Trip KM');
+  expect(container.textContent).toContain('Odometer KM');
+  expect(container.textContent).not.toContain('Trip KM');
   expect(container.textContent).toContain('850 km');
   expect(container.textContent).toContain('2.45 km/L');
   expect(container.textContent).toContain('Diesel for Trip');

@@ -337,7 +337,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                     <th style={cellStyle}>Load Weight (tons)</th>
                     <th style={cellStyle}>Unloading</th>
                     <th style={cellStyle}>Unloading Date</th>
-                    <th style={cellStyle}>Trip KM</th>
+                    <th style={cellStyle}>Odometer KM</th>
                     <th style={cellStyle}>Mileage</th>
                     <th style={cellStyle}>Diesel for Trip</th>
                     <th style={cellStyle}>Diesel added in trip</th>

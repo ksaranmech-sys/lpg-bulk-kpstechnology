@@ -25,6 +25,7 @@ test('keeps the single-trip summary, expenses, and balance on one A4 page', asyn
       odometerKm: 10000 + index * 200,
       volumeLitres: 85,
       amount: 10000 + index * 500,
+      loadingPointTankFill: index === 1,
     })),
     driverAdvances: Array.from({ length: 6 }, (_, index) => ({
       date: `2026-10-${String(12 + index).padStart(2, '0')}T00:00:00.000Z`,
@@ -55,6 +56,11 @@ test('keeps the single-trip summary, expenses, and balance on one A4 page', asyn
     assert.match(result.pages[0].text, /Expenses/);
     assert.match(result.pages[0].text, /Trip Balance/);
     assert.match(result.pages[0].text, /Driver KM/);
+    assert.match(result.pages[0].text, /Mileage/);
+    assert.match(result.pages[0].text, /2\.8 km\/L/);
+    assert.match(result.pages[0].text, /Diesel for Trip/);
+    assert.match(result.pages[0].text, /339\.89 L/);
+    assert.match(result.pages[0].text, /TANK FILL/);
     assert.doesNotMatch(result.pages[0].text, /KM Beta/);
     assert.match(result.pages[0].text, /Generated on/);
   } finally {

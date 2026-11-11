@@ -223,7 +223,7 @@ export default function EntriesSummary({ trip, corporationKm, calculatedCorporat
                     <table className="trip-km-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginBottom: 8 }}>
                       <thead>
                         <tr>
-                          <th style={{ textAlign: 'left', padding: '8px 12px', border: '1px solid #1f4d2b' }}>Trip KM</th>
+                          <th style={{ textAlign: 'left', padding: '8px 12px', border: '1px solid #1f4d2b' }}>Odometer KM</th>
                           <th style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #1f4d2b' }}>Diesel for Trip</th>
                           <th style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #1f4d2b' }}>Mileage</th>
                         </tr>
