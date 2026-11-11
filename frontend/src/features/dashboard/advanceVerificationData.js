@@ -42,7 +42,7 @@ export function getAdvanceVerificationDateRange(
   const intervals = buildTripVerificationIntervals(trips, month, records);
   if (!intervals.length) return null;
   const fromDate = Math.min(...intervals.map((interval) => interval.previousTurnDate));
-  const toDate = Math.max(...intervals.map((interval) => interval.currentTurnDate));
+  const toDate = Math.max(...intervals.map((interval) => interval.lastIncludedDate));
   return {
     fromDate: new Date(fromDate).toISOString().slice(0, 10),
     toDate: new Date(toDate).toISOString().slice(0, 10),
@@ -73,7 +73,7 @@ export function buildAdvanceVerificationRows(
           if (
             recordDate == null
             || recordDate < interval.previousTurnDate
-            || recordDate > interval.currentTurnDate
+            || recordDate > interval.lastIncludedDate
             || countedStatementRecords.has(record)
           ) return false;
           return true;

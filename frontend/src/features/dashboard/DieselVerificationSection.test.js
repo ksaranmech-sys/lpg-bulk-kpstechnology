@@ -68,7 +68,7 @@ test('offers vehicle and monthly file selection for diesel verification', async 
   expect(api.listDieselVerifications).toHaveBeenCalledWith({
     vehicleId: 'vehicle-1',
     fromDate: `${month}-01`,
-    toDate: `${month}-03`,
+    toDate: `${month}-02`,
   });
   expect(container.textContent).toContain('vendor-statement.xlsx');
   const dieselHeaders = Array.from(container.querySelectorAll('thead th')).map((header) => header.textContent);

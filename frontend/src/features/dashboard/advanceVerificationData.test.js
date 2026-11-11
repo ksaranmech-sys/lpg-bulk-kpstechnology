@@ -4,7 +4,7 @@ import {
   getAdvanceVerificationDateRange,
 } from './advanceVerificationData';
 
-test('compares trip advances with statement records in previous-to-current load-turn intervals', () => {
+test('compares trip advances from the previous load turn through the day before the current turn', () => {
   const trips = [{
     _id: 'trip-1',
     loadingDate: '2026-09-01T00:00:00.000Z',
@@ -37,7 +37,7 @@ test('compares trip advances with statement records in previous-to-current load-
       unloading: 'Unloading 1',
       unloadingDate: '2026-09-03T00:00:00.000Z',
       advancesAdded: 1500,
-      advanceFromDocument: 480,
+      advanceFromDocument: 80,
     },
     {
       id: 'trip-2',
@@ -46,12 +46,12 @@ test('compares trip advances with statement records in previous-to-current load-
       unloading: '',
       unloadingDate: null,
       advancesAdded: 2000,
-      advanceFromDocument: 1500,
+      advanceFromDocument: 1900,
     },
   ]);
   expect(getAdvanceVerificationDateRange(trips, '2026-09', uploads)).toEqual({
     fromDate: '2026-08-31',
-    toDate: '2026-09-19',
+    toDate: '2026-09-18',
   });
 });
 

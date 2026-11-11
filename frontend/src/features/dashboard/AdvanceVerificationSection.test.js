@@ -61,7 +61,7 @@ test('offers vehicle/month statement upload and compares advances with the state
   expect(api.listAdvanceVerifications).toHaveBeenCalledWith({
     vehicleId: 'vehicle-1',
     fromDate: `${month}-01`,
-    toDate: `${month}-03`,
+    toDate: `${month}-02`,
   });
   expect(container.textContent).toContain('advance-statement.xlsx');
   const advanceHeaders = Array.from(container.querySelectorAll('thead th')).map((header) => header.textContent);

@@ -1,3 +1,5 @@
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 function dateValue(value) {
   const date = value ? new Date(value) : null;
   return date && !Number.isNaN(date.getTime()) ? date : null;
@@ -68,8 +70,9 @@ export function buildTripVerificationIntervals(trips, month, records) {
         ? earliestStatementDate
         : dateKey(sortedTrips[index - 1].turnDate);
       const currentTurnDate = dateKey(trip.turnDate);
-      if (previousTurnDate == null || currentTurnDate == null || currentTurnDate < previousTurnDate) return null;
-      return { trip, previousTurnDate, currentTurnDate };
+      const lastIncludedDate = currentTurnDate == null ? null : currentTurnDate - DAY_MS;
+      if (previousTurnDate == null || lastIncludedDate == null || lastIncludedDate < previousTurnDate) return null;
+      return { trip, previousTurnDate, lastIncludedDate };
     })
     .filter(Boolean);
 }

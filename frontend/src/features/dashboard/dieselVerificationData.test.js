@@ -8,7 +8,7 @@ import {
   getDieselVerificationDateRange,
 } from './dieselVerificationData';
 
-test('builds monthly trip rows using the statement start date for the first trip and load-turn dates thereafter', () => {
+test('builds monthly trip rows using the statement start date through the day before each load turn', () => {
   const rows = buildDieselVerificationRows([
     {
       _id: 'trip-2',
@@ -50,7 +50,7 @@ test('builds monthly trip rows using the statement start date for the first trip
     tripKm: 1250.5,
     mileageKmPerLitre: 2.74,
     dieselForTrip: 55,
-    dieselFromDocument: 7,
+    dieselFromDocument: 3,
     tripDiesel: 915.5,
   });
 });
@@ -121,13 +121,14 @@ test('calculates DEF statement amount totals independently from diesel', () => {
   }]);
 
   expect(rows[0]).toMatchObject({
-    dieselFromDocument: 300,
-    defAmountFromDocument: 2190.32,
+    dieselFromDocument: null,
+    defAmountFromDocument: null,
   });
   expect(rows[1]).toMatchObject({
-    defAmountFromDocument: 875,
+    dieselFromDocument: 300,
+    defAmountFromDocument: 3065.32,
   });
-  expect(formatVerificationAmount(rows[0].defAmountFromDocument)).toBe('₹2,190.32');
+  expect(formatVerificationAmount(rows[1].defAmountFromDocument)).toBe('₹3,065.32');
 });
 
 test('shows no diesel amount when a trip has no diesel entries', () => {
@@ -143,7 +144,7 @@ test('shows no diesel amount when a trip has no diesel entries', () => {
   expect(row.tripDiesel).toBeNull();
 });
 
-test('matches uploaded diesel between previous and current load-turn dates by calendar day', () => {
+test('matches uploaded diesel from the previous load turn through the day before the current turn', () => {
   const rows = buildDieselVerificationRows([{
     _id: 'previous-trip',
     createdAt: '2026-09-01T00:00:00.000Z',
@@ -165,7 +166,7 @@ test('matches uploaded diesel between previous and current load-turn dates by ca
     ],
   }]);
 
-  expect(rows.find((row) => row.id === 'date-only-trip').dieselFromDocument).toBe(13);
+  expect(rows.find((row) => row.id === 'date-only-trip').dieselFromDocument).toBe(20);
 });
 
 test('counts each statement date in only one trip row while summing same-day fills', () => {
@@ -179,6 +180,7 @@ test('counts each statement date in only one trip row while summing same-day fil
     turnDate: '2026-09-12T00:00:00.000Z',
   }], '2026-09', [{
     dieselRecords: [
+      { date: '2026-09-09T00:00:00.000Z', litres: 4 },
       { date: '2026-09-10T00:00:00.000Z', litres: 12 },
       { date: '2026-09-10T14:00:00.000Z', litres: 8 },
       { date: '2026-09-11T00:00:00.000Z', litres: 5 },
@@ -186,7 +188,7 @@ test('counts each statement date in only one trip row while summing same-day fil
     ],
   }]);
 
-  expect(rows.map((row) => row.dieselFromDocument)).toEqual([20, 12]);
+  expect(rows.map((row) => row.dieselFromDocument)).toEqual([4, 25]);
 });
 
 test('sums distinct fills with the same date from the same statement', () => {
@@ -255,7 +257,7 @@ test('loads document records across months for each consecutive trip load-turn i
     dieselRecords: [{ date: '2026-09-20T00:00:00.000Z', litres: 10 }],
   }])).toEqual({
     fromDate: '2026-09-28',
-    toDate: '2026-10-12',
+    toDate: '2026-10-11',
   });
   expect(getDieselVerificationDateRange(trips.slice(1), '2026-10')).toBeNull();
 });
@@ -276,7 +278,7 @@ test('includes DEF-only statement dates when loading cross-month trip comparison
     defAmountRecords: [{ date: '2026-09-26T00:00:00.000Z', amount: 25 }],
   }])).toEqual({
     fromDate: '2026-09-28',
-    toDate: '2026-10-12',
+    toDate: '2026-10-11',
   });
 });
 
@@ -299,10 +301,10 @@ test('finds the previous trip by loading date even when trips were created out o
     ],
   }];
 
-  expect(buildDieselVerificationRows(trips, '2026-10', uploads)[0].dieselFromDocument).toBe(30);
+  expect(buildDieselVerificationRows(trips, '2026-10', uploads)[0].dieselFromDocument).toBe(10);
 });
 
-test('uses the earliest valid uploaded document date through the current trip turn for its first row', () => {
+test('uses the earliest uploaded document date through the day before the current trip turn', () => {
   const uploads = [{
     dieselRecords: [
       { date: null, litres: 500 },
@@ -319,9 +321,9 @@ test('uses the earliest valid uploaded document date through the current trip tu
 
   expect(getDieselVerificationDateRange(trips, '2026-10', uploads)).toEqual({
     fromDate: '2026-09-20',
-    toDate: '2026-10-10',
+    toDate: '2026-10-09',
   });
-  expect(buildDieselVerificationRows(trips, '2026-10', uploads)[0].dieselFromDocument).toBe(30);
+  expect(buildDieselVerificationRows(trips, '2026-10', uploads)[0].dieselFromDocument).toBe(10);
 });
 
 test('formats verification dates and litres for the table', () => {
