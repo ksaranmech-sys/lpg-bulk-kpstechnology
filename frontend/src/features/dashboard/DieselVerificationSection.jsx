@@ -332,6 +332,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                 <thead>
                   <tr>
                     <th style={cellStyle}>S.No</th>
+                    <th style={cellStyle}>Load Turn Date</th>
                     <th style={cellStyle}>Loading</th>
                     <th style={cellStyle}>Load Weight (tons)</th>
                     <th style={cellStyle}>Unloading</th>
@@ -348,6 +349,7 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                   {rows.map((row, index) => (
                     <tr key={row.id}>
                       <td style={cellStyle}>{index + 1}</td>
+                      <td style={cellStyle}>{formatVerificationDate(row.previousLoadTurnDate)}</td>
                       <td style={cellStyle}>{row.loading || '—'}</td>
                       <td style={cellStyle}>{row.loadingWeightTons == null
                         ? '—'

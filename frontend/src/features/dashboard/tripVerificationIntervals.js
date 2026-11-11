@@ -47,6 +47,14 @@ export function orderedTrips(trips) {
   });
 }
 
+export function previousLoadTurnDates(trips) {
+  const sortedTrips = orderedTrips(trips);
+  return new Map(sortedTrips.map((trip, index) => [
+    trip._id,
+    index > 0 ? sortedTrips[index - 1].turnDate || null : null,
+  ]));
+}
+
 export function buildTripVerificationIntervals(trips, month, records) {
   const sortedTrips = orderedTrips(trips);
   const statementDates = records.map((record) => dateKey(record.date))

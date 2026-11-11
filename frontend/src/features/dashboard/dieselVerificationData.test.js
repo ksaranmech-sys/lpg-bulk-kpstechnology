@@ -44,6 +44,7 @@ test('builds monthly trip rows using the statement start date for the first trip
   expect(rows.map((row) => row.id)).toEqual(['trip-1', 'trip-2']);
   expect(rows[0]).toMatchObject({ loading: 'Loading 1', dieselFromDocument: 120, tripDiesel: null });
   expect(rows[1]).toMatchObject({
+    previousLoadTurnDate: '2026-09-19T00:00:00.000Z',
     loadingWeightTons: 17.5,
     unloading: 'Unloading 2',
     tripKm: 1250.5,

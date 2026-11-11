@@ -71,6 +71,11 @@ test('offers vehicle and monthly file selection for diesel verification', async 
     toDate: `${month}-03`,
   });
   expect(container.textContent).toContain('vendor-statement.xlsx');
+  const dieselHeaders = Array.from(container.querySelectorAll('thead th')).map((header) => header.textContent);
+  expect(dieselHeaders.slice(0, 3)).toEqual(['S.No', 'Load Turn Date', 'Loading']);
+  expect(container.textContent).toContain(
+    new Date(`${month}-01T00:00:00.000Z`).toLocaleDateString('en-IN', { timeZone: 'UTC' })
+  );
   expect(container.textContent).toContain('Loading depot');
   expect(container.textContent).toContain('Load Weight (tons)');
   expect(container.textContent).toContain('17.5 t');

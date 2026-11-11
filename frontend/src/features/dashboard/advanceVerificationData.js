@@ -1,6 +1,8 @@
 import {
   buildTripVerificationIntervals,
   dateKey,
+  orderedTrips,
+  previousLoadTurnDates,
   salaryMonthOfTrip,
 } from './tripVerificationIntervals';
 
@@ -58,15 +60,11 @@ export function buildAdvanceVerificationRows(
   const intervalsByTrip = new Map(
     buildTripVerificationIntervals(trips, month, records).map((interval) => [interval.trip._id, interval])
   );
+  const previousTurnDatesByTrip = previousLoadTurnDates(trips);
   const countedStatementRecords = new Set();
 
-  return trips
+  return orderedTrips(trips)
     .filter((trip) => salaryMonthOfTrip(trip) === month)
-    .sort((a, b) => (
-      dateKey(a.loadingDate) - dateKey(b.loadingDate)
-      || new Date(a.createdAt || a.loadingDate || 0).getTime()
-        - new Date(b.createdAt || b.loadingDate || 0).getTime()
-    ))
     .map((trip) => {
       const interval = intervalsByTrip.get(trip._id);
       const matchingRecords = interval
@@ -96,6 +94,7 @@ export function buildAdvanceVerificationRows(
 
       return {
         id: trip._id,
+        previousLoadTurnDate: previousTurnDatesByTrip.get(trip._id),
         loading: trip.loadingLocation || '',
         unloading: trip.unloadingLocation || '',
         unloadingDate: trip.unloadingDate || null,

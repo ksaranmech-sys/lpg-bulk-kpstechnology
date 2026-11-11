@@ -2,6 +2,7 @@ import {
   buildTripVerificationIntervals,
   dateKey,
   orderedTrips,
+  previousLoadTurnDates,
   salaryMonthOfTrip,
 } from './tripVerificationIntervals';
 
@@ -50,6 +51,7 @@ export function buildDieselVerificationRows(trips, month, uploads, vehicleNumber
       .map((interval) => [interval.trip._id, interval])
   );
   const ordered = orderedTrips(trips);
+  const previousTurnDatesByTrip = previousLoadTurnDates(trips);
   const countedStatementDates = new Set();
   const countedDefAmountStatementDates = new Set();
 
@@ -104,6 +106,7 @@ export function buildDieselVerificationRows(trips, month, uploads, vehicleNumber
         : null;
       return {
         id: trip._id,
+        previousLoadTurnDate: previousTurnDatesByTrip.get(trip._id),
         loading: trip.loadingLocation || '',
         loadingWeightTons: trip.loadingWeightTons ?? null,
         unloading: trip.unloadingLocation || '',

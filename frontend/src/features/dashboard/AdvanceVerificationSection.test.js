@@ -64,6 +64,11 @@ test('offers vehicle/month statement upload and compares advances with the state
     toDate: `${month}-03`,
   });
   expect(container.textContent).toContain('advance-statement.xlsx');
+  const advanceHeaders = Array.from(container.querySelectorAll('thead th')).map((header) => header.textContent);
+  expect(advanceHeaders.slice(0, 3)).toEqual(['S.No', 'Load Turn Date', 'Loading']);
+  expect(container.textContent).toContain(
+    new Date(`${month}-01T00:00:00.000Z`).toLocaleDateString('en-IN', { timeZone: 'UTC' })
+  );
   expect(container.textContent).toContain('Loading depot');
   expect(container.textContent).toContain('Customer site');
   expect(container.textContent).toContain('₹1,500');

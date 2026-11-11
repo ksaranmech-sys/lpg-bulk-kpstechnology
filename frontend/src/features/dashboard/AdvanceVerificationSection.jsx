@@ -334,10 +334,11 @@ export default function AdvanceVerificationSection({ vehicles, loading: vehicles
             <p style={{ color: '#666' }}>No trips found for this vehicle in {month}.</p>
           ) : (
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', minWidth: 900, borderCollapse: 'collapse' }}>
+              <table style={{ width: '100%', minWidth: 1050, borderCollapse: 'collapse' }}>
                 <thead>
                   <tr>
                     <th style={cellStyle}>S.No</th>
+                    <th style={cellStyle}>Load Turn Date</th>
                     <th style={cellStyle}>Loading</th>
                     <th style={cellStyle}>Unloading</th>
                     <th style={cellStyle}>Unloading Date</th>
@@ -349,6 +350,7 @@ export default function AdvanceVerificationSection({ vehicles, loading: vehicles
                   {rows.map((row, index) => (
                     <tr key={row.id}>
                       <td style={cellStyle}>{index + 1}</td>
+                      <td style={cellStyle}>{formatVerificationDate(row.previousLoadTurnDate)}</td>
                       <td style={cellStyle}>{row.loading || '—'}</td>
                       <td style={cellStyle}>{row.unloading || '—'}</td>
                       <td style={cellStyle}>{formatVerificationDate(row.unloadingDate)}</td>

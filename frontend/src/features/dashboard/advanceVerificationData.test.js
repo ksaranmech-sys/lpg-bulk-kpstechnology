@@ -32,6 +32,7 @@ test('compares trip advances with statement records in previous-to-current load-
   expect(buildAdvanceVerificationRows(trips, '2026-09', uploads)).toEqual([
     {
       id: 'trip-1',
+      previousLoadTurnDate: null,
       loading: 'Loading 1',
       unloading: 'Unloading 1',
       unloadingDate: '2026-09-03T00:00:00.000Z',
@@ -40,6 +41,7 @@ test('compares trip advances with statement records in previous-to-current load-
     },
     {
       id: 'trip-2',
+      previousLoadTurnDate: '2026-09-09T00:00:00.000Z',
       loading: '',
       unloading: '',
       unloadingDate: null,
