@@ -291,7 +291,7 @@ async function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary
 function renderSalarySheet(doc, { title, driverLabel, vehicle, customer, month, summary, trips, subtitle, basicSalaryLabel }) {
   const reportStartY = doc.page.margins.top - 10;
   renderSalarySheetHeader(doc, { title, driverLabel, vehicle, customer, month, trips, subtitle });
-  compactStyledSectionHeader(doc, 'Closed Trips & Amounts (* = Tank Fill)');
+  compactStyledSectionHeader(doc, 'Closed Trips & Amounts');
   const specialTripCharges = Number(summary.specialTripCharges || 0);
   // Sub Total = Basic + KM Beta + Special Trip Charges + Total Expenses (earnings and
   // reimbursable expenses owed to the driver). Settlement to Driver = Sub Total - Total
@@ -319,12 +319,13 @@ function renderSalarySheet(doc, { title, driverLabel, vehicle, customer, month, 
     trip.isDiverted ? trip.divertUnloadingLocation || '-' : '-',
     trip.isDiverted ? fmtDate(trip.divertDate) : '-',
     trip.corporationKm != null ? `${fmtMoney(trip.corporationKm)} km` : '-',
-    `${fmtMoney(trip.dieselLitres || 0)} L${trip.dieselEntries?.some((entry) => entry.loadingPointTankFill) ? ' *' : ''}`,
+    `${fmtMoney(trip.dieselLitres || 0)} L`,
+    Boolean(trip.dieselEntries?.some((entry) => entry.loadingPointTankFill)),
     `Rs ${fmtMoney(trip.dieselTotal || 0)}`,
     `Rs ${fmtMoney(trip.advanceTotal || 0)}`,
     `Rs ${fmtMoney(trip.expenseTotal || 0)}`,
     `Rs ${fmtMoney(trip.balance || 0)}`,
-  ]) : [['-', 'No closed trips for this month', '-', '-', '-', '-', '-', '-', '-', '-', '-']];
+  ]) : [['-', 'No closed trips for this month', '-', '-', '-', '-', '-', null, '-', '-', '-', '-']];
   const salaryTableHeight = 19 + salaryRows.length * 13 + 4;
   const footerHeight = 16;
   const remainingHeight = doc.page.height - doc.page.margins.bottom - doc.y - salaryTableHeight - footerHeight - 8;
@@ -332,7 +333,7 @@ function renderSalarySheet(doc, { title, driverLabel, vehicle, customer, month, 
   const rowHeight = Math.min(22, (remainingHeight - headerHeight) / (tableRows.length + 1));
   renderSalaryTripsTable(
     doc,
-    ['Trip', 'Route', 'Unloading Date', 'Divert To', 'Divert Date', 'Driver KM', 'Diesel L', 'Diesel Amt', 'Advance', 'Expense', 'Balance'],
+    ['Trip', 'Route', 'Unloading Date', 'Divert To', 'Divert Date', 'Driver KM', 'Diesel L', 'Tank Fill', 'Diesel Amt', 'Advance', 'Expense', 'Balance'],
     tableRows,
     {},
     { rowHeight, headerHeight, fontSize: Math.min(8, Math.max(5.5, rowHeight * 0.36)) }
@@ -432,8 +433,8 @@ function compactStyledSectionHeader(doc, text) {
 function renderSalaryTripsTable(doc, headers, rows, total = {}, options = {}) {
   const x = doc.page.margins.left;
   const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
-  const columnRatios = [0.04, 0.22, 0.075, 0.12, 0.075, 0.075, 0.065, 0.105, 0.075, 0.075, 0.07];
-  const numericTrailingCount = 6;
+  const columnRatios = [0.04, 0.18, 0.075, 0.12, 0.075, 0.075, 0.065, 0.04, 0.105, 0.075, 0.075, 0.07];
+  const numericTrailingCount = 7;
   const rowHeight = options.rowHeight || 22;
   const headerHeight = options.headerHeight || 28;
   const fontSize = options.fontSize || 8;
@@ -445,7 +446,8 @@ function renderSalaryTripsTable(doc, headers, rows, total = {}, options = {}) {
   doc.rect(x, y, width, headerHeight).fillAndStroke('#eaf2f5', '#1f4d2b');
   let columnX = x;
   headers.forEach((header, index) => {
-    const numericColumn = index >= headers.length - numericTrailingCount;
+    const isTankFillColumn = header === 'Tank Fill';
+    const numericColumn = !isTankFillColumn && index >= headers.length - numericTrailingCount;
     doc.fillColor('#102f52').font('Helvetica-Bold').fontSize(fontSize).text(
       header.toUpperCase(), columnX + 4, y + 5, { width: columnWidths[index] - 8, align: numericColumn ? 'right' : 'left', lineBreak: false }
     );
@@ -458,10 +460,25 @@ function renderSalaryTripsTable(doc, headers, rows, total = {}, options = {}) {
     doc.moveTo(x, rowY).lineTo(x + width, rowY).lineWidth(0.5).strokeColor('#b8c9d1').stroke();
     let cellX = x;
     row.forEach((cell, index) => {
-      const numericColumn = index >= row.length - numericTrailingCount;
-      doc.fillColor('#102f52').font('Helvetica').fontSize(fontSize).text(
-        String(cell), cellX + 4, rowY + Math.max(2, (rowHeight - fontSize) / 2), { width: columnWidths[index] - 8, align: numericColumn ? 'right' : 'left', lineBreak: false }
-      );
+      if (headers[index] === 'Tank Fill') {
+        if (typeof cell === 'boolean') {
+          const boxSize = Math.min(8, rowHeight - 4);
+          const boxX = cellX + (columnWidths[index] - boxSize) / 2;
+          const boxY = rowY + (rowHeight - boxSize) / 2;
+          doc.lineWidth(0.7).strokeColor('#102f52').rect(boxX, boxY, boxSize, boxSize).stroke();
+          if (cell) {
+            doc.moveTo(boxX + boxSize * 0.2, boxY + boxSize * 0.52)
+              .lineTo(boxX + boxSize * 0.43, boxY + boxSize * 0.76)
+              .lineTo(boxX + boxSize * 0.82, boxY + boxSize * 0.24)
+              .stroke();
+          }
+        }
+      } else {
+        const numericColumn = index >= row.length - numericTrailingCount;
+        doc.fillColor('#102f52').font('Helvetica').fontSize(fontSize).text(
+          String(cell), cellX + 4, rowY + Math.max(2, (rowHeight - fontSize) / 2), { width: columnWidths[index] - 8, align: numericColumn ? 'right' : 'left', lineBreak: false }
+        );
+      }
       cellX += columnWidths[index];
     });
   });
@@ -475,6 +492,10 @@ function renderSalaryTripsTable(doc, headers, rows, total = {}, options = {}) {
   // not just the last one, so the report totals every figure the reader can see per trip.
   let numericColumnX = x + labelWidth;
   for (let index = labelColumnCount; index < headers.length; index += 1) {
+    if (headers[index] === 'Tank Fill') {
+      numericColumnX += columnWidths[index];
+      continue;
+    }
     const columnTotal = rows.reduce((sum, row) => sum + (Number(String(row[index]).replace(/[^0-9.-]/g, '')) || 0), 0);
     const isLastColumn = index === headers.length - 1;
     const columnWidth = columnWidths[index];
