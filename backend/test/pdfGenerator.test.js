@@ -91,6 +91,7 @@ test('renders salary calculation first, followed by a single-trip report for eve
       amount: 42470.98 + index,
       volumeLitres: 339.89,
       paymentMethod: 'diesel_card',
+      loadingPointTankFill: index === 0,
     }],
     unloadingLocation: ['Erode', 'Chengalpattu', 'Trichy', 'Trichy', 'Cochin'][index],
     corporationKm: [952, 192, 748, 748, 1190][index],
@@ -148,8 +149,11 @@ test('renders salary calculation first, followed by a single-trip report for eve
     const result = await parser.getText();
     assert.equal(result.pages.length, 6);
     assert.match(result.pages[0].text, /Closed Trips/);
+    assert.match(result.pages[0].text, /\* = Tank Fill/);
+    assert.match(result.pages[0].text, /UNLOADING\s+DATE/);
     assert.match(result.pages[0].text, /DRIVER KM/);
     assert.match(result.pages[0].text, /DIESEL L/);
+    assert.match(result.pages[0].text, /339\.89 L \*/);
     assert.match(result.pages[0].text, /ADVANCE/);
     assert.match(result.pages[0].text, /EXPENSE/);
     assert.match(result.pages[0].text, /42,470\.98/);

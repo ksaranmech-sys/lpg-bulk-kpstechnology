@@ -291,7 +291,7 @@ async function buildDriverMonthlySummaryPdf({ driver, vehicle, customer, summary
 function renderSalarySheet(doc, { title, driverLabel, vehicle, customer, month, summary, trips, subtitle, basicSalaryLabel }) {
   const reportStartY = doc.page.margins.top - 10;
   renderSalarySheetHeader(doc, { title, driverLabel, vehicle, customer, month, trips, subtitle });
-  compactStyledSectionHeader(doc, 'Closed Trips & Amounts');
+  compactStyledSectionHeader(doc, 'Closed Trips & Amounts (* = Tank Fill)');
   const specialTripCharges = Number(summary.specialTripCharges || 0);
   // Sub Total = Basic + KM Beta + Special Trip Charges + Total Expenses (earnings and
   // reimbursable expenses owed to the driver). Settlement to Driver = Sub Total - Total
@@ -319,7 +319,7 @@ function renderSalarySheet(doc, { title, driverLabel, vehicle, customer, month, 
     trip.isDiverted ? trip.divertUnloadingLocation || '-' : '-',
     trip.isDiverted ? fmtDate(trip.divertDate) : '-',
     trip.corporationKm != null ? `${fmtMoney(trip.corporationKm)} km` : '-',
-    `${fmtMoney(trip.dieselLitres || 0)} L`,
+    `${fmtMoney(trip.dieselLitres || 0)} L${trip.dieselEntries?.some((entry) => entry.loadingPointTankFill) ? ' *' : ''}`,
     `Rs ${fmtMoney(trip.dieselTotal || 0)}`,
     `Rs ${fmtMoney(trip.advanceTotal || 0)}`,
     `Rs ${fmtMoney(trip.expenseTotal || 0)}`,
@@ -332,7 +332,7 @@ function renderSalarySheet(doc, { title, driverLabel, vehicle, customer, month, 
   const rowHeight = Math.min(22, (remainingHeight - headerHeight) / (tableRows.length + 1));
   renderSalaryTripsTable(
     doc,
-    ['Trip', 'Route', 'Date', 'Divert To', 'Divert Date', 'Driver KM', 'Diesel L', 'Diesel Amt', 'Advance', 'Expense', 'Balance'],
+    ['Trip', 'Route', 'Unloading Date', 'Divert To', 'Divert Date', 'Driver KM', 'Diesel L', 'Diesel Amt', 'Advance', 'Expense', 'Balance'],
     tableRows,
     {},
     { rowHeight, headerHeight, fontSize: Math.min(8, Math.max(5.5, rowHeight * 0.36)) }
