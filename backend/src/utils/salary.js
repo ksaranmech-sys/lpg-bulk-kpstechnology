@@ -489,7 +489,7 @@ async function calculateDriverMonthlySalary(customerId, userId, month) {
     })
       .select(
         'loadingLocation loadingDate unloadingLocation unloadingDate fillingOrderLocation turnDate unTurnDate closedAt status ' +
-        'dieselEntries.filledAt dieselEntries.amount dieselEntries.volumeLitres dieselEntries.paymentMethod dieselEntries.odometerKm ' +
+        'dieselEntries.filledAt dieselEntries.amount dieselEntries.volumeLitres dieselEntries.paymentMethod dieselEntries.odometerKm dieselEntries.loadingPointTankFill ' +
         'settlement.balance settlement.totalKm settlement.mileageKmPerLitre settlement.totalDieselLitres ' +
         'driverAdvances loadingExpense parkingExpense turnExpense unloadingExpense rtoEntries otherExpenses manualKm manualKmDivert manualKmReturn ' +
         'isDiverted divertUnloadingLocation divertDate'

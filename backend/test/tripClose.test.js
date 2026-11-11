@@ -592,7 +592,11 @@ test('monthly salary includes a pending-close trip and calculates KM Beta from i
     unloadingDate: new Date('2026-08-12T00:00:00.000Z'),
     closedAt: new Date('2026-08-15T00:00:00.000Z'),
     fillingOrderLocation: 'Unknown Filling Order',
-    dieselEntries: [],
+    dieselEntries: [{
+      filledAt: new Date('2026-08-12T00:00:00.000Z'),
+      volumeLitres: 20,
+      loadingPointTankFill: true,
+    }],
     driverAdvances: [{ amount: 100, date: new Date('2026-08-10T00:00:00.000Z') }],
     rtoEntries: [],
     otherExpenses: [],
@@ -619,7 +623,10 @@ test('monthly salary includes a pending-close trip and calculates KM Beta from i
       ]
       : [trip];
     return {
-      select() { return this; },
+      select(fields) {
+        if (!filter.nextTrip) assert.match(fields, /dieselEntries\.loadingPointTankFill/);
+        return this;
+      },
       sort(order) {
         if (order.createdAt === -1) results.sort((left, right) => right.createdAt - left.createdAt);
         return this;
@@ -635,6 +642,7 @@ test('monthly salary includes a pending-close trip and calculates KM Beta from i
 
   assert.equal(salary.trips.length, 1);
   assert.equal(salary.trips[0].previousTripTurnDate.toISOString(), '2026-07-30T00:00:00.000Z');
+  assert.equal(salary.trips[0].dieselEntries[0].loadingPointTankFill, true);
   assert.equal(salary.trips[0].corporationKm, 992);
   assert.equal(salary.corporationKm, 992);
   assert.equal(salary.kmBeta, 2976);
