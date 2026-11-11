@@ -319,16 +319,16 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
             </ul>
           )}
 
-          <h4 style={{ margin: '0 0 8px' }}>Trip comparison — {selectedVehicle?.vehicleNumber}</h4>
-          <small>
+          <h4 className="verification-comparison-title">Trip comparison — {selectedVehicle?.vehicleNumber}</h4>
+          <small className="verification-comparison-note">
             Diesel from document is summed from the previous trip&apos;s Load Turn date through this trip&apos;s Load Turn date.
             Trip and statement data refresh automatically every 30 seconds while this page is open.
           </small>
           {dataLoading ? <p>Loading trips and statements...</p> : rows.length === 0 ? (
             <p style={{ color: '#666' }}>No trips found for this vehicle in {month}.</p>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', minWidth: 1500, borderCollapse: 'collapse' }}>
+            <div className="verification-comparison-scroll">
+              <table className="verification-comparison-table diesel-comparison-table">
                 <thead>
                   <tr>
                     <th style={cellStyle}>S.No</th>

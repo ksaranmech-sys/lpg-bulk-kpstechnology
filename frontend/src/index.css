@@ -237,6 +237,169 @@ tbody tr:hover { background: #f7fbfa; }
 .salary-archive-link { padding: 0; border: 0; background: transparent; color: #2563eb; cursor: pointer; font-size: 13px; font-weight: 700; text-decoration: underline; }
 .salary-archive-link:hover { color: #1d4ed8; }
 .salary-archive-footer { display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding-top: 14px; margin-top: 18px; border-top: 1px solid var(--border); }
+
+.salary-trips-scroll,
+.verification-comparison-scroll {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid #d5e0e7;
+  border-radius: 10px;
+  background: var(--surface);
+  scrollbar-color: #8da3b0 #edf2f5;
+}
+
+.salary-trips-scroll { margin-bottom: 18px; }
+.salary-trips-table {
+  width: 1500px;
+  min-width: 1500px;
+  table-layout: fixed;
+  border: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+}
+
+.salary-trips-table th,
+.salary-trips-table td {
+  padding: 12px 10px !important;
+  border-right: 1px solid #dce5eb;
+  border-bottom: 1px solid #dce5eb;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+.salary-trips-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #eaf2f6;
+  color: #183b4b;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  line-height: 1.35;
+  text-align: center;
+  text-transform: none;
+}
+
+.salary-trips-table td { white-space: nowrap; }
+.salary-trips-table th:nth-child(1),
+.salary-trips-table td:nth-child(1) { width: 48px !important; }
+.salary-trips-table th:nth-child(2),
+.salary-trips-table td:nth-child(2),
+.salary-trips-table th:nth-child(4),
+.salary-trips-table td:nth-child(4),
+.salary-trips-table th:nth-child(6),
+.salary-trips-table td:nth-child(6) { width: 95px !important; }
+.salary-trips-table th:nth-child(3),
+.salary-trips-table td:nth-child(3),
+.salary-trips-table th:nth-child(5),
+.salary-trips-table td:nth-child(5) { width: 135px !important; }
+.salary-trips-table th:nth-child(7),
+.salary-trips-table td:nth-child(7) { width: 120px !important; }
+.salary-trips-table th:nth-child(8),
+.salary-trips-table td:nth-child(8) { width: 90px !important; }
+.salary-trips-table th:nth-child(9),
+.salary-trips-table td:nth-child(9) { width: 100px !important; }
+.salary-trips-table th:nth-child(10),
+.salary-trips-table td:nth-child(10) { width: 70px !important; text-align: center; }
+.salary-trips-table th:nth-child(11),
+.salary-trips-table td:nth-child(11),
+.salary-trips-table th:nth-child(12),
+.salary-trips-table td:nth-child(12),
+.salary-trips-table th:nth-child(13),
+.salary-trips-table td:nth-child(13) { width: 100px !important; }
+.salary-trips-table th:nth-child(14),
+.salary-trips-table td:nth-child(14) { width: 110px !important; }
+.salary-trips-table th:nth-child(15),
+.salary-trips-table td:nth-child(15) { width: 75px !important; text-align: center; }
+.salary-trips-table td:nth-child(3),
+.salary-trips-table td:nth-child(5),
+.salary-trips-table td:nth-child(7) { white-space: normal; }
+.salary-trips-table td:nth-child(2),
+.salary-trips-table td:nth-child(4),
+.salary-trips-table td:nth-child(6),
+.salary-trips-table td:nth-child(8),
+.salary-trips-table td:nth-child(9),
+.salary-trips-table td:nth-child(11),
+.salary-trips-table td:nth-child(12),
+.salary-trips-table td:nth-child(13),
+.salary-trips-table td:nth-child(14) { font-variant-numeric: tabular-nums; }
+.salary-trips-table tbody tr:nth-child(even) { background: #f7fafc; }
+.salary-trips-table tbody tr:hover { background: #edf6f7; }
+.salary-trips-table tbody tr:last-child { background: #eaf2f6; }
+.salary-trips-table tbody tr:last-child td { font-weight: 700; }
+.salary-trips-table tbody td:nth-child(10) { color: #176f50; font-size: 17px; font-weight: 700; }
+.salary-trips-table input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--green-700); }
+
+.verification-comparison-title {
+  margin: 0 0 6px;
+  color: var(--green-900);
+  font-size: 18px;
+}
+
+.verification-comparison-note {
+  display: block;
+  margin-bottom: 12px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.verification-comparison-table {
+  width: 100%;
+  min-width: 1100px;
+  table-layout: auto;
+  border: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+}
+
+.verification-comparison-table.diesel-comparison-table { min-width: 1500px; }
+.verification-comparison-table th,
+.verification-comparison-table td {
+  padding: 12px 14px !important;
+  border-right: 1px solid #e0e7ec;
+  border-bottom: 1px solid #d7e1e7;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+.verification-comparison-table th {
+  background: #eaf2f6;
+  color: #183b4b;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.verification-comparison-table td { white-space: nowrap; }
+.diesel-comparison-table th:nth-child(1),
+.diesel-comparison-table td:nth-child(1),
+.diesel-comparison-table th:nth-child(2),
+.diesel-comparison-table td:nth-child(2),
+.diesel-comparison-table th:nth-child(4),
+.diesel-comparison-table td:nth-child(4),
+.diesel-comparison-table th:nth-child(6),
+.diesel-comparison-table td:nth-child(6),
+.diesel-comparison-table th:nth-child(n+7),
+.diesel-comparison-table td:nth-child(n+7) { text-align: center !important; }
+.advance-comparison-table th:nth-child(1),
+.advance-comparison-table td:nth-child(1),
+.advance-comparison-table th:nth-child(2),
+.advance-comparison-table td:nth-child(2),
+.advance-comparison-table th:nth-child(5),
+.advance-comparison-table td:nth-child(5) { text-align: center !important; }
+.advance-comparison-table th:nth-child(n+6),
+.advance-comparison-table td:nth-child(n+6) { text-align: right !important; }
+.verification-comparison-table tbody tr:nth-child(even) { background: #f7fafc; }
+.verification-comparison-table tbody tr:hover { background: #edf6f7; }
+.verification-comparison-table th:last-child,
+.verification-comparison-table td:last-child { border-right: 0; }
+
 @media (max-width: 720px) {
   .salary-summary-identity { grid-template-columns: 1fr 1fr; gap: 10px; }
 }

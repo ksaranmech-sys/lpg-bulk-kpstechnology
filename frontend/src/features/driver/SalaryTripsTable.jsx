@@ -25,8 +25,8 @@ function manualKmLines(trip) {
 // per-trip "Closed" checkbox since Trip Close still acts on the whole trip.
 export default function SalaryTripsTable({ trips, closingTripId, onCloseTrip, totals }) {
   return (
-    <div style={{ overflowX: 'auto', marginBottom: 16 }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+    <div className="salary-trips-scroll">
+      <table className="salary-trips-table">
         <thead>
           <tr>
             <th style={{ width: '4%', textAlign: 'right', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>S.No</th>

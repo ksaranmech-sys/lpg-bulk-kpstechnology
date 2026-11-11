@@ -92,6 +92,8 @@ test('offers vehicle and monthly file selection for diesel verification', async 
   expect(container.textContent).not.toContain('DEF for Trip');
   expect(container.textContent).not.toContain('DEF added in trip');
   expect(container.textContent).toContain('DEF Amount from Document');
+  expect(container.querySelector('.verification-comparison-scroll')).not.toBeNull();
+  expect(container.querySelector('table.diesel-comparison-table')).not.toBeNull();
 
   const deleteButton = container.querySelector('button[aria-label="Delete vendor-statement.xlsx"]');
   expect(deleteButton).not.toBeNull();
