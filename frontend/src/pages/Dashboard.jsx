@@ -153,7 +153,7 @@ export default function Dashboard() {
             <SalarySection
               user={user}
               customerData={customerData}
-              driverUsers={driverUsers}
+              allDriverUsers={allDriverUsers}
               leaves={leaves}
               leavesLoading={leavesLoading}
             />

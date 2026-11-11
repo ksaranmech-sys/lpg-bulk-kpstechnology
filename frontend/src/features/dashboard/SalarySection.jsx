@@ -3,19 +3,35 @@ import { Link } from 'react-router-dom';
 import { currentMonth, latestCalculableMonth, formatMonthLabel } from '@kps/shared';
 import * as api from '../../api/api';
 
-export default function SalarySection({ user, customerData, driverUsers, leaves, leavesLoading }) {
+export default function SalarySection({ user, customerData, allDriverUsers = [], leaves, leavesLoading }) {
   const [driverSalaries, setDriverSalaries] = useState({});
   const [driverSalariesLoading, setDriverSalariesLoading] = useState(false);
   const [salaryMonth, setSalaryMonth] = useState(currentMonth);
   const [showArchivedSalary, setShowArchivedSalary] = useState(false);
 
+  const monthStart = new Date(`${salaryMonth}-01T00:00:00`);
+  const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0, 23, 59, 59, 999);
+  const salaryDrivers = allDriverUsers.filter((driver) => {
+    if (driver.isActive === false && !driver.resigningDate) return false;
+
+    const joiningDate = driver.joiningDate ? new Date(driver.joiningDate) : null;
+    const resigningDate = driver.resigningDate ? new Date(driver.resigningDate) : null;
+    if (
+      (joiningDate && Number.isNaN(joiningDate.getTime())) ||
+      (resigningDate && Number.isNaN(resigningDate.getTime()))
+    ) return false;
+
+    return (!joiningDate || joiningDate <= monthEnd) && (!resigningDate || resigningDate >= monthStart);
+  });
+  const salaryDriverIds = salaryDrivers.map((driver) => driver.id || driver._id).join(',');
+
   useEffect(() => {
-    if (user?.role !== 'customer_admin' || !user.customer || driverUsers.length === 0) {
+    if (user?.role !== 'customer_admin' || !user.customer || salaryDrivers.length === 0) {
       setDriverSalaries({});
       return;
     }
     setDriverSalariesLoading(true);
-    Promise.all(driverUsers.map((driver) => (
+    Promise.all(salaryDrivers.map((driver) => (
       api.getDriverMonthlySalary(user.customer, driver.id || driver._id, salaryMonth)
         .then((res) => [driver.id || driver._id, res.data])
         .catch(() => [driver.id || driver._id, null])
@@ -23,7 +39,7 @@ export default function SalarySection({ user, customerData, driverUsers, leaves,
       .then((entries) => setDriverSalaries(Object.fromEntries(entries)))
       .finally(() => setDriverSalariesLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, driverUsers.length, salaryMonth]);
+  }, [user, salaryDriverIds, salaryMonth]);
 
   return (
     <div className="card customer-admin-salary-section" style={{ marginTop: 24 }}>
@@ -35,13 +51,13 @@ export default function SalarySection({ user, customerData, driverUsers, leaves,
           ? 'Current month is live and calculated through today. Previous months are finalized from the 5th of the following month.'
           : `Salary for a month is calculated from the 5th of the following month (latest finalized: ${formatMonthLabel(latestCalculableMonth())}).`}
       </p>
-      {driverUsers.length === 0 ? (
-        <p>No drivers found.</p>
+      {salaryDrivers.length === 0 ? (
+        <p>No drivers active during this month.</p>
       ) : driverSalariesLoading ? (
         <p>Loading salary details...</p>
       ) : (
         <div style={{ display: 'grid', gap: 20 }}>
-          {driverUsers.map((driver) => {
+          {salaryDrivers.map((driver) => {
             const driverId = driver.id || driver._id;
             const salary = driverSalaries[driverId];
             const leavesTaken = leaves.reduce((totalDays, leave) => {

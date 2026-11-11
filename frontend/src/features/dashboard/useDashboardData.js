@@ -91,8 +91,7 @@ export function useDashboardData(user) {
       .finally(() => setVehicleExpensesLoading(false));
   }, [selectedCustomerId, user]);
 
-  // Drivers replaced under the old "one driver per vehicle" rule were deactivated rather than
-  // dated out, so the driver list needs every account - salary/leaves keep to active ones.
+  // Keep all accounts for month-specific salary history; other dashboard sections use active drivers.
   const allDriverUsers = customerData?.users?.filter((item) => item.role === 'vehicle_user') || [];
   const driverUsers = allDriverUsers.filter((item) => item.isActive !== false);
 
