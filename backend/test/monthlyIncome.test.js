@@ -79,7 +79,7 @@ test('billing month follows the vehicle corporation cut-off: IOC / HPC calendar 
   assert.deepEqual(sep.groups[0].periods[0].states[0].rows.map((r) => [r.tripId, r.leg, r.vehicleCorporation, r.cutoffDay, r.state]), [['s', 'load', 'BPC', 5, 'TN'], ['p', 'load', 'BPC', 5, 'TN'], ['s', 'divert', 'BPC', 5, 'TN']]);
   assert.deepEqual(sep.cutoffDays, { BPC: 5   });
 
-  test('current-month income starts on the 11th in IST while completed months retain the full month', () => {
+  test('current-month income is live from the start of the month after becoming available on the 11th', () => {
     const currentMonthNow = new Date('2026-10-20T06:00:00Z');
     const currentMonthTrips = [
       { _id: 'before-cutoff', vehicle: { vehicleNumber: 'KA01AA0001', corporation: 'IOC' }, status: 'closed', loadingLocation: 'Mysore, TOP', unloadingLocation: 'Mysore', loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: new Date('2026-10-09T03:00:00Z'), unloadingDate: new Date('2026-10-10T18:29:00Z') },
@@ -91,18 +91,16 @@ test('billing month follows the vehicle corporation cut-off: IOC / HPC calendar 
       now: currentMonthNow,
     });
     assert.deepEqual(current.groups[0].periods.map((period) => [period.label, period.from]), [
-      ['11 - 15', '2026-10-11'],
+      ['1 - 15', '2026-10-01'],
       ['16 - 31', '2026-10-16'],
     ]);
-    assert.deepEqual(current.groups[0].periods[0].states[0].rows.map((row) => row.tripId), ['at-cutoff']);
-    assert.equal(current.startDay, 11);
+    assert.deepEqual(current.groups[0].periods[0].states[0].rows.map((row) => row.tripId), ['before-cutoff', 'at-cutoff']);
 
     const completed = monthlyIncome.buildMonthlyIncome(currentMonthTrips, '2026-10', routeKmTable, {
       ...opts,
       now: new Date('2026-11-01T06:00:00Z'),
     });
     assert.deepEqual(completed.groups[0].periods[0].states[0].rows.map((row) => row.tripId), ['before-cutoff', 'at-cutoff']);
-    assert.equal(completed.startDay, 1);
   });
   const oct = monthlyIncome.buildMonthlyIncome(bpcTrips, '2026-10', routeKmTable, completedOpts);
   // IOC unloading on 3 Oct -> first half of October; the second half is listed empty

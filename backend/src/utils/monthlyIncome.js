@@ -118,18 +118,12 @@ function daysInMonth(month) {
   return new Date(Date.UTC(year, m, 0)).getUTCDate();
 }
 
-function startDayFor(month, now = new Date()) {
-  return month === dieselPrices.currentMonthKey(now) ? 11 : 1;
-}
-
-// Period descriptors for a vehicle corporation in `month`, in display order. Current-month
-// periods start on the 11th to match the partial-month income calculation.
-function periodsFor(vehicleCorporation, month, now = new Date()) {
+// Period descriptors for a vehicle corporation in `month`, in display order.
+function periodsFor(vehicleCorporation, month) {
   const last = daysInMonth(month);
-  const startDay = startDayFor(month, now);
   if (isHalfMonthCorporation(vehicleCorporation)) {
     return [
-      { key: 'first-half', label: `${Math.max(1, startDay)} - ${MONTHLY_INCOME_HALF_MONTH_DAY}`, from: `${month}-${String(Math.max(1, startDay)).padStart(2, '0')}`, to: `${month}-${String(MONTHLY_INCOME_HALF_MONTH_DAY).padStart(2, '0')}` },
+      { key: 'first-half', label: `1 - ${MONTHLY_INCOME_HALF_MONTH_DAY}`, from: `${month}-01`, to: `${month}-${String(MONTHLY_INCOME_HALF_MONTH_DAY).padStart(2, '0')}` },
       { key: 'second-half', label: `${MONTHLY_INCOME_HALF_MONTH_DAY + 1} - ${last}`, from: `${month}-${String(MONTHLY_INCOME_HALF_MONTH_DAY + 1).padStart(2, '0')}`, to: `${month}-${String(last).padStart(2, '0')}` },
     ];
   }
@@ -138,10 +132,9 @@ function periodsFor(vehicleCorporation, month, now = new Date()) {
     const [year, m] = month.split('-').map(Number);
     const next = new Date(Date.UTC(year, m, 1));
     const nextKey = `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`;
-    const periodStart = Math.max(cutoff + 1, startDay);
-    return [{ key: 'month', label: `${periodStart} - ${cutoff} (next month)`, from: `${month}-${String(periodStart).padStart(2, '0')}`, to: `${nextKey}-${String(cutoff).padStart(2, '0')}` }];
+    return [{ key: 'month', label: `${cutoff + 1} - ${cutoff} (next month)`, from: `${month}-${String(cutoff + 1).padStart(2, '0')}`, to: `${nextKey}-${String(cutoff).padStart(2, '0')}` }];
   }
-  return [{ key: 'month', label: `${startDay} - ${last}`, from: `${month}-${String(startDay).padStart(2, '0')}`, to: `${month}-${String(last).padStart(2, '0')}` }];
+  return [{ key: 'month', label: `1 - ${last}`, from: `${month}-01`, to: `${month}-${String(last).padStart(2, '0')}` }];
 }
 
 // One row per unloading of the trip: the Load leg (dated by Unloading date) and, for a diverted
@@ -200,19 +193,13 @@ function unloadingRows(trip, income, shortageRatePerKg) {
 // trips: plain trip objects with `vehicle` populated ({ vehicleNumber }); routeKmTable: KM table rows.
 function buildMonthlyIncome(trips, month, routeKmTable, { getRateTable, now, shortageRatePerKg } = {}) {
   const calculationTime = now || new Date();
-  const startDay = startDayFor(month, calculationTime);
   const options = {};
   if (getRateTable) options.getRateTable = getRateTable;
   options.now = calculationTime;
 
   const rows = trips
     .flatMap((trip) => unloadingRows(trip, computeTripIncome(trip, routeKmTable, options), shortageRatePerKg))
-    .filter((row) => {
-      if (row.month !== month) return false;
-      if (startDay === 1) return true;
-      const day = dieselPrices.istDayKey(row.unloadingDate);
-      return day && Number(day.slice(8, 10)) >= startDay;
-    })
+    .filter((row) => row.month === month)
     .sort((a, b) => {
       const byDate = new Date(a.unloadingDate) - new Date(b.unloadingDate);
       return byDate || a.vehicleNumber.localeCompare(b.vehicleNumber);
@@ -256,7 +243,7 @@ function buildMonthlyIncome(trips, month, routeKmTable, { getRateTable, now, sho
         cutoffDay: cutoffDayFor(corporation),
         halfMonth: isHalfMonthCorporation(corporation),
         // Every configured period is listed (even when empty) so both halves always show for IOC / HPC.
-        periods: periodsFor(corporation, month, calculationTime).map((period) => {
+        periods: periodsFor(corporation, month).map((period) => {
           const periodRows = byPeriod.get(period.key) || [];
           return { ...period, states: stateGroups(periodRows), totals: sumRows(periodRows) };
         }),
@@ -266,7 +253,6 @@ function buildMonthlyIncome(trips, month, routeKmTable, { getRateTable, now, sho
 
   return {
     month,
-    startDay,
     rates: { tds: TDS_RATE, diesel: DIESEL_SHARE, amount: AMOUNT_SHARE, shortagePerKg: shortageRatePerKg ?? null },
     cutoffDays: MONTHLY_INCOME_CUTOFF_DAY,
     halfMonthCorporations: MONTHLY_INCOME_HALF_MONTH_CORPORATIONS,
@@ -305,7 +291,6 @@ module.exports = {
   billingMonthOf,
   billingPeriodOf,
   periodsFor,
-  startDayFor,
   unloadingRows,
   buildMonthlyIncome,
   loadTripsForMonth,

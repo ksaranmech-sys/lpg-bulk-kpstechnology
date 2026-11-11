@@ -253,7 +253,7 @@ test('the three most recent completed months are one click away; older months ar
   await unmount();
 });
 
-test('makes the current month available from the 11th and labels its income start date', async () => {
+test('labels the current month as live once it becomes available on the 11th', async () => {
   jest.setSystemTime(new Date('2026-10-11T10:00:00'));
   api.getCustomerMonthlyIncome.mockImplementation((_, month) => Promise.resolve(response(month, [])));
 
@@ -261,7 +261,7 @@ test('makes the current month available from the 11th and labels its income star
 
   expect(api.getCustomerMonthlyIncome).toHaveBeenCalledWith('c1', '2026-10');
   expect(container.querySelector('h3').textContent).toBe('Monthly Income (October 2026)');
-  expect(container.textContent).toContain('from the 11th onward');
+  expect(container.textContent).toContain('live through today; available from the 11th');
   expect(buttonByText(container, 'October 2026')).not.toBeNull();
   expect(container.querySelector('h3').textContent).not.toContain('Archived');
   await unmount();

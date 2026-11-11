@@ -425,7 +425,7 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
         Printed on {formatDateLong(new Date())}
       </p>
       <p className="no-print" style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
-        Income for all vehicles unloaded in {formatMonthLabel(month)}{month === currentMonth() ? ' from the 11th onward' : ''}, split by the vehicle&apos;s corporation (IOC, BPC, HPC, ...)
+        Income for all vehicles unloaded in {formatMonthLabel(month)}{month === currentMonth() ? ' (live through today; available from the 11th)' : ''}, split by the vehicle&apos;s corporation (IOC, BPC, HPC, ...)
         - IOC and HPC in two periods (1-15 and 16-month end), the rest once - and then by the route&apos;s state from the
         KM table (TN, KA, TS, PY, ...) - a trip counts in the
         month of its Unloading date; a diverted trip&apos;s new unloading counts in the month of its Divert date.
