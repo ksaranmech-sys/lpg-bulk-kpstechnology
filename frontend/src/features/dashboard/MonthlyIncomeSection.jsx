@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { previousMonth, formatMonthLabel, formatDateLong } from '@kps/shared';
+import { currentMonth, previousMonth, formatMonthLabel, formatDateLong } from '@kps/shared';
 import * as api from '../../api/api';
 
 const money = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -21,8 +21,16 @@ function cutoffText(cutoffDays) {
   return `${entries.map(([corp, day]) => `${corp} vehicles up to the ${ordinal(day)} of the next month`).join(', ')}; other corporations (IOC, HPC, ...) the calendar month`;
 }
 
-// The three most recent completed months admins can open directly without the archive.
+// Show the current month from the 11th; before then, keep the latest completed month first.
 function recentMonths(today = new Date()) {
+  if (today.getDate() >= 11) {
+    const last = currentMonth(today);
+    const [year, month] = last.split('-').map(Number);
+    const previous = previousMonth(new Date(year, month - 1, 1));
+    const [previousYear, previousMonthNumber] = previous.split('-').map(Number);
+    return [last, previous, previousMonth(new Date(previousYear, previousMonthNumber - 1, 1))];
+  }
+
   const last = previousMonth(today);
   const [year, month] = last.split('-').map(Number);
   const beforeLast = previousMonth(new Date(year, month - 1, 1));
@@ -221,7 +229,7 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
     return () => { cancelled = true; };
   }, [customerId, month]);
 
-  const isArchivedMonth = !recentMonthKeys.includes(month);
+  const isArchivedMonth = month !== currentMonth() && !recentMonthKeys.includes(month);
   const monthButton = (key) => (
     <button
       key={key}
@@ -417,12 +425,14 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
         Printed on {formatDateLong(new Date())}
       </p>
       <p className="no-print" style={{ margin: '0 0 12px', color: '#666', fontSize: 13 }}>
-        Income for all vehicles unloaded in {formatMonthLabel(month)}, split by the vehicle&apos;s corporation (IOC, BPC, HPC, ...)
+        Income for all vehicles unloaded in {formatMonthLabel(month)}{month === currentMonth() ? ' from the 11th onward' : ''}, split by the vehicle&apos;s corporation (IOC, BPC, HPC, ...)
         - IOC and HPC in two periods (1-15 and 16-month end), the rest once - and then by the route&apos;s state from the
         KM table (TN, KA, TS, PY, ...) - a trip counts in the
         month of its Unloading date; a diverted trip&apos;s new unloading counts in the month of its Divert date.
         {' '}Cut-off follows the vehicle&apos;s corporation: {cutoffText(income?.cutoffDays)}.
-        The three most recent completed months are available above; older months are under archived income.
+        {month === currentMonth()
+          ? 'The current month and two most recent completed months are available above; older months are under archived income.'
+          : 'The three most recent completed months are available above; older months are under archived income.'}
       </p>
 
       {error && <p className="error-text">{error}</p>}
@@ -461,7 +471,7 @@ export default function MonthlyIncomeSection({ customerId, className = '' }) {
               id="income-month"
               type="month"
               value={month}
-              max={recentMonthKeys[recentMonthKeys.length - 1]}
+              max={currentMonth()}
               onChange={(event) => event.target.value && setMonth(event.target.value)}
             />
           </div>

@@ -17,6 +17,7 @@ function fakeRateTable(id) {
   return rateTables.computeRateTable(config, { dieselCells: { '2026-09': { value: 100 } }, now });
 }
 const opts = { getRateTable: fakeRateTable, now };
+const completedOpts = { ...opts, now: new Date('2026-11-03T06:00:00Z') };
 
 function rate(id, rowKey) {
   return rateTables.rateValueForMonth(fakeRateTable(id), rowKey, '2026-09').value;
@@ -76,8 +77,34 @@ test('billing month follows the vehicle corporation cut-off: IOC / HPC calendar 
   assert.deepEqual(sep.groups.map((g) => [g.vehicleCorporation, g.cutoffDay, g.halfMonth, g.periods.map((p) => [p.key, p.label, p.states.map((s) => s.state)])]), [['BPC', 5, false, [['month', '6 - 5 (next month)', ['TN']]]]]);
   assert.deepEqual([sep.groups[0].periods[0].from, sep.groups[0].periods[0].to], ['2026-09-06', '2026-10-05']);
   assert.deepEqual(sep.groups[0].periods[0].states[0].rows.map((r) => [r.tripId, r.leg, r.vehicleCorporation, r.cutoffDay, r.state]), [['s', 'load', 'BPC', 5, 'TN'], ['p', 'load', 'BPC', 5, 'TN'], ['s', 'divert', 'BPC', 5, 'TN']]);
-  assert.deepEqual(sep.cutoffDays, { BPC: 5 });
-  const oct = monthlyIncome.buildMonthlyIncome(bpcTrips, '2026-10', routeKmTable, opts);
+  assert.deepEqual(sep.cutoffDays, { BPC: 5   });
+
+  test('current-month income starts on the 11th in IST while completed months retain the full month', () => {
+    const currentMonthNow = new Date('2026-10-20T06:00:00Z');
+    const currentMonthTrips = [
+      { _id: 'before-cutoff', vehicle: { vehicleNumber: 'KA01AA0001', corporation: 'IOC' }, status: 'closed', loadingLocation: 'Mysore, TOP', unloadingLocation: 'Mysore', loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: new Date('2026-10-09T03:00:00Z'), unloadingDate: new Date('2026-10-10T18:29:00Z') },
+      { _id: 'at-cutoff', vehicle: { vehicleNumber: 'KA01AA0002', corporation: 'IOC' }, status: 'closed', loadingLocation: 'Mysore, TOP', unloadingLocation: 'Mysore', loadingWeightTons: 18, unloadingWeightTons: 18, loadingDate: new Date('2026-10-10T03:00:00Z'), unloadingDate: new Date('2026-10-10T18:30:00Z') },
+    ];
+
+    const current = monthlyIncome.buildMonthlyIncome(currentMonthTrips, '2026-10', routeKmTable, {
+      ...opts,
+      now: currentMonthNow,
+    });
+    assert.deepEqual(current.groups[0].periods.map((period) => [period.label, period.from]), [
+      ['11 - 15', '2026-10-11'],
+      ['16 - 31', '2026-10-16'],
+    ]);
+    assert.deepEqual(current.groups[0].periods[0].states[0].rows.map((row) => row.tripId), ['at-cutoff']);
+    assert.equal(current.startDay, 11);
+
+    const completed = monthlyIncome.buildMonthlyIncome(currentMonthTrips, '2026-10', routeKmTable, {
+      ...opts,
+      now: new Date('2026-11-01T06:00:00Z'),
+    });
+    assert.deepEqual(completed.groups[0].periods[0].states[0].rows.map((row) => row.tripId), ['before-cutoff', 'at-cutoff']);
+    assert.equal(completed.startDay, 1);
+  });
+  const oct = monthlyIncome.buildMonthlyIncome(bpcTrips, '2026-10', routeKmTable, completedOpts);
   // IOC unloading on 3 Oct -> first half of October; the second half is listed empty
   assert.deepEqual(oct.groups.map((g) => [g.vehicleCorporation, g.halfMonth, g.periods.map((p) => [p.key, p.label, p.states.map((s) => s.rows.map((r) => r.tripId))])]), [['IOC', true, [['first-half', '1 - 15', [['q']]], ['second-half', '16 - 31', []]]]]);
   const aug = monthlyIncome.buildMonthlyIncome(bpcTrips, '2026-08', routeKmTable, opts);
@@ -305,7 +332,7 @@ test('monthly income uses the unloading location corporation when it differs fro
 });
 
 test('a diverted trip\'s Divert leg is billed in the month of the new unloading, from the first unloading point', () => {
-  const result = monthlyIncome.buildMonthlyIncome(trips, '2026-10', routeKmTable, opts);
+  const result = monthlyIncome.buildMonthlyIncome(trips, '2026-10', routeKmTable, completedOpts);
   const tn = result.groups[0].periods[0].states.find((s) => s.state === 'TN');
   assert.deepEqual(tn.rows.map((r) => [r.tripId, r.leg]), [['h', 'divert']]);
   const divert = tn.rows[0];

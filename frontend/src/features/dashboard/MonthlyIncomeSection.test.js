@@ -241,7 +241,7 @@ test('the three most recent completed months are one click away; older months ar
 
   await click(buttonByText(container, 'View archived income'));
   const picker = container.querySelector('#income-month');
-  expect(picker.getAttribute('max')).toBe('2026-07');
+  expect(picker.getAttribute('max')).toBe('2026-10');
   await setInputValue(picker, '2026-06');
   expect(api.getCustomerMonthlyIncome).toHaveBeenLastCalledWith('c1', '2026-06');
   expect(container.querySelector('h3').textContent).toBe('Monthly Income (June 2026) - Archived');
@@ -250,6 +250,20 @@ test('the three most recent completed months are one click away; older months ar
   await click(buttonByText(container, 'Hide archived income'));
   expect(api.getCustomerMonthlyIncome).toHaveBeenLastCalledWith('c1', '2026-09');
   expect(container.querySelector('h3').textContent).toBe('Monthly Income (September 2026)');
+  await unmount();
+});
+
+test('makes the current month available from the 11th and labels its income start date', async () => {
+  jest.setSystemTime(new Date('2026-10-11T10:00:00'));
+  api.getCustomerMonthlyIncome.mockImplementation((_, month) => Promise.resolve(response(month, [])));
+
+  const { container, unmount } = await mount(<MemoryRouter><MonthlyIncomeSection customerId="c1" /></MemoryRouter>);
+
+  expect(api.getCustomerMonthlyIncome).toHaveBeenCalledWith('c1', '2026-10');
+  expect(container.querySelector('h3').textContent).toBe('Monthly Income (October 2026)');
+  expect(container.textContent).toContain('from the 11th onward');
+  expect(buttonByText(container, 'October 2026')).not.toBeNull();
+  expect(container.querySelector('h3').textContent).not.toContain('Archived');
   await unmount();
 });
 
