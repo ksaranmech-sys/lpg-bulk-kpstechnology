@@ -1,8 +1,8 @@
 import {
   buildTripVerificationIntervals,
   dateKey,
-  monthOf,
   orderedTrips,
+  salaryMonthOfTrip,
 } from './tripVerificationIntervals';
 
 function dateValue(value) {
@@ -54,7 +54,7 @@ export function buildDieselVerificationRows(trips, month, uploads, vehicleNumber
   const countedDefAmountStatementDates = new Set();
 
   return ordered
-    .filter((trip) => monthOf(trip.loadingDate) === month)
+    .filter((trip) => salaryMonthOfTrip(trip) === month)
     .map((trip) => {
       const interval = intervalsByTrip.get(trip._id);
       const matchingRecords = interval

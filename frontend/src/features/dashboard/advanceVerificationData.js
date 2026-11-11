@@ -1,7 +1,7 @@
 import {
   buildTripVerificationIntervals,
   dateKey,
-  monthOf,
+  salaryMonthOfTrip,
 } from './tripVerificationIntervals';
 
 function normalizeVehicleNumber(value) {
@@ -61,7 +61,7 @@ export function buildAdvanceVerificationRows(
   const countedStatementRecords = new Set();
 
   return trips
-    .filter((trip) => monthOf(trip.loadingDate) === month)
+    .filter((trip) => salaryMonthOfTrip(trip) === month)
     .sort((a, b) => (
       dateKey(a.loadingDate) - dateKey(b.loadingDate)
       || new Date(a.createdAt || a.loadingDate || 0).getTime()

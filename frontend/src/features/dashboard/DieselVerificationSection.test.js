@@ -128,6 +128,7 @@ test('refreshes trip diesel automatically and when the page regains focus', asyn
   const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
   const tripFor = (litres) => ({
     _id: 'trip-live',
+    status: 'closed',
     loadingDate: `${month}-01T00:00:00.000Z`,
     unloadingDate: `${month}-03T00:00:00.000Z`,
     dieselEntries: [{ volumeLitres: litres }],

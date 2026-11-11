@@ -54,11 +54,40 @@ test('builds monthly trip rows using the statement start date for the first trip
   });
 });
 
+test('uses salary-month trips rather than grouping verification by loading month', () => {
+  const rows = buildDieselVerificationRows([
+    {
+      _id: 'closed-in-selected-month',
+      loadingDate: '2026-09-28T00:00:00.000Z',
+      turnDate: '2026-10-02T00:00:00.000Z',
+      loadingLocation: 'Prior month load',
+      dieselEntries: [{ volumeLitres: 10 }],
+    },
+    {
+      _id: 'not-yet-salary-ready',
+      status: 'open',
+      loadingDate: '2026-10-05T00:00:00.000Z',
+      loadingLocation: 'Open trip',
+    },
+    {
+      _id: 'salary-date-next-month',
+      status: 'closed',
+      loadingDate: '2026-10-20T00:00:00.000Z',
+      turnDate: '2026-11-02T00:00:00.000Z',
+      loadingLocation: 'Next month close',
+    },
+  ], '2026-10', []);
+
+  expect(rows.map((row) => row.id)).toEqual(['closed-in-selected-month']);
+});
+
 test('shows diesel entry totals before a trip settlement is available', () => {
   const [row] = buildDieselVerificationRows([{
     _id: 'not-yet-settled-trip',
+    status: 'open',
     loadingDate: '2026-09-10T00:00:00.000Z',
     unloadingDate: '2026-09-12T00:00:00.000Z',
+    turnDate: '2026-09-12T00:00:00.000Z',
     dieselEntries: [{ volumeLitres: 25 }, { volumeLitres: 35 }],
   }], '2026-09', []);
 
@@ -103,6 +132,7 @@ test('calculates DEF statement amount totals independently from diesel', () => {
 test('shows no diesel amount when a trip has no diesel entries', () => {
   const [row] = buildDieselVerificationRows([{
     _id: 'trip-without-diesel',
+    status: 'closed',
     loadingDate: '2026-09-10T00:00:00.000Z',
     unloadingDate: '2026-09-12T00:00:00.000Z',
     dieselEntries: [],

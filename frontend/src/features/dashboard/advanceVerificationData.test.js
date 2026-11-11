@@ -53,6 +53,30 @@ test('compares trip advances with statement records in previous-to-current load-
   });
 });
 
+test('uses salary-month trips rather than grouping verification by loading month', () => {
+  const rows = buildAdvanceVerificationRows([
+    {
+      _id: 'closed-in-selected-month',
+      loadingDate: '2026-09-28T00:00:00.000Z',
+      turnDate: '2026-10-02T00:00:00.000Z',
+      driverAdvances: [{ amount: 10 }],
+    },
+    {
+      _id: 'not-yet-salary-ready',
+      status: 'open',
+      loadingDate: '2026-10-05T00:00:00.000Z',
+    },
+    {
+      _id: 'salary-date-next-month',
+      status: 'closed',
+      loadingDate: '2026-10-20T00:00:00.000Z',
+      turnDate: '2026-11-02T00:00:00.000Z',
+    },
+  ], '2026-10', []);
+
+  expect(rows.map((row) => row.id)).toEqual(['closed-in-selected-month']);
+});
+
 test('filters statement rows by vehicle and leaves unmatched trips visible', () => {
   const trips = [{
     _id: 'trip-1',
@@ -114,6 +138,7 @@ test('matches statement rows by driver mobile without assigning them to the uplo
 test('returns null for unavailable interval data and formats currency amounts', () => {
   expect(buildAdvanceVerificationRows([{
     _id: 'unsettled-trip',
+    status: 'closed',
     loadingDate: '2026-10-01T00:00:00.000Z',
     driverAdvances: [{ amount: 50 }],
   }], '2026-10', [])[0]).toMatchObject({
