@@ -38,6 +38,7 @@ export default function SalaryTripsTable({ trips, closingTripId, onCloseTrip, to
             <th style={{ width: '11%', textAlign: 'left', padding: '8px 10px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Divert Location</th>
             <th style={{ width: '8%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Driver KM</th>
             <th style={{ width: '8%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Diesel (Litres)</th>
+            <th style={{ width: '6%', textAlign: 'center', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Tank Fill</th>
             <th style={{ width: '9%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Diesel</th>
             <th style={{ width: '9%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Advance</th>
             <th style={{ width: '9%', textAlign: 'right', padding: '8px 8px', verticalAlign: 'middle', border: '1px solid #d0d7de' }}>Trip Expense</th>
@@ -47,7 +48,7 @@ export default function SalaryTripsTable({ trips, closingTripId, onCloseTrip, to
         </thead>
         <tbody>
           {(trips || []).length === 0 ? (
-            <tr><td colSpan="14" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No trips for this month.</td></tr>
+            <tr><td colSpan="15" style={{ padding: '8px 12px', color: '#666', border: '1px solid #d0d7de' }}>No trips for this month.</td></tr>
           ) : (trips || []).map((trip, index) => (
             <tr key={trip._id || index}>
               <td style={{ textAlign: 'right', padding: '8px 12px', border: '1px solid #d0d7de' }}>{index + 1}</td>
@@ -64,6 +65,9 @@ export default function SalaryTripsTable({ trips, closingTripId, onCloseTrip, to
                 ))}
               </td>
               <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>{formatDieselValue(trip.dieselLitres)} L</td>
+              <td style={{ padding: '8px 8px', textAlign: 'center', border: '1px solid #d0d7de' }}>
+                {trip.dieselEntries?.some((entry) => entry.loadingPointTankFill) ? '✓' : ''}
+              </td>
               <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {formatDieselValue(trip.dieselTotal)}</td>
               <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.advanceTotal ?? 0}</td>
               <td style={{ padding: '8px 12px', textAlign: 'right', border: '1px solid #d0d7de' }}>Rs {trip.expenseTotal ?? 0}</td>
@@ -83,6 +87,7 @@ export default function SalaryTripsTable({ trips, closingTripId, onCloseTrip, to
             <td colSpan="7" style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, border: '1px solid #d0d7de' }}>Total</td>
             <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>{Math.round(totals.corporationKm || 0)} km</td>
             <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>{formatDieselValue(totals.totalDieselLitres)} L</td>
+            <td style={{ padding: '8px 8px', border: '1px solid #d0d7de' }}></td>
             <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {formatDieselValue(totals.totalDiesel)}</td>
             <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {totals.totalAdvance}</td>
             <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 700, border: '1px solid #d0d7de' }}>Rs {totals.totalExpense}</td>

@@ -17,6 +17,7 @@ test('formats diesel litres and amounts to exactly two decimal places', async ()
           turnDate: '2026-11-10T00:00:00.000Z',
           dieselLitres: 431.01,
           dieselTotal: 42470.979999996,
+          dieselEntries: [{ loadingPointTankFill: true }],
         }]}
         closingTripId={null}
         onCloseTrip={() => {}}
@@ -39,9 +40,11 @@ test('formats diesel litres and amounts to exactly two decimal places', async ()
   expect(container.querySelectorAll('thead th')[1].textContent).toBe('Load Turn Date');
   expect(container.querySelectorAll('thead th')[2].textContent).toBe('Loading Location');
   expect(tripCells[8].textContent).toBe('431.01 L');
-  expect(tripCells[9].textContent).toBe('Rs 42,470.98');
+  expect(container.querySelectorAll('thead th')[9].textContent).toBe('Tank Fill');
+  expect(tripCells[9].textContent).toBe('✓');
+  expect(tripCells[10].textContent).toBe('Rs 42,470.98');
   expect(rows[1].querySelectorAll('td')[2].textContent).toBe('431.01 L');
-  expect(rows[1].querySelectorAll('td')[3].textContent).toBe('Rs 42,470.98');
+  expect(rows[1].querySelectorAll('td')[4].textContent).toBe('Rs 42,470.98');
 
   await act(async () => root.unmount());
   container.remove();
