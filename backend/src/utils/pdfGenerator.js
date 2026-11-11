@@ -461,17 +461,15 @@ function renderSalaryTripsTable(doc, headers, rows, total = {}, options = {}) {
     let cellX = x;
     row.forEach((cell, index) => {
       if (headers[index] === 'Tank Fill') {
-        if (typeof cell === 'boolean') {
-          const boxSize = Math.min(8, rowHeight - 4);
-          const boxX = cellX + (columnWidths[index] - boxSize) / 2;
-          const boxY = rowY + (rowHeight - boxSize) / 2;
-          doc.lineWidth(0.7).strokeColor('#102f52').rect(boxX, boxY, boxSize, boxSize).stroke();
-          if (cell) {
-            doc.moveTo(boxX + boxSize * 0.2, boxY + boxSize * 0.52)
-              .lineTo(boxX + boxSize * 0.43, boxY + boxSize * 0.76)
-              .lineTo(boxX + boxSize * 0.82, boxY + boxSize * 0.24)
-              .stroke();
-          }
+        if (cell === true) {
+          const tickSize = Math.min(10, rowHeight - 4);
+          const tickX = cellX + (columnWidths[index] - tickSize) / 2;
+          const tickY = rowY + (rowHeight - tickSize) / 2;
+          doc.lineWidth(1.6).lineCap('round').lineJoin('round').strokeColor('#102f52')
+            .moveTo(tickX + tickSize * 0.12, tickY + tickSize * 0.52)
+            .lineTo(tickX + tickSize * 0.4, tickY + tickSize * 0.82)
+            .lineTo(tickX + tickSize * 0.9, tickY + tickSize * 0.18)
+            .stroke();
         }
       } else {
         const numericColumn = index >= row.length - numericTrailingCount;
