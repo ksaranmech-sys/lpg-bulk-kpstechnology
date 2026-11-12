@@ -113,15 +113,16 @@ test('orders customer admin dashboard sections as requested', async () => {
     'monthly-income',
     'salary-details',
     'vehicle-driver-list',
+    'trip-history',
     'leave-entries',
     'vehicle-expenses',
     'manage-vehicle-expenses',
-    'trip-history',
     'reminder-expiry',
     'vehicle-maintenance',
     'diesel-verification',
     'advance-verification',
   ]);
+  expect(container.querySelector('[aria-label="Vehicle management"]')).toBeNull();
 
   await act(async () => root.unmount());
   mockAuthenticatedDriver.role = 'vehicle_user';

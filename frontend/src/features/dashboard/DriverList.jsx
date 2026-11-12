@@ -5,7 +5,7 @@ import * as api from '../../api/api';
 import AddDriverForm from './AddDriverForm';
 import DriverEditForm from './DriverEditForm';
 
-export default function DriverList({ user, vehicles, setVehicles, customerData, setCustomerData, driverUsers, vehicleExpenses = [] }) {
+export default function DriverList({ user, vehicles, setVehicles, customerData, setCustomerData, driverUsers }) {
   const [driverForm, setDriverForm] = useState(EMPTY_DRIVER_FORM);
   const [driverError, setDriverError] = useState('');
   const [driverSaving, setDriverSaving] = useState(false);
@@ -213,13 +213,6 @@ export default function DriverList({ user, vehicles, setVehicles, customerData, 
   }
 
   const customerVehicles = customerData?.vehicles || vehicles;
-  const currentYear = new Date().getFullYear();
-  const yearExpenseByVehicle = vehicleExpenses.reduce((acc, expense) => {
-    if (new Date(expense.date).getFullYear() !== currentYear) return acc;
-    const vehicleId = String(expense.vehicle?._id || expense.vehicle || '');
-    acc[vehicleId] = (acc[vehicleId] || 0) + (Number(expense.amount) || 0);
-    return acc;
-  }, {});
   // One row per driver: vehicles can carry several drivers (one per date range) and drivers
   // can exist without a vehicle, so every driver is listed either under a vehicle or at the end.
   const vehicleIds = new Set(customerVehicles.map((vehicle) => String(vehicle._id)));
@@ -233,9 +226,8 @@ export default function DriverList({ user, vehicles, setVehicles, customerData, 
     if (driver.resigningDate && new Date(driver.resigningDate) < today) return false;
     return true;
   };
-  const formatAssignmentDates = (driver) => (
-    `${driver.joiningDate ? new Date(driver.joiningDate).toLocaleDateString('en-IN') : 'Not set'}`
-    + `${driver.resigningDate ? ` - ${new Date(driver.resigningDate).toLocaleDateString('en-IN')}` : ''}`
+  const formatJoiningDate = (driver) => (
+    driver.joiningDate ? new Date(driver.joiningDate).toLocaleDateString('en-IN') : 'Joining date not set'
   );
   const toggleDriver = (driver) => {
     const driverId = String(driver.id || driver._id);
@@ -244,8 +236,8 @@ export default function DriverList({ user, vehicles, setVehicles, customerData, 
     ));
   };
   const renderDriverCell = (driver) => (
-    <>
-      <Link to={`/drivers/${user.customer}/${driver.id || driver._id}`} style={{ color: 'var(--green-900)', fontWeight: 700 }}>
+    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+      <Link to={`/drivers/${user.customer}/${driver.id || driver._id}`} style={{ color: 'var(--green-900)', fontSize: 14, fontWeight: 700 }}>
         {driver.displayName || driver.name || 'Unnamed driver'}
       </Link>
       {driver.isActive === false ? (
@@ -264,10 +256,10 @@ export default function DriverList({ user, vehicles, setVehicles, customerData, 
       ) : driver.vehicle && !isDriverAssignedToday(driver) && (
         <span style={{ marginLeft: 6, fontSize: 11, color: '#8a6d1f' }}>(not current)</span>
       )}
-      <div style={{ fontSize: 12, color: '#666' }}>
-        {driver.username} | Joining Date: {formatAssignmentDates(driver)}
-      </div>
-    </>
+      <span className="driver-list-driver-details" style={{ fontSize: 12, color: '#666' }}>
+        {driver.mobileNumber || 'No phone'} (Joining Date: {formatJoiningDate(driver)})
+      </span>
+    </div>
   );
 
   return (
@@ -282,7 +274,7 @@ export default function DriverList({ user, vehicles, setVehicles, customerData, 
             const drivers = driversForVehicle(vehicle._id);
             const rows = drivers.length ? drivers : [null];
             return rows.map((driver, index) => (
-            <div key={`${vehicle._id}-${driver ? (driver.id || driver._id) : 'none'}`} className="list-item" style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr 1fr', alignItems: 'center', gap: 16 }}>
+            <div key={`${vehicle._id}-${driver ? (driver.id || driver._id) : 'none'}`} className="list-item" style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) minmax(0, 1fr)', alignItems: 'center', gap: 16 }}>
               <input
                 type="checkbox"
                 checked={driver ? selectedDrivers.includes(String(driver.id || driver._id)) : false}
@@ -292,19 +284,9 @@ export default function DriverList({ user, vehicles, setVehicles, customerData, 
                 style={{ width: 'auto' }}
               />
               <div>
-                {index === 0 ? (
-                  <>
-                    <strong>{vehicle.vehicleNumber}</strong>
-                    <div style={{ fontSize: 12, color: '#666' }}>
-                      Expenses {currentYear}: Rs {Math.round(yearExpenseByVehicle[String(vehicle._id)] || 0).toLocaleString('en-IN')}
-                    </div>
-                  </>
-                ) : (
-                  <span style={{ fontSize: 12, color: '#666' }}>{vehicle.vehicleNumber}</span>
-                )}
-              </div>
-              <div style={{ textAlign: 'center', color: '#4b6470' }}>
-                {driver?.mobileNumber || 'No phone'}
+                <strong style={{ fontSize: 14 }}>
+                  {vehicle.vehicleNumber}, {vehicle.corporation || 'No corporation'}
+                </strong>
               </div>
               <div style={{ textAlign: 'right' }}>
                 {driver ? renderDriverCell(driver) : <span style={{ color: '#666' }}>Unassigned vehicle</span>}
@@ -313,7 +295,7 @@ export default function DriverList({ user, vehicles, setVehicles, customerData, 
             ));
           })}
           {unassignedDrivers.map((driver) => (
-            <div key={`unassigned-${driver.id || driver._id}`} className="list-item" style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr 1fr', alignItems: 'center', gap: 16 }}>
+            <div key={`unassigned-${driver.id || driver._id}`} className="list-item" style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) minmax(0, 1fr)', alignItems: 'center', gap: 16 }}>
               <input
                 type="checkbox"
                 checked={selectedDrivers.includes(String(driver.id || driver._id))}
@@ -323,9 +305,6 @@ export default function DriverList({ user, vehicles, setVehicles, customerData, 
               />
               <div>
                 <strong style={{ color: '#666' }}>No vehicle</strong>
-              </div>
-              <div style={{ textAlign: 'center', color: '#4b6470' }}>
-                {driver.mobileNumber || 'No phone'}
               </div>
               <div style={{ textAlign: 'right' }}>
                 {renderDriverCell(driver)}

@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useDashboardData } from '../features/dashboard/useDashboardData';
 import ReminderPopup from '../features/dashboard/ReminderPopup';
 import RouteKmTable from '../features/dashboard/RouteKmTable';
+import VehiclesTable from '../features/customer/VehiclesTable';
 import ShortageRateForm from '../features/dashboard/ShortageRateForm';
 import DieselPriceTable from '../features/dashboard/DieselPriceTable';
 import RateTables from '../features/dashboard/RateTables';
@@ -26,7 +27,6 @@ import VehicleMaintenanceSection from '../features/dashboard/VehicleMaintenanceS
 import MaintenanceReminderPopup from '../features/dashboard/MaintenanceReminderPopup';
 import DieselVerificationSection from '../features/dashboard/DieselVerificationSection';
 import AdvanceVerificationSection from '../features/dashboard/AdvanceVerificationSection';
-import VehiclesTable from '../features/customer/VehiclesTable';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -52,9 +52,6 @@ export default function Dashboard() {
   function updateDashboardVehicleData(update) {
     const nextData = typeof update === 'function' ? update(dashboardVehicleData) : update;
     setVehicles(nextData.vehicles);
-    if (user?.role === 'customer_admin') {
-      setCustomerData((current) => current && ({ ...current, vehicles: nextData.vehicles }));
-    }
   }
 
   return (
@@ -81,7 +78,7 @@ export default function Dashboard() {
         </>
       )}
       {user?.role === 'customer_admin' && (
-        <div style={{ order: 5 }}>
+        <div style={{ order: 3 }}>
           <div data-dashboard-section="trip-history">
             <OpenTripsCard
               loading={loading}
@@ -104,11 +101,11 @@ export default function Dashboard() {
       {user?.role === 'super_admin' && (
         <VehicleList selectedCustomerId={selectedCustomerId} loading={loading} vehicles={vehicles} />
       )}
-      {canManageDashboardVehicles && (
+      {user?.role === 'super_admin' && canManageDashboardVehicles && (
         <section
           className="card"
           aria-label="Vehicle management"
-          style={{ order: user?.role === 'customer_admin' ? 2 : 0 }}
+          style={{ order: 0 }}
         >
           <VehiclesTable
             customerId={vehicleManagementCustomerId}
@@ -170,13 +167,12 @@ export default function Dashboard() {
               customerData={customerData}
               setCustomerData={setCustomerData}
               driverUsers={allDriverUsers}
-              vehicleExpenses={vehicleExpenses}
             />
           </div>
         </div>
       )}
       {user?.role === 'customer_admin' && (
-        <div style={{ order: 3 }}>
+        <div style={{ order: 4 }}>
           <div data-dashboard-section="leave-entries">
             <AdminLeaveSection
               leaves={leaves}
@@ -190,7 +186,7 @@ export default function Dashboard() {
         </div>
       )}
       {['super_admin', 'customer_admin'].includes(user?.role) && (
-        <div style={{ order: user?.role === 'customer_admin' ? 4 : 0 }}>
+        <div style={{ order: user?.role === 'customer_admin' ? 5 : 0 }}>
           <VehicleExpensesSection
             vehicles={vehicles}
             driverUsers={driverUsers}
@@ -201,7 +197,7 @@ export default function Dashboard() {
         </div>
       )}
       {canManageDashboardVehicles && (
-        <div style={{ order: user?.role === 'customer_admin' ? 4 : 0 }}>
+        <div style={{ order: user?.role === 'customer_admin' ? 5 : 0 }}>
           <VehicleExpenseManagementSection
             vehicles={vehicles}
             customerId={vehicleManagementCustomerId}
