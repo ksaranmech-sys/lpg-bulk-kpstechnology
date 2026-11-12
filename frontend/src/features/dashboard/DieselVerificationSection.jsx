@@ -332,17 +332,16 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                 <thead>
                   <tr>
                     <th style={cellStyle}>S.No</th>
-                    <th style={cellStyle}>Load Turn Date</th>
+                    <th style={cellStyle}>Load Turn</th>
                     <th style={cellStyle}>Loading</th>
-                    <th style={cellStyle}>Load Weight (tons)</th>
+                    <th style={cellStyle}>Unloading Location</th>
                     <th style={cellStyle}>Unloading</th>
-                    <th style={cellStyle}>Unloading Date</th>
                     <th style={cellStyle}>Odometer KM</th>
                     <th style={cellStyle}>Mileage</th>
-                    <th style={cellStyle}>Diesel for Trip</th>
-                    <th style={cellStyle}>Diesel added in trip</th>
-                    <th style={cellStyle}>Diesel from Document</th>
-                    <th style={cellStyle}>DEF Amount from Document</th>
+                    <th style={cellStyle}>Diesel(Trip)</th>
+                    <th style={cellStyle}>Diesel(Filled)</th>
+                    <th style={cellStyle}>Diesel(Document)</th>
+                    <th style={cellStyle}>DEF(Document)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -351,9 +350,6 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                       <td style={cellStyle}>{index + 1}</td>
                       <td style={cellStyle}>{formatVerificationDate(row.previousLoadTurnDate)}</td>
                       <td style={cellStyle}>{row.loading || '—'}</td>
-                      <td style={cellStyle}>{row.loadingWeightTons == null
-                        ? '—'
-                        : `${Number(row.loadingWeightTons).toLocaleString('en-IN', { maximumFractionDigits: 2 })} t`}</td>
                       <td style={cellStyle}>{row.unloading || '—'}</td>
                       <td style={cellStyle}>{formatVerificationDate(row.unloadingDate)}</td>
                       <td style={cellStyle}>{formatVerificationKilometres(row.tripKm)}</td>

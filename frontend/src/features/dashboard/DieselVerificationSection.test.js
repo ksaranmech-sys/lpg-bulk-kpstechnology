@@ -72,26 +72,35 @@ test('offers vehicle and monthly file selection for diesel verification', async 
   });
   expect(container.textContent).toContain('vendor-statement.xlsx');
   const dieselHeaders = Array.from(container.querySelectorAll('thead th')).map((header) => header.textContent);
-  expect(dieselHeaders.slice(0, 3)).toEqual(['S.No', 'Load Turn Date', 'Loading']);
+  expect(dieselHeaders).toEqual([
+    'S.No',
+    'Load Turn',
+    'Loading',
+    'Unloading Location',
+    'Unloading',
+    'Odometer KM',
+    'Mileage',
+    'Diesel(Trip)',
+    'Diesel(Filled)',
+    'Diesel(Document)',
+    'DEF(Document)',
+  ]);
+  expect(container.textContent).not.toContain('Load Weight (tons)');
   expect(container.textContent).toContain(
     new Date(`${month}-01T00:00:00.000Z`).toLocaleDateString('en-IN', { timeZone: 'UTC' })
   );
   expect(container.textContent).toContain('Loading depot');
-  expect(container.textContent).toContain('Load Weight (tons)');
-  expect(container.textContent).toContain('17.5 t');
   expect(container.textContent).toContain('Customer site');
-  expect(container.textContent).toContain('Diesel added in trip');
+  expect(container.textContent).not.toContain('Diesel added in trip');
   expect(container.textContent).toContain('Odometer KM');
   expect(container.textContent).not.toContain('Trip KM');
   expect(container.textContent).toContain('850 km');
   expect(container.textContent).toContain('2.45 km/L');
-  expect(container.textContent).toContain('Diesel for Trip');
   expect(container.textContent).toContain('20 L');
   expect(container.textContent).toContain('999 L');
   expect(container.textContent).toContain('18 L');
   expect(container.textContent).not.toContain('DEF for Trip');
   expect(container.textContent).not.toContain('DEF added in trip');
-  expect(container.textContent).toContain('DEF Amount from Document');
   expect(container.querySelector('.verification-comparison-scroll')).not.toBeNull();
   expect(container.querySelector('table.diesel-comparison-table')).not.toBeNull();
 
