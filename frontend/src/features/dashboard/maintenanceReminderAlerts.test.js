@@ -22,7 +22,7 @@ test('alerts when remaining service kilometres are below the configured reminder
   }]);
 });
 
-test('alerts below the reminder threshold and keeps overdue components in the alert list', () => {
+test('alerts only below the reminder threshold and keeps overdue components in the alert list', () => {
   const vehicle = {
     _id: 'vehicle-1',
     vehicleNumber: 'KA01AB1234',
@@ -34,6 +34,8 @@ test('alerts below the reminder threshold and keeps overdue components in the al
       reminderKm: 400,
     }],
   };
+  expect(getMaintenanceReminderAlerts([vehicle])).toEqual([]);
+  vehicle.lastKnownOdometer = 14600;
   expect(getMaintenanceReminderAlerts([vehicle])).toEqual([]);
   vehicle.lastKnownOdometer = 14601;
   expect(getMaintenanceReminderAlerts([vehicle])[0]).toMatchObject({

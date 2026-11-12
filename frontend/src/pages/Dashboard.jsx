@@ -57,7 +57,7 @@ export default function Dashboard() {
   return (
     <Layout>
       <ReminderPopup user={user} vehicles={vehicles} />
-      {['super_admin', 'customer_admin'].includes(user?.role) && (
+      {['super_admin', 'customer_admin', 'vehicle_user'].includes(user?.role) && (
         <MaintenanceReminderPopup vehicles={vehicles} />
       )}
       {['super_admin', 'customer_admin'].includes(user?.role) && (

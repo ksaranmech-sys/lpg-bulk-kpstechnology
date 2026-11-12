@@ -16,7 +16,7 @@ export default function MaintenanceReminderPopup({ vehicles }) {
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 2001, padding: 20, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div className="card" role="alertdialog" aria-modal="true" aria-labelledby="maintenance-reminder-title" style={{ width: '100%', maxWidth: 560, maxHeight: '80vh', overflowY: 'auto', margin: 0 }}>
-        <h3 id="maintenance-reminder-title" style={{ marginTop: 0 }}>Vehicle Maintenance Reminder</h3>
+        <h3 id="maintenance-reminder-title" style={{ marginTop: 0 }}>Reminder: Vehicle Maintenance</h3>
         <p style={{ color: '#555' }}>These components are due soon or overdue:</p>
         <ul style={{ margin: '0 0 20px', paddingLeft: 20 }}>
           {alerts.map((alert) => (

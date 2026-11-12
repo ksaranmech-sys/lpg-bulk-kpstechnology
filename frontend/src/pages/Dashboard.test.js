@@ -35,7 +35,9 @@ jest.mock('../features/dashboard/DieselVerificationSection', () => () => <div>Di
 jest.mock('../features/dashboard/AdvanceVerificationSection', () => () => <div>Advance Verification</div>);
 jest.mock('../features/dashboard/VehicleExpensesSection', () => () => <div data-dashboard-section="vehicle-expenses">Vehicle Expenses</div>);
 jest.mock('../features/dashboard/VehicleExpenseManagementSection', () => () => <div data-dashboard-section="manage-vehicle-expenses">Manage Vehicle Expenses</div>);
-jest.mock('../features/dashboard/MaintenanceReminderPopup', () => () => null);
+jest.mock('../features/dashboard/MaintenanceReminderPopup', () => ({ vehicles }) => (
+  <div data-testid="maintenance-reminder-popup">{vehicles.length}</div>
+));
 jest.mock('../features/customer/VehiclesTable', () => () => null);
 
 test('loads the assigned vehicle open trips from the API on a fresh dashboard mount', async () => {
@@ -71,6 +73,7 @@ test('loads the assigned vehicle open trips from the API on a fresh dashboard mo
   expect(api.listTripsForVehicle).toHaveBeenCalledWith('vehicle-1');
   expect(container.textContent).toContain('Open Trips (1)');
   expect(container.textContent).toContain('MRPL');
+  expect(container.querySelector('[data-testid="maintenance-reminder-popup"]').textContent).toBe('1');
   expect(container.textContent).not.toContain('Reminder / Expiry Dates');
 
   await act(async () => root.unmount());

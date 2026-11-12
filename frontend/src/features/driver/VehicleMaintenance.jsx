@@ -48,12 +48,16 @@ function usedKm(component, currentOdometer) {
 export default function VehicleMaintenance({ vehicle, onVehicleUpdated }) {
   const [components, setComponents] = useState(() => maintenanceRows(vehicle?.maintenanceComponents));
   const [newComponentName, setNewComponentName] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
   useEffect(() => {
     setComponents(maintenanceRows(vehicle?.maintenanceComponents));
+    setIsEditing(false);
+    setNewComponentName('');
+    setError('');
   }, [vehicle?._id, vehicle?.maintenanceComponents]);
 
   if (!vehicle) return null;
@@ -84,8 +88,17 @@ export default function VehicleMaintenance({ vehicle, onVehicleUpdated }) {
     setMessage('');
   }
 
+  function cancelEditing() {
+    setComponents(maintenanceRows(vehicle.maintenanceComponents));
+    setNewComponentName('');
+    setError('');
+    setMessage('');
+    setIsEditing(false);
+  }
+
   async function saveMaintenance(event) {
     event.preventDefault();
+    if (!isEditing) return;
     const names = components.map((component) => component.name.trim().toLowerCase());
     if (names.some((name, index) => !name || names.indexOf(name) !== index)) {
       setError('Each maintenance component must have a unique name.');
@@ -102,6 +115,7 @@ export default function VehicleMaintenance({ vehicle, onVehicleUpdated }) {
         reminderKm: numberOrNull(component.reminderKm),
       })));
       onVehicleUpdated?.(response.data.vehicle);
+      setIsEditing(false);
       setMessage('Vehicle maintenance reminders saved.');
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save vehicle maintenance reminders.');
@@ -142,6 +156,7 @@ export default function VehicleMaintenance({ vehicle, onVehicleUpdated }) {
                         <input
                           aria-label="Maintenance component name"
                           maxLength={50}
+                          readOnly={!isEditing}
                           value={component.name}
                           onChange={(event) => updateComponent(index, 'name', event.target.value)}
                         />
@@ -153,6 +168,7 @@ export default function VehicleMaintenance({ vehicle, onVehicleUpdated }) {
                         type="number"
                         min="0"
                         step="1"
+                        readOnly={!isEditing}
                         value={component.startingOdometerKm}
                         onChange={(event) => updateComponent(index, 'startingOdometerKm', event.target.value)}
                       />
@@ -173,6 +189,7 @@ export default function VehicleMaintenance({ vehicle, onVehicleUpdated }) {
                         type="number"
                         min="0"
                         step="1"
+                        readOnly={!isEditing}
                         value={component.expectedKm}
                         onChange={(event) => updateComponent(index, 'expectedKm', event.target.value)}
                       />
@@ -183,6 +200,7 @@ export default function VehicleMaintenance({ vehicle, onVehicleUpdated }) {
                         type="number"
                         min="0"
                         step="1"
+                        readOnly={!isEditing}
                         value={component.reminderKm}
                         onChange={(event) => updateComponent(index, 'reminderKm', event.target.value)}
                       />
@@ -194,22 +212,34 @@ export default function VehicleMaintenance({ vehicle, onVehicleUpdated }) {
           </table>
         </div>
         <div style={{ display: 'flex', alignItems: 'end', gap: 12, flexWrap: 'wrap', marginTop: 16 }}>
-          <div className="field" style={{ minWidth: 220, marginBottom: 0 }}>
-            <label htmlFor={`maintenance-component-${vehicle._id}`}>Manual Entry</label>
-            <input
-              id={`maintenance-component-${vehicle._id}`}
-              value={newComponentName}
-              maxLength={50}
-              onChange={(event) => setNewComponentName(event.target.value)}
-              placeholder="Enter component name"
-            />
-          </div>
-          <button className="btn secondary" type="button" onClick={addComponent}>
-            Add Component
-          </button>
-          <button className="btn" type="submit" disabled={saving}>
-            {saving ? 'Saving...' : 'Save Maintenance'}
-          </button>
+          {isEditing && (
+            <>
+              <div className="field" style={{ minWidth: 220, marginBottom: 0 }}>
+                <label htmlFor={`maintenance-component-${vehicle._id}`}>Manual Entry</label>
+                <input
+                  id={`maintenance-component-${vehicle._id}`}
+                  value={newComponentName}
+                  maxLength={50}
+                  onChange={(event) => setNewComponentName(event.target.value)}
+                  placeholder="Enter component name"
+                />
+              </div>
+              <button className="btn secondary" type="button" onClick={addComponent}>
+                Add Component
+              </button>
+              <button className="btn secondary" type="button" onClick={cancelEditing} disabled={saving}>
+                Cancel
+              </button>
+              <button className="btn" type="submit" disabled={saving}>
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+            </>
+          )}
+          {!isEditing && (
+            <button className="btn" type="button" onClick={() => { setMessage(''); setError(''); setIsEditing(true); }}>
+              Edit
+            </button>
+          )}
         </div>
       </form>
       {error && <p className="error-text" role="alert">{error}</p>}
