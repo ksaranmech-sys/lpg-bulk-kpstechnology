@@ -265,6 +265,73 @@ tbody tr:hover { background: #f7fbfa; }
 }
 
 .salary-trips-scroll { margin-bottom: 18px; }
+.tyre-details-scroll {
+  width: 100%;
+  overflow: hidden;
+  border: 1px solid #d5e0e7;
+  border-radius: 10px;
+  background: var(--surface);
+}
+.tyre-details-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.tyre-position-column { width: 14.5%; }
+.tyre-numbers-column { width: 27.5%; }
+.tyre-mileage-column { width: 19.333%; }
+.tyre-details-table th,
+.tyre-details-table td {
+  padding: 5px;
+  border-right: 1px solid #d5e0e7;
+  border-bottom: 1px solid #d5e0e7;
+  vertical-align: middle;
+}
+.tyre-details-table thead th {
+  padding: 7px 5px;
+  text-align: left;
+  white-space: normal;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  line-height: 1.35;
+  background: #eef5f7;
+}
+.tyre-details-table tbody th {
+  width: auto;
+  text-align: left;
+  white-space: normal;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  background: #f7fafc;
+}
+.tyre-details-table th:last-child,
+.tyre-details-table td:last-child { border-right: 0; }
+.tyre-details-table tbody tr:last-child th,
+.tyre-details-table tbody tr:last-child td { border-bottom: 0; }
+.tyre-details-input {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 5px;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+.tyre-details-table td[data-label]::before { display: none; }
+.tyre-number-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+.tyre-number-field {
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+.tyre-number-field span { display: block; margin-bottom: 3px; }
+.tyre-details-table tbody tr:hover { background: #f7fbfa; }
 .salary-trips-table {
   width: 1500px;
   min-width: 1500px;
@@ -418,6 +485,47 @@ tbody tr:hover { background: #f7fbfa; }
 
 @media (max-width: 720px) {
   .salary-summary-identity { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; }
+  .tyre-details-scroll { border: 0; overflow: hidden; background: transparent; }
+  .tyre-details-table,
+  .tyre-details-table tbody { display: block; }
+  .tyre-details-table colgroup,
+  .tyre-details-table thead { display: none; }
+  .tyre-details-table tbody {
+    display: grid;
+    gap: 8px;
+  }
+  .tyre-details-table tbody tr {
+    display: grid;
+    min-width: 0;
+    border: 1px solid #d5e0e7;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .tyre-details-table tbody th {
+    padding: 8px;
+    border-right: 0;
+    border-bottom: 1px solid #d5e0e7;
+    font-size: 11px;
+  }
+  .tyre-details-table tbody td {
+    min-width: 0;
+    padding: 7px 8px;
+    border-right: 0;
+    border-bottom: 1px solid #d5e0e7;
+  }
+  .tyre-details-table tbody td[data-label]::before {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .tyre-details-input { font-size: 13px; padding: 8px; }
+  .tyre-number-fields { gap: 8px; }
+  .tyre-number-field { font-size: 11px; }
 }
 
 /* Super admin "Average Diesel Price" table: sticky state column, latest 12 months in view,

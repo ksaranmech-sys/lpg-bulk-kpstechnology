@@ -338,12 +338,12 @@ export default function AdvanceVerificationSection({ vehicles, loading: vehicles
                 <thead>
                   <tr>
                     <th style={cellStyle}>S.No</th>
-                    <th style={cellStyle}>Load Turn Date</th>
+                    <th style={cellStyle}>Load Turn</th>
                     <th style={cellStyle}>Loading</th>
                     <th style={cellStyle}>Unloading</th>
                     <th style={cellStyle}>Unloading Date</th>
-                    <th style={cellStyle}>Advances added in trip</th>
-                    <th style={cellStyle}>Advances from Document</th>
+                    <th style={cellStyle}>Advance (Driver)</th>
+                    <th style={cellStyle}>Advance (Bank)</th>
                   </tr>
                 </thead>
                 <tbody>

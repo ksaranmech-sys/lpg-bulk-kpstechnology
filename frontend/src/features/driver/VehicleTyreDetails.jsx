@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { VEHICLE_TYRE_POSITIONS } from '@kps/shared';
 import * as api from '../../api/api';
 
+const MAX_MILEAGE_DIGITS = 7;
+
 function tyreRows(tyres = []) {
   return Array.from({ length: 7 }, (_, index) => {
     const tyre = tyres.find((entry) => Number(entry.position) === index + 1) || {};
@@ -24,6 +26,10 @@ function mileageUntilNow(tyre, currentOdometer) {
   if (tyre.installedOdometerKm === '' || currentOdometer == null) return '';
   const mileage = Number(currentOdometer) - Number(tyre.installedOdometerKm);
   return Number.isFinite(mileage) && mileage >= 0 ? String(mileage) : '';
+}
+
+function mileageInputValue(value) {
+  return value.replace(/\D/g, '').slice(0, MAX_MILEAGE_DIGITS);
 }
 
 export default function VehicleTyreDetails({ vehicle }) {
@@ -68,75 +74,110 @@ export default function VehicleTyreDetails({ vehicle }) {
     <form className="card" style={{ marginTop: 24 }} onSubmit={saveTyres}>
       <h3 className="section-title" style={{ marginTop: 0 }}>Tyre Details - {vehicle.vehicleNumber}</h3>
       <p style={{ color: '#666', marginTop: -4 }}>
-        Enter tyre numbers and odometer readings. Mileage is calculated using the vehicle's latest odometer and can be edited.
+        Enter tyre numbers and ODO readings. Mileage is calculated using the vehicle's latest ODO and can be edited.
       </p>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(120px, 0.9fr) repeat(5, minmax(0, 1fr))',
-          columnGap: 8,
-          rowGap: 10,
-          alignItems: 'end',
-          width: '100%',
-        }}
-      >
-          {tyres.map((tyre) => (
-            <React.Fragment key={tyre.position}>
-            <strong style={{ alignSelf: 'center' }}>{VEHICLE_TYRE_POSITIONS[tyre.position - 1]}</strong>
-            <div className="field">
-              <label htmlFor={`tyre-number-${tyre.position}`}>Tyre Number 1</label>
-              <input
-                id={`tyre-number-${tyre.position}`}
-                value={tyre.tyreNumber}
-                maxLength={50}
-                onChange={(event) => updateTyre(tyre.position, 'tyreNumber', event.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor={`tyre-number-2-${tyre.position}`}>Tyre Number 2</label>
-              <input
-                id={`tyre-number-2-${tyre.position}`}
-                value={tyre.tyreNumber2}
-                maxLength={50}
-                onChange={(event) => updateTyre(tyre.position, 'tyreNumber2', event.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor={`tyre-installed-odometer-${tyre.position}`}>Installed Odometer (km)</label>
-              <input
-                id={`tyre-installed-odometer-${tyre.position}`}
-                type="number"
-                min="0"
-                step="1"
-                value={tyre.installedOdometerKm}
-                onChange={(event) => updateTyre(tyre.position, 'installedOdometerKm', event.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor={`tyre-mileage-${tyre.position}`}>Mileage upto now (km)</label>
-              <input
-                id={`tyre-mileage-${tyre.position}`}
-                type="number"
-                min="0"
-                step="1"
-                value={mileageUntilNow(tyre, vehicle.lastKnownOdometer)}
-                placeholder="Calculated automatically"
-                onChange={(event) => updateTyre(tyre.position, 'manualMileageKm', event.target.value)}
-              />
-            </div>
-            <div className="field">
-              <label htmlFor={`tyre-expected-mileage-${tyre.position}`}>Expected Mileage (km)</label>
-              <input
-                id={`tyre-expected-mileage-${tyre.position}`}
-                type="number"
-                min="0"
-                step="1"
-                value={tyre.expectedMileageKm}
-                onChange={(event) => updateTyre(tyre.position, 'expectedMileageKm', event.target.value)}
-              />
-            </div>
-            </React.Fragment>
-          ))}
+      <div className="tyre-details-scroll">
+        <table className="tyre-details-table">
+          <colgroup>
+            <col className="tyre-position-column" />
+            <col className="tyre-numbers-column" />
+            <col className="tyre-mileage-column" />
+            <col className="tyre-mileage-column" />
+            <col className="tyre-mileage-column" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th scope="col">Tyre Position</th>
+              <th scope="col">Tyre Numbers (1 &amp; 2)</th>
+              <th scope="col">Installed ODO (km)</th>
+              <th scope="col">Mileage upto now (km)</th>
+              <th scope="col">Expected Mileage (km)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tyres.map((tyre) => (
+              <tr key={tyre.position}>
+                <th scope="row">{VEHICLE_TYRE_POSITIONS[tyre.position - 1]}</th>
+                <td data-label="Tyre Numbers">
+                  <div className="tyre-number-fields">
+                    <label className="tyre-number-field">
+                      <input
+                        id={`tyre-number-${tyre.position}`}
+                        className="tyre-details-input"
+                        aria-label={`Tyre Number 1 for ${VEHICLE_TYRE_POSITIONS[tyre.position - 1]}`}
+                        value={tyre.tyreNumber}
+                        maxLength={50}
+                        onChange={(event) => updateTyre(tyre.position, 'tyreNumber', event.target.value)}
+                      />
+                    </label>
+                    <label className="tyre-number-field">
+                      <input
+                        id={`tyre-number-2-${tyre.position}`}
+                        className="tyre-details-input"
+                        aria-label={`Tyre Number 2 for ${VEHICLE_TYRE_POSITIONS[tyre.position - 1]}`}
+                        value={tyre.tyreNumber2}
+                        maxLength={50}
+                        onChange={(event) => updateTyre(tyre.position, 'tyreNumber2', event.target.value)}
+                      />
+                    </label>
+                  </div>
+                </td>
+                <td data-label="Installed ODO (km)">
+                  <input
+                    id={`tyre-installed-odometer-${tyre.position}`}
+                    className="tyre-details-input"
+                    aria-label={`Installed ODO for ${VEHICLE_TYRE_POSITIONS[tyre.position - 1]} (km)`}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={MAX_MILEAGE_DIGITS}
+                    value={tyre.installedOdometerKm}
+                    onChange={(event) => updateTyre(
+                      tyre.position,
+                      'installedOdometerKm',
+                      mileageInputValue(event.target.value)
+                    )}
+                  />
+                </td>
+                <td data-label="Mileage upto now (km)">
+                  <input
+                    id={`tyre-mileage-${tyre.position}`}
+                    className="tyre-details-input"
+                    aria-label={`Mileage upto now for ${VEHICLE_TYRE_POSITIONS[tyre.position - 1]} (km)`}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={MAX_MILEAGE_DIGITS}
+                    value={mileageUntilNow(tyre, vehicle.lastKnownOdometer)}
+                    placeholder="Calculated automatically"
+                    onChange={(event) => updateTyre(
+                      tyre.position,
+                      'manualMileageKm',
+                      mileageInputValue(event.target.value)
+                    )}
+                  />
+                </td>
+                <td data-label="Expected Mileage (km)">
+                  <input
+                    id={`tyre-expected-mileage-${tyre.position}`}
+                    className="tyre-details-input"
+                    aria-label={`Expected Mileage for ${VEHICLE_TYRE_POSITIONS[tyre.position - 1]} (km)`}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={MAX_MILEAGE_DIGITS}
+                    value={tyre.expectedMileageKm}
+                    onChange={(event) => updateTyre(
+                      tyre.position,
+                      'expectedMileageKm',
+                      mileageInputValue(event.target.value)
+                    )}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
       {error && <p className="error-text">{error}</p>}
       {message && <p role="status" style={{ color: '#2f855a' }}>{message}</p>}
