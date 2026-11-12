@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { formatTripRoute, isArchivedTrip } from '@kps/shared';
+import { formatTripRoute, isArchivedTrip, isTripDeletableWithinDays } from '@kps/shared';
 import * as api from '../../api/api';
 
 export default function CustomerTripHistory({ vehicles }) {
@@ -133,9 +133,11 @@ export default function CustomerTripHistory({ vehicles }) {
               <Link to={`/trips/${trip._id}`} style={{ flex: 1, color: 'inherit', textDecoration: 'none' }}>
                   <strong>{formatTripRoute(trip)}</strong>
               </Link>
-              <button type="button" className="btn danger" onClick={() => deleteTrip(trip._id)} disabled={deletingTripId === trip._id}>
-                {deletingTripId === trip._id ? 'Deleting...' : 'Delete'}
-              </button>
+              {isTripDeletableWithinDays(trip) && (
+                <button type="button" className="btn danger" onClick={() => deleteTrip(trip._id)} disabled={deletingTripId === trip._id}>
+                  {deletingTripId === trip._id ? 'Deleting...' : 'Delete'}
+                </button>
+              )}
               {trip.status === 'pending_close' && (
                 <button type="button" className="btn" onClick={() => closeTrip(trip._id)}>
                   Close Trip

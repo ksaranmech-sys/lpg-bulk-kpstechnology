@@ -8,7 +8,7 @@ import { ReminderDaySummary, ReminderSummary, reminderDayStatus } from './Remind
 
 // Port of VehicleReminderEditor (variant="status", driver dashboard) and DriverReminderEditor
 // (variant="days", admin driver page). Saves { documentReminders: { key: { expiryDate } } }.
-export default function ReminderEditor({ vehicle, onSaved, variant = 'status' }) {
+export default function ReminderEditor({ vehicle, onSaved, variant = 'status', title = 'Reminder / Expiry Dates' }) {
   const [reminderDates, setReminderDates] = useState({});
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -51,7 +51,7 @@ export default function ReminderEditor({ vehicle, onSaved, variant = 'status' })
   const statusFor = variant === 'days' ? reminderDayStatus : reminderStatusText;
 
   return (
-    <Card title="Reminder / Expiry Dates">
+    <Card title={title}>
       {variant === 'days'
         ? <ReminderDaySummary reminders={vehicle.documentReminders} />
         : <ReminderSummary reminders={vehicle.documentReminders} />}

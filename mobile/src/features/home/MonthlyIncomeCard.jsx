@@ -1,48 +1,127 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Platform, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import { formatDateLong, formatMonthLabel, monthKey, previousMonth } from '@kps/shared';
+import { currentMonth, formatDateLong, formatMonthLabel, monthKey } from '@kps/shared';
 import { api, errorMessage } from '../../api';
-import { Button, Card, ErrorText, Loading, Muted, Row } from '../../ui';
-import { colors, spacing } from '../../theme';
+import { Button, Card, ErrorText, Loading, Muted, Select } from '../../ui';
+import { spacing } from '../../theme';
 import { buildMonthlyIncomeHtml } from './monthlyIncomePdf';
 
-const money = new Intl.NumberFormat('en-IN', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
+const money = new Intl.NumberFormat('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const formatMoney = (value) => (Number.isFinite(value) ? money.format(value) : 'NA');
 
-function recentMonths() {
-  const latest = previousMonth();
-  const [year, month] = latest.split('-').map(Number);
-  const previous = previousMonth(new Date(year, month - 1, 1));
-  const [previousYear, previousMonthNumber] = previous.split('-').map(Number);
-  return [latest, previous, previousMonth(new Date(previousYear, previousMonthNumber - 1, 1))];
+function selectableMonths(today = new Date()) {
+  return Array.from({ length: 36 }, (_, index) => (
+    monthKey(new Date(today.getFullYear(), today.getMonth() - index, 1))
+  ));
 }
 
-function IncomeTotals({ title, totals }) {
-  if (!totals) return null;
+const columns = [
+  { key: 'sNo', label: 'S.No', width: 68 },
+  { key: 'vehicleNumber', label: 'Vehicle Number', width: 136 },
+  { key: 'loadingLocation', label: 'Loading Location', width: 166 },
+  { key: 'unloadingLocation', label: 'Unloading Location', width: 166 },
+  { key: 'unloadingDate', label: 'Unloading Date', width: 132 },
+  { key: 'tripIncome', label: 'Trip Income', width: 126 },
+  { key: 'shortage', label: 'Shortage', width: 112 },
+  { key: 'diesel', label: 'Diesel', width: 112 },
+  { key: 'amount', label: 'Amount', width: 118 },
+];
+
+function MonthlyIncomeTable({ income }) {
+  const rows = (income?.groups || []).flatMap((group) => (
+    group.periods.flatMap((period) => period.states.flatMap((state) => state.rows))
+  ));
+  const totalWidth = columns.reduce((sum, column) => sum + column.width, 0);
+  const totalFor = (key) => {
+    const serverTotal = income?.totals?.[key];
+    if (Number.isFinite(serverTotal)) return serverTotal;
+    const values = rows.map((row) => row[key]).filter(Number.isFinite);
+    return values.length ? values.reduce((sum, value) => sum + value, 0) : null;
+  };
+  const cellStyle = {
+    paddingHorizontal: 6,
+    paddingVertical: 8,
+    borderWidth: 0.5,
+    borderColor: '#aebfc8',
+    justifyContent: 'center',
+  };
+  const valueFor = (row, key) => {
+    if (key === 'unloadingDate') return row.unloadingDate ? formatDateLong(row.unloadingDate) : '-';
+    if (['tripIncome', 'shortage', 'diesel', 'amount'].includes(key)) return formatMoney(row[key]);
+    return row[key] ?? '-';
+  };
+  const totalLabelWidth = columns.slice(0, 5).reduce((sum, column) => sum + column.width, 0);
+
   return (
-    <Card title={title} style={{ marginTop: spacing.sm, backgroundColor: '#f7fafc' }}>
-      <Row label="Trip Income" value={formatMoney(totals.tripIncome)} />
-      <Row label="Shortage" value={formatMoney(totals.shortage)} />
-      <Row label="TDS" value={formatMoney(totals.tds)} />
-      <Row label="Diesel" value={formatMoney(totals.diesel)} />
-      <Row label="Amount" value={formatMoney(totals.amount)} bold />
-      <Muted>{totals.pricedTrips} of {totals.trips} unloadings priced</Muted>
-    </Card>
+    <ScrollView horizontal nestedScrollEnabled showsHorizontalScrollIndicator>
+      <View style={{ width: totalWidth, borderWidth: 1, borderColor: '#9aadb8', borderRadius: 6, overflow: 'hidden' }}>
+        <View style={{ flexDirection: 'row', backgroundColor: '#eaf2f6' }}>
+          {columns.map((column) => (
+            <View
+              key={column.key}
+              style={[cellStyle, { width: column.width, height: 84, alignItems: 'center', overflow: 'visible' }]}
+            >
+              <Text
+                numberOfLines={1}
+                style={{
+                  width: 124,
+                  textAlign: 'center',
+                  color: '#183b4b',
+                  fontSize: 11,
+                  fontWeight: '700',
+                  transform: [{ rotate: '-45deg' }],
+                }}
+              >
+                {column.label}
+              </Text>
+            </View>
+          ))}
+        </View>
+        {rows.map((row, index) => (
+          <View key={`${row.tripId}-${row.leg || index}`} style={{ flexDirection: 'row', backgroundColor: index % 2 ? '#f7fafc' : '#fff' }}>
+            {columns.map((column) => (
+              <View key={column.key} style={[cellStyle, { width: column.width, minHeight: 44 }]}>
+                <Text style={{
+                  color: '#152936',
+                  fontSize: 11,
+                  textAlign: ['tripIncome', 'shortage', 'diesel', 'amount'].includes(column.key) ? 'right' : 'left',
+                }}>
+                  {column.key === 'sNo' ? row.sNo : valueFor(row, column.key)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ))}
+        <View style={{ flexDirection: 'row', backgroundColor: '#eaf2f6' }}>
+          <View style={[cellStyle, { width: totalLabelWidth }]}>
+            <Text style={{ fontWeight: '700', color: '#183b4b' }}>Total</Text>
+          </View>
+          {['tripIncome', 'shortage', 'diesel', 'amount'].map((key) => {
+            const column = columns.find((entry) => entry.key === key);
+            const total = totalFor(key);
+            return (
+              <View key={key} style={[cellStyle, { width: column.width, minHeight: 44 }]}>
+                <Text style={{ textAlign: 'right', fontWeight: '700', color: '#183b4b', fontSize: 11 }}>
+                  {total == null ? 'NA' : formatMoney(total)}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 export default function MonthlyIncomeCard({ customerId }) {
-  const recent = useMemo(() => recentMonths(), []);
-  const [month, setMonth] = useState(recent[0]);
-  const [showArchive, setShowArchive] = useState(false);
+  const months = useMemo(() => selectableMonths(), []);
+  const [month, setMonth] = useState(currentMonth());
   const [income, setIncome] = useState(null);
   const [loading, setLoading] = useState(false);
   const [sharingPdf, setSharingPdf] = useState(false);
+  const [showTable, setShowTable] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -60,12 +139,6 @@ export default function MonthlyIncomeCard({ customerId }) {
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [customerId, month]);
-
-  const isArchived = !recent.includes(month);
-  function shiftArchiveMonth(amount) {
-    const [year, monthNumber] = month.split('-').map(Number);
-    setMonth(monthKey(new Date(year, monthNumber - 1 + amount, 1)));
-  }
 
   async function shareMonthlyIncomePdf() {
     setSharingPdf(true);
@@ -86,29 +159,17 @@ export default function MonthlyIncomeCard({ customerId }) {
   }
 
   return (
-    <Card title={`Monthly Income (${formatMonthLabel(month)})${isArchived ? ' - Archived' : ''}`}>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
-        {recent.map((key) => (
-          <Text
-            key={key}
-            accessibilityRole="button"
-            onPress={() => setMonth(key)}
-            style={{
-              color: key === month ? '#fff' : colors.green700,
-              backgroundColor: key === month ? colors.green700 : colors.green100,
-              paddingHorizontal: spacing.sm,
-              paddingVertical: spacing.xs,
-              borderRadius: 6,
-              overflow: 'hidden',
-              fontWeight: '700',
-            }}
-          >
-            {formatMonthLabel(key)}
-          </Text>
-        ))}
-      </View>
+    <Card title={`Monthly Income (${formatMonthLabel(month)})`}>
+      <Select
+        label="Income Month"
+        value={month}
+        options={months.map((key) => ({ value: key, label: formatMonthLabel(key) }))}
+        onChange={(value) => { if (value) { setMonth(value); setShowTable(false); } }}
+        placeholder="Select month"
+        dropdown
+      />
       <Button
-        title={'\uD83D\uDDA8\uFE0F  Share monthly income PDF'}
+        title="Print / Save PDF"
         variant="secondary"
         onPress={shareMonthlyIncomePdf}
         loading={sharingPdf}
@@ -116,72 +177,24 @@ export default function MonthlyIncomeCard({ customerId }) {
         style={{ alignSelf: 'flex-end', marginBottom: spacing.md }}
       />
       <Muted style={{ marginBottom: spacing.md }}>
-        Income for unloadings in this month, grouped by vehicle corporation, billing period and route corporation.
-        IOC and HPC are split into half-month periods; corporation cut-off rules apply.
+        Income is grouped by vehicle corporation, billing period and route corporation; corporation cut-off rules apply.
       </Muted>
       <ErrorText>{error}</ErrorText>
       {loading ? <Loading text="Loading monthly income..." /> : null}
       {!loading && income?.groups?.length === 0 ? <Muted>No unloadings in {formatMonthLabel(month)}.</Muted> : null}
-      {!loading && income?.groups?.map((group) => (
-        <Card key={group.vehicleCorporation} title={`${group.vehicleCorporation} (${group.totals.trips} unloadings)`} style={{ marginBottom: spacing.md }}>
-          <Muted>
-            {group.halfMonth ? 'Billed per half month' : 'Billed once a month'}
-            {group.cutoffDay > 0 ? `; cut-off through day ${group.cutoffDay} of next month` : '; calendar-month cut-off'}
-          </Muted>
-          {group.periods.map((period) => (
-            <Card key={period.key} title={`${period.label} (${period.totals.trips} unloadings)`} style={{ marginTop: spacing.sm }}>
-              {period.states.length === 0 ? <Muted>No unloadings in this period.</Muted> : null}
-              {period.states.map((state) => (
-                <Card key={state.corporation || state.state} title={`${state.state}${state.corporation ? ` (${state.corporation} routes)` : ''} (${state.totals.trips} unloadings)`} style={{ marginTop: spacing.sm, backgroundColor: '#f7fafc' }}>
-                  {state.rows.map((trip) => (
-                    <View key={`${trip.tripId}-${trip.leg}`} style={{ paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border }}>
-                      <Text style={{ color: colors.ink, fontWeight: '700' }}>
-                        {trip.sNo}. {trip.vehicleNumber || '-'}{trip.vehicleCorporation ? ` · ${trip.vehicleCorporation}` : ''}
-                      </Text>
-                      <Muted>{trip.loadingLocation || '-'} → {trip.unloadingLocation || '-'}</Muted>
-                      {trip.leg === 'divert' ? <Muted>Divert (new unloading)</Muted> : null}
-                      <Muted>Loading: {trip.loadingDate ? formatDateLong(trip.loadingDate) : '-'} · Unloading: {trip.unloadingDate ? formatDateLong(trip.unloadingDate) : '-'}</Muted>
-                      <Row label="Trip Income" value={formatMoney(trip.tripIncome)} />
-                      <Row label="Shortage" value={formatMoney(trip.shortage)} />
-                      <Row label="TDS" value={formatMoney(trip.tds)} />
-                      <Row label="Diesel" value={formatMoney(trip.diesel)} />
-                      <Row label="Amount" value={formatMoney(trip.amount)} bold />
-                    </View>
-                  ))}
-                  <IncomeTotals title={`Total ${state.corporation || state.state}`} totals={state.totals} />
-                </Card>
-              ))}
-              {period.states.length > 1 ? <IncomeTotals title={`Total ${group.vehicleCorporation} - ${period.label}`} totals={period.totals} /> : null}
-            </Card>
-          ))}
-          {group.periods.length > 1 ? <IncomeTotals title={`Total ${group.vehicleCorporation}`} totals={group.totals} /> : null}
-        </Card>
-      ))}
-      {!loading && income?.groups?.length > 1 ? <IncomeTotals title="Total - all corporations" totals={income.totals} /> : null}
-      <View style={{ borderTopWidth: 1, borderColor: colors.border, marginTop: spacing.md, paddingTop: spacing.md }}>
-        <Text
+      {!loading && income?.groups?.length > 0 && (
+        <Pressable
           accessibilityRole="button"
-          onPress={() => {
-            if (showArchive) {
-              setShowArchive(false);
-              if (isArchived) setMonth(recent[0]);
-            } else {
-              setShowArchive(true);
-              setMonth(recent[2]);
-            }
-          }}
-          style={{ color: colors.green700, textAlign: 'right', textDecorationLine: 'underline', fontWeight: '700' }}
+          accessibilityState={{ expanded: showTable }}
+          onPress={() => setShowTable((current) => !current)}
+          style={{ paddingVertical: spacing.md, borderTopWidth: 1, borderColor: '#d5e0e7' }}
         >
-          {showArchive ? 'Hide archived income' : 'View archived income'}
-        </Text>
-        {showArchive ? (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: spacing.sm }}>
-            <Button title="Older month" variant="secondary" onPress={() => shiftArchiveMonth(-1)} />
-            <Muted>{formatMonthLabel(month)}</Muted>
-            <Button title="Newer month" variant="secondary" onPress={() => shiftArchiveMonth(1)} disabled={month >= recent[2]} />
-          </View>
-        ) : null}
-      </View>
+          <Text style={{ color: '#176f50', fontSize: 15, fontWeight: '700' }}>
+            {showTable ? '\u25B2 Hide monthly income table' : '\u25BC View monthly income table'}
+          </Text>
+        </Pressable>
+      )}
+      {!loading && showTable && income?.groups?.length > 0 ? <MonthlyIncomeTable income={income} /> : null}
     </Card>
   );
 }

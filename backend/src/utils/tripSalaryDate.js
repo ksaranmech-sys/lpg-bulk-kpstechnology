@@ -28,4 +28,19 @@ function getTripSalaryDate(trip) {
   return candidates.reduce((latest, date) => (date > latest ? date : latest));
 }
 
-module.exports = { getTripClosedDate, getTripSalaryDate };
+function isTripWithinDeletionWindow(trip, now = new Date(), windowDays = 45) {
+  const salaryDate = getTripSalaryDate(trip);
+  const createdDate = trip.createdAt ? new Date(trip.createdAt) : null;
+  const date = salaryDate || (
+    createdDate && !Number.isNaN(createdDate.getTime()) ? createdDate : null
+  );
+  const cutoff = now.getTime() - windowDays * 24 * 60 * 60 * 1000;
+  return Boolean(
+    date
+    && !Number.isNaN(date.getTime())
+    && date.getTime() <= now.getTime()
+    && date.getTime() >= cutoff,
+  );
+}
+
+module.exports = { getTripClosedDate, getTripSalaryDate, isTripWithinDeletionWindow };

@@ -1,29 +1,36 @@
 import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { formatDate, formatMonthLabel, formatTripRoute, isCurrentOrPreviousMonth, tripHistoryMonthKey } from '@kps/shared';
+import {
+  formatDate,
+  formatMonthLabel,
+  formatTripRoute,
+  isTripDeletableWithinDays,
+  tripHistoryDate,
+  tripHistoryMonthKey,
+} from '@kps/shared';
 import { api, errorMessage } from '../../api';
-import { Button, Card, Loading, Muted, NavRow } from '../../ui';
+import { Button, Card, Loading, Muted } from '../../ui';
 import { SectionTitle } from '../../trip/common';
-import { spacing } from '../../theme';
+import { colors, spacing } from '../../theme';
+import { confirm } from '../../confirm';
 
-// Closed trips grouped by history month (close date or later entry date), newest first.
-function groupClosedTripsByCloseMonth(trips) {
+// Closed trips grouped by the salary-calculation month, newest first.
+function groupClosedTripsBySalaryMonth(trips) {
   const groups = new Map();
   trips
     .filter((trip) => trip.status === 'closed')
     .forEach((trip) => {
-      const closeDate = trip.turnDate || trip.closedAt;
       const key = tripHistoryMonthKey(trip);
       if (!key) return;
       if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push({ trip, closeDate });
+      groups.get(key).push({ trip, salaryDate: tripHistoryDate(trip) });
     });
   return Array.from(groups.entries())
     .sort(([left], [right]) => (left < right ? 1 : -1))
     .map(([key, monthTrips]) => ({
       monthKey: key,
-      monthTrips: monthTrips.sort((left, right) => new Date(right.closeDate) - new Date(left.closeDate)),
+      monthTrips: monthTrips.sort((left, right) => right.salaryDate - left.salaryDate),
     }));
 }
 
@@ -31,20 +38,28 @@ export default function DriverTripsByMonth({ vehicle, setError, title = 'Trip Hi
   const router = useRouter();
   const [trips, setTrips] = useState([]);
   const [tripsLoading, setTripsLoading] = useState(false);
-  const [showArchivedTrips, setShowArchivedTrips] = useState(false);
+  const [deletingTripId, setDeletingTripId] = useState('');
 
-  const openTrips = trips.filter((trip) => trip.status !== 'closed');
   const closedTrips = trips.filter((trip) => trip.status === 'closed');
-  const archivedTrips = closedTrips.filter((trip) => {
-    const key = tripHistoryMonthKey(trip);
-    return !key || !isCurrentOrPreviousMonth(key);
-  });
-  const visibleClosedTrips = showArchivedTrips ? closedTrips : closedTrips.filter((trip) => !archivedTrips.includes(trip));
-  const closedTripGroups = groupClosedTripsByCloseMonth(visibleClosedTrips);
+  const closedTripGroups = groupClosedTripsBySalaryMonth(closedTrips);
+
+  async function deleteTrip(trip) {
+    if (!isTripDeletableWithinDays(trip)) return;
+    if (!(await confirm('Delete this trip history entry?'))) return;
+    setDeletingTripId(trip._id);
+    setError('');
+    try {
+      await api.deleteTrip(trip._id);
+      setTrips((current) => current.filter((entry) => entry._id !== trip._id));
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to delete trip history'));
+    } finally {
+      setDeletingTripId('');
+    }
+  }
 
   useEffect(() => {
     let active = true;
-    setShowArchivedTrips(false);
     if (!vehicle) { setTrips([]); return undefined; }
     setTripsLoading(true);
     api.listTripsForVehicle(vehicle._id)
@@ -58,39 +73,44 @@ export default function DriverTripsByMonth({ vehicle, setError, title = 'Trip Hi
     <Card title={title}>
       {tripsLoading ? <Loading text="Loading trips..." /> : (
         <>
-          <SectionTitle>Open Trips ({openTrips.length})</SectionTitle>
-          {openTrips.length === 0 ? <Muted style={{ marginBottom: spacing.md }}>No open trips.</Muted> : openTrips.map((trip) => (
-            <NavRow
-              key={trip._id}
-              title={`${trip.loadingLocation || 'Loading pending'} \u2192 ${trip.unloadingLocation || 'Unloading pending'}`}
-              subtitle={`${trip.status === 'pending_close' ? 'Pending customer close' : 'Open'}${trip.createdAt ? ` \u2022 ${formatDate(trip.createdAt)}` : ''}`}
-              onPress={() => router.push(`/trips/${trip._id}`)}
-            />
-          ))}
           <View style={{ marginTop: spacing.md }}>
-            <SectionTitle>Closed Trips ({visibleClosedTrips.length})</SectionTitle>
+            <SectionTitle>Closed Trips ({closedTrips.length})</SectionTitle>
           </View>
-          {visibleClosedTrips.length === 0 ? <Muted>No closed trips.</Muted> : closedTripGroups.map(({ monthKey, monthTrips }) => (
+          {closedTrips.length === 0 ? <Muted>No closed trips.</Muted> : closedTripGroups.map(({ monthKey, monthTrips }) => (
             <View key={monthKey} style={{ marginBottom: spacing.md }}>
-              <Muted style={{ fontWeight: '700', marginVertical: spacing.sm }}>{formatMonthLabel(monthKey)}</Muted>
-              {monthTrips.map(({ trip, closeDate }) => (
-                <NavRow
+              <Muted style={{ fontWeight: '700', marginVertical: spacing.sm }}>{formatMonthLabel(monthKey)} (Salary Month)</Muted>
+              {monthTrips.map(({ trip, salaryDate }) => (
+                <View
                   key={trip._id}
-                  title={formatTripRoute(trip)}
-                  subtitle={`Trip close: ${formatDate(closeDate)}`}
-                  onPress={() => router.push(`/trips/${trip._id}`)}
-                />
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    borderBottomWidth: 1,
+                    borderColor: '#e5ecef',
+                  }}
+                >
+                  <Pressable
+                    onPress={() => router.push(`/trips/${trip._id}`)}
+                    style={{ flex: 1, paddingVertical: spacing.md, paddingRight: spacing.sm }}
+                  >
+                    <Text style={{ color: colors.ink, fontSize: 14, fontWeight: '700' }}>
+                      {formatTripRoute(trip)}
+                    </Text>
+                    <Muted>{`Trip close: ${formatDate(salaryDate)}`}</Muted>
+                  </Pressable>
+                  {isTripDeletableWithinDays(trip) ? (
+                    <Button
+                      title={deletingTripId === trip._id ? 'Deleting...' : 'Delete'}
+                      variant="danger"
+                      disabled={deletingTripId === trip._id}
+                      onPress={() => deleteTrip(trip)}
+                      style={{ minHeight: 36, paddingVertical: 6, paddingHorizontal: 10 }}
+                    />
+                  ) : null}
+                </View>
               ))}
             </View>
           ))}
-          {archivedTrips.length > 0 && (
-            <Button
-              title={showArchivedTrips ? 'Hide archived trips' : `View archived trips (${archivedTrips.length})`}
-              variant="secondary"
-              onPress={() => setShowArchivedTrips((current) => !current)}
-              style={{ marginTop: spacing.sm }}
-            />
-          )}
         </>
       )}
     </Card>

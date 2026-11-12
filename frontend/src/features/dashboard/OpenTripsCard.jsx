@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { formatTripRoute, formatMonthLabel, groupTripsByMonth } from '@kps/shared';
+import { formatTripRoute, formatMonthLabel, groupTripsByMonth, isTripDeletableWithinDays } from '@kps/shared';
 import * as api from '../../api/api';
 import { useVehicleTrips } from './useVehicleTrips';
 
@@ -60,9 +60,11 @@ export default function OpenTripsCard({ loading, vehicles, selectedVehicleId, se
                   <Link to={`/trips/${trip._id}`} style={{ flex: 1, color: 'inherit', textDecoration: 'none' }}>
                     <strong>{formatTripRoute(trip)}</strong>
                   </Link>
-                  <button type="button" className="btn danger" onClick={() => deleteTrip(trip._id)} disabled={deletingTripId === trip._id}>
-                    {deletingTripId === trip._id ? 'Deleting...' : 'Delete'}
-                  </button>
+                  {isTripDeletableWithinDays(trip) && (
+                    <button type="button" className="btn danger" onClick={() => deleteTrip(trip._id)} disabled={deletingTripId === trip._id}>
+                      {deletingTripId === trip._id ? 'Deleting...' : 'Delete'}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

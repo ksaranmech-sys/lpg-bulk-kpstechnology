@@ -5,20 +5,44 @@ export function formatTripRoute(trip) {
   return `${trip.loadingLocation || 'Loading pending'} (${dateOrPending(trip.loadingDate)}) -> ${trip.unloadingLocation || 'Unloading pending'} (${dateOrPending(trip.unloadingDate)})`;
 }
 
-// The date a trip is filed under in history lists. Mirrors backend getTripSalaryDate: the close
-// date, bumped forward if loading / unloading / turn dates fall in a later month.
+function validDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function tripClosedDate(trip) {
+  const turnDate = validDate(trip.turnDate);
+  if (turnDate) return turnDate;
+
+  const dieselEntries = trip.dieselEntries || [];
+  const filledAt = validDate(dieselEntries[dieselEntries.length - 1]?.filledAt);
+  if (filledAt) return filledAt;
+
+  return validDate(trip.closedAt) || validDate(trip.loadingDate);
+}
+
+// Keep trip history month assignment aligned with backend getTripSalaryDate.
 export function tripHistoryDate(trip) {
   const candidates = [
-    trip.turnDate || trip.closedAt,
+    tripClosedDate(trip),
     trip.loadingDate,
     trip.unloadingDate,
     trip.unTurnDate,
   ]
     .filter(Boolean)
-    .map((value) => new Date(value))
-    .filter((date) => !Number.isNaN(date.getTime()));
+    .map((value) => (value instanceof Date ? value : validDate(value)))
+    .filter(Boolean);
   if (!candidates.length) return new Date(trip.createdAt);
   return candidates.reduce((latest, date) => (date > latest ? date : latest));
+}
+
+export function isTripDeletableWithinDays(trip, days = 45, now = new Date()) {
+  const date = tripHistoryDate(trip);
+  const nowTime = now.getTime();
+  return !Number.isNaN(date.getTime())
+    && date.getTime() <= nowTime
+    && date.getTime() >= nowTime - days * 24 * 60 * 60 * 1000;
 }
 
 export function tripHistoryMonthKey(trip) {

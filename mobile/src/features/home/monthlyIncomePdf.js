@@ -31,7 +31,6 @@ function renderTotals(label, totals, strong = false, currencyPrefix = false) {
     <th>${escapeHtml(`${currencyPrefix ? '₹' : ''}${label}`)}</th>
     <td>Trip Income ${formatTotal(totals.tripIncome)}</td>
     <td>Shortage ${formatTotal(totals.shortage)}</td>
-    <td>TDS ${formatTotal(totals.tds)}</td>
     <td>Diesel ${formatTotal(totals.diesel)}</td>
     <td${strong ? ' class="strong"' : ''}>Amount ${formatTotal(totals.amount)}</td>
   </tr></tbody></table>`;
@@ -44,11 +43,9 @@ function renderState(state) {
     <td>${escapeHtml(trip.vehicleNumber || '-')}</td>
     <td>${escapeHtml(trip.loadingLocation || '-')}</td>
     <td>${escapeHtml(trip.unloadingLocation || '-')}</td>
-    <td>${escapeHtml(trip.loadingDate ? formatDateLong(trip.loadingDate) : '-')}</td>
     <td>${escapeHtml(trip.unloadingDate ? formatDateLong(trip.unloadingDate) : '-')}</td>
     <td class="number">${formatMoneyNumber(trip.tripIncome)}${trip.leg === 'divert' ? '<br>Divert (new unloading)' : ''}</td>
     <td class="number">${formatMoney(trip.shortage)}</td>
-    <td class="number">${formatMoney(trip.tds)}</td>
     <td class="number">${formatMoney(trip.diesel)}</td>
     <td class="number">${formatMoney(trip.amount)}</td>
   </tr>`).join('');
@@ -58,8 +55,7 @@ function renderState(state) {
     <table class="income">
       <thead><tr>
         <th>S.No</th><th>Vehicle Number</th><th>Loading location</th><th>Unloading location</th>
-        <th>Loading date</th><th>Unloading date</th><th>Trip Income</th><th>Shortage</th>
-        <th>TDS</th><th>Diesel</th><th>Amount</th>
+        <th>Unloading date</th><th>Trip Income</th><th>Shortage</th><th>Diesel</th><th>Amount</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
@@ -96,17 +92,16 @@ export function buildMonthlyIncomeHtml(income, month, generatedOn = formatDateLo
         th, td { padding: 4pt 4px; border: 1px solid #1f4d2b; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
         th { background: #f3f6f3; }
         .income { font-size: 8pt; }
-        .income th:nth-child(1) { width: 4%; }
-        .income th:nth-child(2) { width: 10%; }
-        .income th:nth-child(3), .income th:nth-child(4) { width: 12%; }
-        .income th:nth-child(5), .income th:nth-child(6) { width: 10%; }
-        .income th:nth-child(7) { width: 11%; }
-        .income th:nth-child(8), .income th:nth-child(9) { width: 7%; }
-        .income th:nth-child(10) { width: 8%; }
-        .income th:nth-child(11) { width: 9%; }
+        .income th:nth-child(1) { width: 5%; }
+        .income th:nth-child(2) { width: 11%; }
+        .income th:nth-child(3), .income th:nth-child(4) { width: 15%; }
+        .income th:nth-child(5) { width: 11%; }
+        .income th:nth-child(6) { width: 13%; }
+        .income th:nth-child(7), .income th:nth-child(8) { width: 9%; }
+        .income th:nth-child(9) { width: 12%; }
         .number { text-align: right; white-space: nowrap; }
         .totals { margin-top: 4pt; font-size: 8pt; }
-        .totals th { width: 25%; }
+        .totals th { width: 35%; }
         .totals td { text-align: right; font-weight: bold; }
         .strong { font-weight: 800 !important; }
         .corporation, .period, .state { margin-bottom: 5pt; }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
+  ActivityIndicator, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
@@ -85,7 +85,51 @@ export function DateField({ label, value, onChange, min, max, placeholder = 'Sel
   );
 }
 
-export function Select({ label, value, options, onChange, placeholder = 'Select...' }) {
+export function Select({ label, value, options, onChange, placeholder = 'Select...', dropdown = false }) {
+  const [open, setOpen] = useState(false);
+  if (dropdown) {
+    const items = options.map((option) => (typeof option === 'string' ? { value: option, label: option } : option));
+    const selected = items.find((option) => option.value === value);
+    return (
+      <>
+        <Field label={label}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={label || placeholder}
+            accessibilityState={{ expanded: open }}
+            onPress={() => setOpen(true)}
+            style={styles.input}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ color: selected ? colors.ink : '#647777' }}>{selected?.label || placeholder}</Text>
+              <Text style={{ color: '#647777' }}>{'\u25BC'}</Text>
+            </View>
+          </Pressable>
+        </Field>
+        <Modal transparent visible={open} animationType="fade" onRequestClose={() => setOpen(false)}>
+          <Pressable style={styles.selectBackdrop} onPress={() => setOpen(false)}>
+            <View style={styles.selectMenu}>
+              <Pressable
+                onPress={() => { onChange(''); setOpen(false); }}
+                style={styles.selectOption}
+              >
+                <Text style={{ color: '#647777' }}>{placeholder}</Text>
+              </Pressable>
+              {items.map((option) => (
+                <Pressable
+                  key={option.value}
+                  onPress={() => { onChange(option.value); setOpen(false); }}
+                  style={styles.selectOption}
+                >
+                  <Text style={{ color: colors.ink }}>{option.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </Pressable>
+        </Modal>
+      </>
+    );
+  }
   // A simple tap-to-cycle chip list keeps this dependency-free and works well for short lists.
   return (
     <Field label={label}>
@@ -326,6 +370,9 @@ const styles = StyleSheet.create({
   checkboxChecked: { backgroundColor: colors.green700 },
   checkboxTick: { color: '#fff', fontSize: 14, fontWeight: '700', lineHeight: 16 },
   checkboxLabel: { color: colors.ink, fontSize: 14 },
+  selectBackdrop: { flex: 1, justifyContent: 'center', padding: spacing.lg, backgroundColor: 'rgba(0,0,0,0.45)' },
+  selectMenu: { maxHeight: '80%', borderRadius: radius.md, padding: spacing.sm, backgroundColor: colors.surface },
+  selectOption: { minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   navRow: {
     flexDirection: 'row',
     alignItems: 'center',

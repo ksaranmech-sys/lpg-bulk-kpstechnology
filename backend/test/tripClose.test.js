@@ -18,6 +18,7 @@ const {
 } = require('../src/utils/tripCalculations');
 const { getCorporationKmDetails } = require('../src/utils/corporationKm');
 const { getDriverKmShare } = require('../src/utils/salary');
+const { isTripWithinDeletionWindow } = require('../src/utils/tripSalaryDate');
 
 test('tripController exposes a closeTrip endpoint', () => {
   assert.equal(typeof tripController.closeTrip, 'function');
@@ -92,6 +93,13 @@ test('closed trip month uses the closing diesel filled date', () => {
 
   assert.equal(tripController.getClosingDieselDate({ dieselEntries: [{ filledAt: closingDate }] }).getTime(), closingDate.getTime());
   assert.equal(tripController.getClosingDieselDate({ dieselEntries: [] }), null);
+});
+
+test('trip deletion is limited to the last 45 days', () => {
+  const now = new Date('2026-09-15T12:00:00.000Z');
+  assert.equal(isTripWithinDeletionWindow({ turnDate: '2026-08-01T12:00:00.000Z' }, now), true);
+  assert.equal(isTripWithinDeletionWindow({ turnDate: '2026-07-31T12:00:00.000Z' }, now), false);
+  assert.equal(isTripWithinDeletionWindow({ turnDate: '2026-09-16T12:00:00.000Z' }, now), false);
 });
 
 test('tripController exposes a deleteDieselEntry endpoint', () => {

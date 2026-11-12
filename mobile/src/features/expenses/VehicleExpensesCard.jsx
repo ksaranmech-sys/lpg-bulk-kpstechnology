@@ -1,24 +1,23 @@
 import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { useRouter } from 'expo-router';
 import { formatMonthLabel, monthKey } from '@kps/shared';
-import { Button, Card, ErrorText, Loading, Muted, Row, Select } from '../../ui';
+import { Card, ErrorText, Loading, Muted, Row, Select } from '../../ui';
 import { SectionTitle } from '../../trip/common';
 import { spacing } from '../../theme';
+import DriverVehicleExpenses from './DriverVehicleExpenses';
 
 export const formatRs = (value) => `Rs ${Math.round(Number(value) || 0).toLocaleString('en-IN')}`;
 
 export const expenseVehicleId = (expense) => String(expense.vehicle?._id || expense.vehicle || '');
 
 // Port of the web VehicleExpensesSection: pick a vehicle, one row per expense month, yearly totals.
-export default function VehicleExpensesCard({ customerId, vehicles, driverUsers = [], expenses, loading, error }) {
-  const router = useRouter();
+export default function VehicleExpensesCard({ customerId, vehicles, expenses, loading, error }) {
   const [selectedVehicleId, setSelectedVehicleId] = useState('');
-  const vehicleId = selectedVehicleId && vehicles.some((vehicle) => String(vehicle._id) === selectedVehicleId)
+  const [manageExpenseError, setManageExpenseError] = useState('');
+  const vehicleId = vehicles.some((vehicle) => String(vehicle._id) === selectedVehicleId)
     ? selectedVehicleId
-    : String(vehicles[0]?._id || '');
+    : '';
   const vehicle = vehicles.find((entry) => String(entry._id) === vehicleId);
-  const driver = driverUsers.find((entry) => String(entry.vehicle) === vehicleId);
 
   const years = useMemo(() => {
     const months = {};
@@ -51,14 +50,17 @@ export default function VehicleExpensesCard({ customerId, vehicles, driverUsers 
     <Card title="Vehicle Expenses">
       <Select
         label="Vehicle Number"
-        value={vehicleId}
+        value={selectedVehicleId}
         options={vehicles.map((entry) => ({ value: String(entry._id), label: entry.vehicleNumber }))}
-        onChange={(next) => { if (next) setSelectedVehicleId(next); }}
-        placeholder="No vehicles found"
+        onChange={setSelectedVehicleId}
+        placeholder="Select vehicle"
+        dropdown
       />
-      <Row label={`Total ${currentYear}`} value={formatRs(currentYearTotal)} bold />
+      {vehicle && <Row label={`Total ${currentYear}`} value={formatRs(currentYearTotal)} bold />}
       <ErrorText>{error}</ErrorText>
-      {loading ? <Loading text="Loading vehicle expenses..." /> : !vehicle ? null : years.length === 0 ? (
+      {loading ? <Loading text="Loading vehicle expenses..." /> : !vehicle ? (
+        <Muted>Select a vehicle to view and manage its expenses.</Muted>
+      ) : years.length === 0 ? (
         <Muted style={{ marginTop: spacing.sm }}>No vehicle expenses recorded for {vehicle.vehicleNumber}.</Muted>
       ) : years.map(({ year, months, total }) => (
         <View key={year} style={{ marginTop: spacing.md }}>
@@ -74,14 +76,9 @@ export default function VehicleExpensesCard({ customerId, vehicles, driverUsers 
       ))}
       {vehicle && (
         <View style={{ marginTop: spacing.md }}>
-          <SectionTitle>Driver: {driver ? (driver.displayName || driver.name || driver.username) : 'Unassigned'}</SectionTitle>
-          {driver ? (
-            <Button
-              title="Add / edit expenses on driver page"
-              variant="secondary"
-              onPress={() => router.push(`/drivers/${customerId}/${driver.id || driver._id}`)}
-            />
-          ) : <Muted>Assign a driver to manage this vehicle's expenses.</Muted>}
+          <SectionTitle>Manage Expenses</SectionTitle>
+          <ErrorText>{manageExpenseError}</ErrorText>
+          <DriverVehicleExpenses customerId={customerId} vehicle={vehicle} setError={setManageExpenseError} />
         </View>
       )}
     </Card>

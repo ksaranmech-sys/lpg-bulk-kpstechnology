@@ -13,6 +13,7 @@ const metaRoutes = require('../../routes/metaRoutes');
 const { getCorporationKmDetails, findRouteKm } = require('../../utils/corporationKm');
 const { computeTripIncome, resolveCorporation } = require('../../utils/tripIncome');
 const { isClosedTripEditable } = require('../../utils/tripEditPolicy');
+const { isTripWithinDeletionWindow } = require('../../utils/tripSalaryDate');
 const {
   getTripCloseDate,
   getEntryFloorDate,
@@ -500,6 +501,9 @@ async function deleteTrip(req, res) {
   }
 
   if (req.user.role === ROLES.CUSTOMER_ADMIN && String(trip.customer) === String(req.user.customer)) {
+    if (!isTripWithinDeletionWindow(trip)) {
+      return res.status(400).json({ error: 'Only trips from the last 45 days can be deleted' });
+    }
     await trip.deleteOne();
     return res.json({ message: 'Trip deleted successfully' });
   }

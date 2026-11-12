@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import * as api from '../api/api';
+import { isTripDeletableWithinDays } from '@kps/shared';
 import Layout from '../components/Layout';
 import { useAuth } from '../context/AuthContext';
 
@@ -60,7 +61,8 @@ export default function VehicleDetail() {
                 Edit
               </Link>
             )}
-            {['super_admin', 'customer_admin'].includes(user?.role) && (
+            {['super_admin', 'customer_admin'].includes(user?.role)
+              && (user?.role === 'super_admin' || isTripDeletableWithinDays(t)) && (
               <button className="btn danger" onClick={() => handleDeleteTrip(t._id)}>
                 Delete
               </button>
