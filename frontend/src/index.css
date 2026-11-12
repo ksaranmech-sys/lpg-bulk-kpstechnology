@@ -226,14 +226,30 @@ th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--bor
 tbody tr:last-child td { border-bottom: 0; }
 tbody tr:hover { background: #f7fbfa; }
 .salary-summary th,
-.salary-summary td { text-align: right; }
+.salary-summary td {
+  text-align: right;
+  padding: 10px 12px;
+  border-right: 1px solid #d5e0e7;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
 .salary-summary th:first-child,
 .salary-summary td:first-child { text-align: left; }
 .salary-summary td { white-space: nowrap; }
+.salary-summary th:last-child,
+.salary-summary td:last-child { border-right: 0; }
+.salary-summary tbody tr:last-child td { border-bottom: 0; }
 .salary-summary-block { overflow: hidden; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
 .salary-summary-block .salary-summary { border: 0; border-top: 1px solid var(--border); border-radius: 0; }
-.salary-summary-identity { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; padding: 14px 16px; }
-.salary-summary-identity > div { min-width: 0; }
+.salary-summary-identity { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.salary-summary-identity > div {
+  min-width: 0;
+  padding: 12px 14px;
+  border-right: 1px solid #d5e0e7;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.salary-summary-identity > div:nth-child(4n) { border-right: 0; }
 .salary-archive-link { padding: 0; border: 0; background: transparent; color: #2563eb; cursor: pointer; font-size: 13px; font-weight: 700; text-decoration: underline; }
 .salary-archive-link:hover { color: #1d4ed8; }
 .salary-archive-footer { display: flex; justify-content: flex-end; align-items: center; gap: 12px; padding-top: 14px; margin-top: 18px; border-top: 1px solid var(--border); }
@@ -401,7 +417,7 @@ tbody tr:hover { background: #f7fbfa; }
 .verification-comparison-table td:last-child { border-right: 0; }
 
 @media (max-width: 720px) {
-  .salary-summary-identity { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .salary-summary-identity { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; }
 }
 
 /* Super admin "Average Diesel Price" table: sticky state column, latest 12 months in view,
@@ -481,6 +497,9 @@ tbody tr:hover { background: #f7fbfa; }
   .list-item { align-items: flex-start; flex-direction: column; }
   table { min-width: 620px; }
   .salary-summary { min-width: 720px; }
+  .salary-summary-identity { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; }
+  .salary-summary-identity > div:nth-child(2n) { border-right: 0; }
+  .salary-summary-identity > div:nth-last-child(-n+2) { border-bottom: 0; }
 }
 
 .play-console-shell {
