@@ -85,6 +85,20 @@ test('offers vehicle and monthly file selection for diesel verification', async 
     'Diesel(Document)',
     'DEF(Document)',
   ]);
+  expect(Array.from(container.querySelectorAll('table.diesel-comparison-table tbody td'))
+    .map((cell) => cell.dataset.label).slice(-11)).toEqual([
+    'S.No',
+    'Load Turn',
+    'Loading',
+    'Unloading Location',
+    'Unloading',
+    'Odometer KM',
+    'Mileage',
+    'Diesel(Trip)',
+    'Diesel(Filled)',
+    'Diesel(Document)',
+    'DEF(Document)',
+  ]);
   expect(container.textContent).not.toContain('Load Weight (tons)');
   expect(container.textContent).toContain(
     new Date(`${month}-01T00:00:00.000Z`).toLocaleDateString('en-IN', { timeZone: 'UTC' })

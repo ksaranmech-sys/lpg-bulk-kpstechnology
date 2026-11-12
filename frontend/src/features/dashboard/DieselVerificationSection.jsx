@@ -347,17 +347,17 @@ export default function DieselVerificationSection({ vehicles, loading: vehiclesL
                 <tbody>
                   {rows.map((row, index) => (
                     <tr key={row.id}>
-                      <td style={cellStyle}>{index + 1}</td>
-                      <td style={cellStyle}>{formatVerificationDate(row.previousLoadTurnDate)}</td>
-                      <td style={cellStyle}>{row.loading || '—'}</td>
-                      <td style={cellStyle}>{row.unloading || '—'}</td>
-                      <td style={cellStyle}>{formatVerificationDate(row.unloadingDate)}</td>
-                      <td style={cellStyle}>{formatVerificationKilometres(row.tripKm)}</td>
-                      <td style={cellStyle}>{formatVerificationMileage(row.mileageKmPerLitre)}</td>
-                      <td style={cellStyle}>{formatVerificationLitres(row.dieselForTrip)}</td>
-                      <td style={cellStyle}>{formatVerificationLitres(row.tripDiesel)}</td>
-                      <td style={cellStyle}>{formatVerificationLitres(row.dieselFromDocument)}</td>
-                      <td style={cellStyle}>{formatVerificationAmount(row.defAmountFromDocument)}</td>
+                      <td data-label="S.No" style={cellStyle}>{index + 1}</td>
+                      <td data-label="Load Turn" style={cellStyle}>{formatVerificationDate(row.previousLoadTurnDate)}</td>
+                      <td data-label="Loading" style={cellStyle}>{row.loading || '—'}</td>
+                      <td data-label="Unloading Location" style={cellStyle}>{row.unloading || '—'}</td>
+                      <td data-label="Unloading" style={cellStyle}>{formatVerificationDate(row.unloadingDate)}</td>
+                      <td data-label="Odometer KM" style={cellStyle}>{formatVerificationKilometres(row.tripKm)}</td>
+                      <td data-label="Mileage" style={cellStyle}>{formatVerificationMileage(row.mileageKmPerLitre)}</td>
+                      <td data-label="Diesel(Trip)" style={cellStyle}>{formatVerificationLitres(row.dieselForTrip)}</td>
+                      <td data-label="Diesel(Filled)" style={cellStyle}>{formatVerificationLitres(row.tripDiesel)}</td>
+                      <td data-label="Diesel(Document)" style={cellStyle}>{formatVerificationLitres(row.dieselFromDocument)}</td>
+                      <td data-label="DEF(Document)" style={cellStyle}>{formatVerificationAmount(row.defAmountFromDocument)}</td>
                     </tr>
                   ))}
                 </tbody>

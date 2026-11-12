@@ -74,6 +74,16 @@ test('offers vehicle/month statement upload and compares advances with the state
     'Advance (Driver)',
     'Advance (Bank)',
   ]);
+  expect(Array.from(container.querySelectorAll('table.advance-comparison-table tbody td'))
+    .map((cell) => cell.dataset.label).slice(-7)).toEqual([
+    'S.No',
+    'Load Turn',
+    'Loading',
+    'Unloading',
+    'Unloading Date',
+    'Advance (Driver)',
+    'Advance (Bank)',
+  ]);
   expect(container.textContent).toContain(
     new Date(`${month}-01T00:00:00.000Z`).toLocaleDateString('en-IN', { timeZone: 'UTC' })
   );

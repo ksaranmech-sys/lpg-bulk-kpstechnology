@@ -349,13 +349,13 @@ export default function AdvanceVerificationSection({ vehicles, loading: vehicles
                 <tbody>
                   {rows.map((row, index) => (
                     <tr key={row.id}>
-                      <td style={cellStyle}>{index + 1}</td>
-                      <td style={cellStyle}>{formatVerificationDate(row.previousLoadTurnDate)}</td>
-                      <td style={cellStyle}>{row.loading || '—'}</td>
-                      <td style={cellStyle}>{row.unloading || '—'}</td>
-                      <td style={cellStyle}>{formatVerificationDate(row.unloadingDate)}</td>
-                      <td style={cellStyle}>{formatVerificationAmount(row.advancesAdded)}</td>
-                      <td style={cellStyle}>{formatVerificationAmount(row.advanceFromDocument)}</td>
+                      <td data-label="S.No" style={cellStyle}>{index + 1}</td>
+                      <td data-label="Load Turn" style={cellStyle}>{formatVerificationDate(row.previousLoadTurnDate)}</td>
+                      <td data-label="Loading" style={cellStyle}>{row.loading || '—'}</td>
+                      <td data-label="Unloading" style={cellStyle}>{row.unloading || '—'}</td>
+                      <td data-label="Unloading Date" style={cellStyle}>{formatVerificationDate(row.unloadingDate)}</td>
+                      <td data-label="Advance (Driver)" style={cellStyle}>{formatVerificationAmount(row.advancesAdded)}</td>
+                      <td data-label="Advance (Bank)" style={cellStyle}>{formatVerificationAmount(row.advanceFromDocument)}</td>
                     </tr>
                   ))}
                 </tbody>

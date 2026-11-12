@@ -257,12 +257,12 @@ tbody tr:hover { background: #f7fbfa; }
 .salary-trips-scroll,
 .verification-comparison-scroll {
   width: 100%;
-  overflow-x: auto;
   border: 1px solid #d5e0e7;
   border-radius: 10px;
   background: var(--surface);
-  scrollbar-color: #8da3b0 #edf2f5;
 }
+.salary-trips-scroll { overflow-x: auto; scrollbar-color: #8da3b0 #edf2f5; }
+.verification-comparison-scroll { overflow: hidden; }
 
 .salary-trips-scroll { margin-bottom: 18px; }
 .tyre-details-scroll {
@@ -431,35 +431,75 @@ tbody tr:hover { background: #f7fbfa; }
 
 .verification-comparison-table {
   width: 100%;
-  min-width: 1100px;
-  table-layout: auto;
+  min-width: 0;
+  table-layout: fixed;
   border: 0;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 14px;
+  font-size: 11px;
 }
 
-.verification-comparison-table.diesel-comparison-table { min-width: 1500px; }
 .verification-comparison-table th,
 .verification-comparison-table td {
-  padding: 12px 14px !important;
+  padding: 7px 5px !important;
   border-right: 1px solid #e0e7ec;
   border-bottom: 1px solid #d7e1e7;
-  line-height: 1.4;
+  line-height: 1.25;
   vertical-align: middle;
+  overflow-wrap: anywhere;
 }
 
 .verification-comparison-table th {
   background: #eaf2f6;
   color: #183b4b;
-  font-size: 12px;
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.025em;
-  line-height: 1.35;
-  white-space: nowrap;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  white-space: normal;
 }
 
-.verification-comparison-table td { white-space: nowrap; }
+.verification-comparison-table td { white-space: normal; }
+.verification-comparison-table td:nth-child(1),
+.verification-comparison-table td:nth-child(2),
+.verification-comparison-table td:nth-child(5),
+.verification-comparison-table td:nth-child(n+6) { font-variant-numeric: tabular-nums; }
+.advance-comparison-table th:nth-child(1),
+.advance-comparison-table td:nth-child(1) { width: 5%; }
+.advance-comparison-table th:nth-child(2),
+.advance-comparison-table td:nth-child(2) { width: 11%; }
+.advance-comparison-table th:nth-child(3),
+.advance-comparison-table td:nth-child(3),
+.advance-comparison-table th:nth-child(4),
+.advance-comparison-table td:nth-child(4) { width: 19%; }
+.advance-comparison-table th:nth-child(5),
+.advance-comparison-table td:nth-child(5) { width: 12%; }
+.advance-comparison-table th:nth-child(6),
+.advance-comparison-table td:nth-child(6),
+.advance-comparison-table th:nth-child(7),
+.advance-comparison-table td:nth-child(7) { width: 17%; }
+.diesel-comparison-table th:nth-child(1),
+.diesel-comparison-table td:nth-child(1) { width: 4%; }
+.diesel-comparison-table th:nth-child(2),
+.diesel-comparison-table td:nth-child(2) { width: 9%; }
+.diesel-comparison-table th:nth-child(3),
+.diesel-comparison-table td:nth-child(3),
+.diesel-comparison-table th:nth-child(4),
+.diesel-comparison-table td:nth-child(4) { width: 12%; }
+.diesel-comparison-table th:nth-child(5),
+.diesel-comparison-table td:nth-child(5) { width: 9%; }
+.diesel-comparison-table th:nth-child(6),
+.diesel-comparison-table td:nth-child(6) { width: 8%; }
+.diesel-comparison-table th:nth-child(7),
+.diesel-comparison-table td:nth-child(7) { width: 7%; }
+.diesel-comparison-table th:nth-child(8),
+.diesel-comparison-table td:nth-child(8),
+.diesel-comparison-table th:nth-child(9),
+.diesel-comparison-table td:nth-child(9) { width: 8%; }
+.diesel-comparison-table th:nth-child(10),
+.diesel-comparison-table td:nth-child(10) { width: 11%; }
+.diesel-comparison-table th:nth-child(11),
+.diesel-comparison-table td:nth-child(11) { width: 12%; }
 .diesel-comparison-table th:nth-child(1),
 .diesel-comparison-table td:nth-child(1),
 .diesel-comparison-table th:nth-child(2),
@@ -485,6 +525,40 @@ tbody tr:hover { background: #f7fbfa; }
 
 @media (max-width: 720px) {
   .salary-summary-identity { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; }
+  .verification-comparison-scroll { overflow: visible; border: 0; background: transparent; }
+  .verification-comparison-table,
+  .verification-comparison-table tbody { display: block; }
+  .verification-comparison-table thead { display: none; }
+  .verification-comparison-table tbody { display: grid; gap: 8px; }
+  .verification-comparison-table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    border: 1px solid #d5e0e7;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .verification-comparison-table tbody td {
+    width: auto !important;
+    min-width: 0;
+    display: block;
+    padding: 7px !important;
+    border-right: 1px solid #e0e7ec;
+    border-bottom: 1px solid #e0e7ec;
+    text-align: left !important;
+    font-size: 11px;
+  }
+  .verification-comparison-table tbody td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 3px;
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+  .verification-comparison-table tbody td:last-child { border-right: 0; }
   .tyre-details-scroll { border: 0; overflow: hidden; background: transparent; }
   .tyre-details-table,
   .tyre-details-table tbody { display: block; }
