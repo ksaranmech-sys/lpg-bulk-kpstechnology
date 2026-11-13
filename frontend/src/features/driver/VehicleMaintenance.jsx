@@ -9,12 +9,12 @@ const STANDARD_COMPONENTS = [
   'Clutch Oil',
   'Crown Oil',
   'Wheel Grease',
-  'Battery',
   'Tyre Powder',
 ];
 
 function maintenanceRows(components = []) {
   const byName = new Map(components.map((component) => [String(component.name || '').trim().toLowerCase(), component]));
+  byName.delete('battery');
   const standardRows = STANDARD_COMPONENTS.map((name) => {
     const component = byName.get(name.toLowerCase()) || {};
     byName.delete(name.toLowerCase());
@@ -73,6 +73,10 @@ export default function VehicleMaintenance({ vehicle, onVehicleUpdated }) {
     event.preventDefault();
     const name = newComponentName.trim();
     if (!name) return;
+    if (name.toLowerCase() === 'battery') {
+      setError('Battery is not available as a maintenance component.');
+      return;
+    }
     if (components.some((component) => component.name.trim().toLowerCase() === name.toLowerCase())) {
       setError('That maintenance component is already listed.');
       return;

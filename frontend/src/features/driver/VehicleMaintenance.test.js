@@ -17,6 +17,11 @@ const vehicle = {
     startingOdometerKm: 1000,
     expectedKm: 2000,
     reminderKm: 500,
+  }, {
+    name: 'Battery',
+    startingOdometerKm: 900,
+    expectedKm: 1800,
+    reminderKm: 400,
   }],
 };
 
@@ -45,6 +50,7 @@ test('maintenance fields are read-only until edit and save returns to read-only 
   expect(expectedInput.readOnly).toBe(true);
   expect(container.querySelector('button[type="submit"]')).toBeNull();
   expect(container.textContent).toContain('Edit');
+  expect(container.textContent).not.toContain('Battery');
 
   await act(async () => container.querySelector('button[type="button"]').click());
   expect(expectedInput.readOnly).toBe(false);
@@ -62,7 +68,7 @@ test('maintenance fields are read-only until edit and save returns to read-only 
     startingOdometerKm: 1000,
     expectedKm: 2500,
     reminderKm: 500,
-  }, ...['Gear Oil', 'Clutch Oil', 'Crown Oil', 'Wheel Grease', 'Battery', 'Tyre Powder'].map((name) => ({
+  }, ...['Gear Oil', 'Clutch Oil', 'Crown Oil', 'Wheel Grease', 'Tyre Powder'].map((name) => ({
     name,
     startingOdometerKm: null,
     expectedKm: null,
@@ -72,6 +78,29 @@ test('maintenance fields are read-only until edit and save returns to read-only 
   expect(container.querySelector('[aria-label="Engine Oil expected KM"]').readOnly).toBe(true);
   expect(container.querySelector('button[type="submit"]')).toBeNull();
   expect(container.querySelector('[role="status"]').textContent).toBe('Vehicle maintenance reminders saved.');
+
+  await act(async () => root.unmount());
+  globalThis.IS_REACT_ACT_ENVIRONMENT = false;
+});
+
+test('Battery cannot be added as a custom maintenance component', async () => {
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  const container = document.createElement('div');
+  const root = createRoot(container);
+
+  await act(async () => root.render(<VehicleMaintenance vehicle={vehicle} />));
+  await act(async () => container.querySelector('button[type="button"]').click());
+  const nameInput = container.querySelector(`#maintenance-component-${vehicle._id}`);
+  await act(async () => changeInputValue(nameInput, 'Battery'));
+  await act(async () => {
+    Array.from(container.querySelectorAll('button'))
+      .find((button) => button.textContent === 'Add Component')
+      .click();
+  });
+
+  expect(container.querySelector('[role="alert"]').textContent)
+    .toBe('Battery is not available as a maintenance component.');
+  expect(container.querySelector('[aria-label="Battery starting odometer"]')).toBeNull();
 
   await act(async () => root.unmount());
   globalThis.IS_REACT_ACT_ENVIRONMENT = false;
