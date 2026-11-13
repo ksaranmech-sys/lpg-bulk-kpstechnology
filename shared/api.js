@@ -126,6 +126,8 @@ export function createEndpoints(api) {
     updateVehicleTyres: (vehicleId, tyres) => api.patch(`/vehicles/${vehicleId}/tyres`, { tyres }),
     updateVehicleMaintenance: (vehicleId, maintenanceComponents) =>
       api.patch(`/vehicles/${vehicleId}/maintenance`, { maintenanceComponents }),
+    updateVehicleWarranties: (vehicleId, warrantyDetails) =>
+      api.patch(`/vehicles/${vehicleId}/warranties`, { warrantyDetails }),
     deleteVehicle: (vehicleId) => api.delete(`/vehicles/${vehicleId}`),
     updateVehicleReminderDates: (vehicleId, data) => api.patch(`/vehicles/${vehicleId}/document-reminders`, data),
     sendVehicleReminder: (vehicleId, type) => api.post(`/vehicles/${vehicleId}/reminders/send`, { type }),

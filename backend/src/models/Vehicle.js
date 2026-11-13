@@ -33,6 +33,16 @@ const maintenanceComponentSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const warrantyDetailSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true, maxlength: 50 },
+    installationDate: { type: Date, default: null },
+    warrantyPeriod: { type: String, trim: true, maxlength: 50, default: '' },
+    odometerReading: { type: Number, min: 0, default: null },
+  },
+  { _id: false }
+);
+
 const vehicleSchema = new mongoose.Schema(
   {
     customer: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true, index: true },
@@ -48,6 +58,7 @@ const vehicleSchema = new mongoose.Schema(
       default: () => Array.from({ length: 7 }, (_, index) => ({ position: index + 1 })),
     },
     maintenanceComponents: { type: [maintenanceComponentSchema], default: [] },
+    warrantyDetails: { type: [warrantyDetailSchema], default: [] },
     documentReminders: {
       qTax: { type: reminderDocumentSchema, default: () => ({}) },
       fitness: { type: reminderDocumentSchema, default: () => ({}) },

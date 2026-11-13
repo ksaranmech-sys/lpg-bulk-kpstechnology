@@ -20,6 +20,7 @@ router.get('/:vehicleId', vehicleScope, ctrl.getVehicle);
 router.patch('/:vehicleId', vehicleScope, ctrl.updateVehicle);
 router.patch('/:vehicleId/tyres', vehicleScope, rules.updateVehicleTyres, ctrl.updateVehicleTyres);
 router.patch('/:vehicleId/maintenance', vehicleScope, rules.updateVehicleMaintenance, ctrl.updateVehicleMaintenance);
+router.patch('/:vehicleId/warranties', vehicleScope, rules.updateVehicleWarranties, ctrl.updateVehicleWarranties);
 router.delete('/:vehicleId', vehicleScope, ctrl.deleteVehicle);
 router.patch('/:vehicleId/document-reminders', vehicleScope, ctrl.updateVehicleReminderDates);
 router.post('/:vehicleId/reminders/send', vehicleScope, ctrl.sendVehicleReminder);

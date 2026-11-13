@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
+import { Pressable, Text } from 'react-native';
 import { currentMonth, formatDate, formatMonthLabel, latestCalculableMonth } from '@kps/shared';
 import { api } from '../../api';
 import { Button, Card, Loading, Muted, Row, Select } from '../../ui';
@@ -13,6 +14,7 @@ export default function SalaryDetailsCard({ customerId, customerData, driverUser
   const [driverSalaries, setDriverSalaries] = useState({});
   const [salariesLoading, setSalariesLoading] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -29,14 +31,29 @@ export default function SalaryDetailsCard({ customerId, customerData, driverUser
   }, [customerId, driverUsers.length, salaryMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <Card title={`Salary Details (${formatMonthLabel(salaryMonth)})`}>
-      <Muted style={{ marginBottom: spacing.md }}>
-        {salaryMonth === currentMonth()
-          ? 'Current month is live and calculated through today. Previous months are finalized from the 5th of the following month.'
-          : `Salary for a month is calculated from the 5th of the following month (latest finalized: ${formatMonthLabel(latestCalculableMonth())}).`}
-      </Muted>
-      {driverUsers.length === 0 ? <Muted>No drivers found.</Muted> : null}
-      {salariesLoading ? <Loading text="Loading salary details..." /> : driverUsers.map((driver) => {
+    <Card
+      title={`Salary Details (${formatMonthLabel(salaryMonth)})`}
+      right={(
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={expanded ? 'Collapse salary details' : 'Expand salary details'}
+          accessibilityState={{ expanded }}
+          onPress={() => setExpanded((current) => !current)}
+          hitSlop={8}
+        >
+          <Text style={{ color: '#176f50', fontSize: 18, fontWeight: '700' }}>{expanded ? '\u25B2' : '\u25BC'}</Text>
+        </Pressable>
+      )}
+    >
+      {expanded ? (
+        <>
+          <Muted style={{ marginBottom: spacing.md }}>
+            {salaryMonth === currentMonth()
+              ? 'Current month is live and calculated through today. Previous months are finalized from the 5th of the following month.'
+              : `Salary for a month is calculated from the 5th of the following month (latest finalized: ${formatMonthLabel(latestCalculableMonth())}).`}
+          </Muted>
+          {driverUsers.length === 0 ? <Muted>No drivers found.</Muted> : null}
+          {salariesLoading ? <Loading text="Loading salary details..." /> : driverUsers.map((driver) => {
         const driverId = driver.id || driver._id;
         const salary = driverSalaries[driverId];
         const vehicleNumber = customerData?.vehicles?.find((vehicle) => String(vehicle._id) === String(driver.vehicle))?.vehicleNumber || 'Unassigned';
@@ -75,16 +92,18 @@ export default function SalaryDetailsCard({ customerId, customerData, driverUser
             <Button title="Open driver" variant="secondary" onPress={() => router.push(`/drivers/${customerId}/${driverId}`)} style={{ marginTop: spacing.md }} />
           </Card>
         );
-      })}
-      <Button
-        title={showArchived ? 'Hide archived salary' : 'View archived salary'}
-        variant="link"
-        onPress={() => setShowArchived((current) => !current)}
-        style={{ alignSelf: 'flex-end' }}
-      />
-      {showArchived && (
-        <Select label="Salary Month" value={salaryMonth} options={calculableMonthOptions()} onChange={(month) => { if (month) setSalaryMonth(month); }} />
-      )}
+          })}
+          <Button
+            title={showArchived ? 'Hide archived salary' : 'View archived salary'}
+            variant="link"
+            onPress={() => setShowArchived((current) => !current)}
+            style={{ alignSelf: 'flex-end' }}
+          />
+          {showArchived && (
+            <Select label="Salary Month" value={salaryMonth} options={calculableMonthOptions()} onChange={(month) => { if (month) setSalaryMonth(month); }} />
+          )}
+        </>
+      ) : null}
     </Card>
   );
 }

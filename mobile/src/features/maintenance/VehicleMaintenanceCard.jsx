@@ -4,6 +4,7 @@ import { Card, ErrorText, Field, Input, Muted, Select, Button } from '../../ui';
 import { api, errorMessage } from '../../api';
 import { spacing } from '../../theme';
 import VehicleTyreDetails from '../expenses/VehicleTyreDetails';
+import VehicleWarrantyDetails from './VehicleWarrantyDetails';
 
 const compactInputStyle = { paddingHorizontal: spacing.sm, paddingVertical: 6, fontSize: 14, minHeight: 36 };
 
@@ -227,6 +228,7 @@ export default function VehicleMaintenanceCard({ vehicles, onVehicleUpdated }) {
         </View>
       )}
       </Card>
+      {vehicle ? <VehicleWarrantyDetails vehicle={vehicle} onVehicleUpdated={onVehicleUpdated} /> : null}
       {vehicle ? <VehicleTyreDetails vehicle={vehicle} onVehicleUpdated={onVehicleUpdated} /> : null}
     </>
   );

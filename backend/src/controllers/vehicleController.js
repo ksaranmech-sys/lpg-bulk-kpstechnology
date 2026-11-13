@@ -204,6 +204,22 @@ async function updateVehicleMaintenance(req, res) {
   res.json({ vehicle: (await withVehicleDetails([vehicle]))[0] });
 }
 
+async function updateVehicleWarranties(req, res) {
+  const vehicle = await Vehicle.findById(req.params.vehicleId);
+  if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
+
+  vehicle.warrantyDetails = req.body.warrantyDetails.map((detail) => ({
+    name: detail.name.trim(),
+    installationDate: detail.installationDate ? new Date(detail.installationDate) : null,
+    warrantyPeriod: String(detail.warrantyPeriod || '').trim(),
+    odometerReading: detail.odometerReading == null || detail.odometerReading === ''
+      ? null
+      : Number(detail.odometerReading),
+  }));
+  await vehicle.save();
+  res.json({ vehicle: (await withVehicleDetails([vehicle]))[0] });
+}
+
 async function deleteVehicle(req, res) {
   const { vehicleId } = req.params;
   const vehicle = await Vehicle.findById(vehicleId);
@@ -276,6 +292,7 @@ module.exports = {
   updateVehicle,
   updateVehicleTyres,
   updateVehicleMaintenance,
+  updateVehicleWarranties,
   deleteVehicle,
   updateVehicleReminderDates,
   sendVehicleReminder,

@@ -62,7 +62,7 @@ export const {
   getMeta, updateRouteKmTable, updateMobileAppUrl, updateShortageRates,
   getDieselPriceTable, updateDieselPriceTable, syncDieselPriceTable,
   listRateTables, getRateTable, updateRateTableBases, updateRateTableCells, recalculateRateTables,
-  listVehicles, getVehicle, updateVehicle, updateVehicleTyres, updateVehicleMaintenance, deleteVehicle, updateVehicleReminderDates, sendVehicleReminder,
+  listVehicles, getVehicle, updateVehicle, updateVehicleTyres, updateVehicleMaintenance, updateVehicleWarranties, deleteVehicle, updateVehicleReminderDates, sendVehicleReminder,
   listTripsForVehicle, createTrip, getTrip, deleteTrip,
   addAdvance, updateAdvance, deleteAdvance,
   setLoadingDetails, deleteLoadingExpense,

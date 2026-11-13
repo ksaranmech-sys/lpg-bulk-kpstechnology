@@ -258,6 +258,30 @@ const rules = {
       })
       .withMessage('Each maintenance component must have a unique name and non-negative kilometre values'),
   ]),
+  updateVehicleWarranties: validate([
+    body('warrantyDetails').isArray({ max: 30 })
+      .withMessage('Warranty details must contain at most 30 entries')
+      .bail()
+      .custom((details) => {
+        const names = new Set();
+        for (const detail of details) {
+          if (!detail || typeof detail !== 'object' || Array.isArray(detail)) return false;
+          const name = typeof detail.name === 'string' ? detail.name.trim() : '';
+          const normalizedName = name.toLowerCase();
+          if (!name || name.length > 50 || names.has(normalizedName)) return false;
+          const period = detail.warrantyPeriod == null ? '' : detail.warrantyPeriod;
+          if (typeof period !== 'string' || period.length > 50) return false;
+          const odometer = detail.odometerReading;
+          if (odometer !== null && odometer !== undefined && odometer !== ''
+            && (!Number.isFinite(Number(odometer)) || Number(odometer) < 0)) return false;
+          names.add(normalizedName);
+        }
+        return true;
+      })
+      .withMessage('Each warranty detail must have a unique name and valid period and odometer values'),
+    body('warrantyDetails.*.installationDate').optional({ values: 'falsy' })
+      .isISO8601().withMessage('Installation date must be a valid date'),
+  ]),
   tripId: validate([objectId('tripId')]),
   mobileAppUrl: validate([
     body('mobileAppUrl').optional({ values: 'falsy' }).isURL({ protocols: ['http', 'https'], require_protocol: true }).withMessage('mobileAppUrl must be a full http(s) link').isLength({ max: 500 }),

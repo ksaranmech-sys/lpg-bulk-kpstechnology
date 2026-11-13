@@ -84,8 +84,6 @@ export default function CustomerAdminHome({ user }) {
       <ErrorText>{error}</ErrorText>
       <MonthlyIncomeCard customerId={customerId} />
       <SalaryDetailsCard customerId={customerId} customerData={customerData} driverUsers={driverUsers} leaves={leaves} />
-      <DieselVerificationCard vehicles={listVehicles} loading={loading} />
-      <AdvanceVerificationCard vehicles={listVehicles} loading={loading} />
       <DriversList customerId={customerId} data={customerData || { vehicles, users: [] }} canAdd />
       <TripHistoryCard vehicles={listVehicles} setError={setError} />
       <LeavesCard
@@ -107,6 +105,8 @@ export default function CustomerAdminHome({ user }) {
       />
       <VehicleRemindersCard vehicles={listVehicles} onVehicleUpdated={updateVehicle} />
       <VehicleMaintenanceCard vehicles={listVehicles} onVehicleUpdated={updateVehicle} />
+      <DieselVerificationCard vehicles={listVehicles} loading={loading} />
+      <AdvanceVerificationCard vehicles={listVehicles} loading={loading} />
     </Screen>
   );
 }

@@ -124,6 +124,29 @@ test('vehicle maintenance components require unique names and non-negative odome
   }))?.field, 'maintenanceComponents');
 });
 
+test('vehicle warranty details allow optional fields but validate names, dates, and odometer readings', async () => {
+  const validDetails = [{
+    name: 'Engine',
+    installationDate: '2025-01-15',
+    warrantyPeriod: '2 years',
+    odometerReading: 12000,
+  }];
+  assert.equal(await run(rules.updateVehicleWarranties, { warrantyDetails: validDetails }), null);
+  assert.equal(await run(rules.updateVehicleWarranties, { warrantyDetails: [] }), null);
+  assert.equal(await run(rules.updateVehicleWarranties, {
+    warrantyDetails: [{ name: 'Engine', installationDate: null, warrantyPeriod: '', odometerReading: null }],
+  }), null);
+  assert.equal((await run(rules.updateVehicleWarranties, {
+    warrantyDetails: [...validDetails, { ...validDetails[0], name: 'engine' }],
+  }))?.field, 'warrantyDetails');
+  assert.equal((await run(rules.updateVehicleWarranties, {
+    warrantyDetails: [{ ...validDetails[0], installationDate: 'not-a-date' }],
+  }))?.field, 'warrantyDetails[0].installationDate');
+  assert.equal((await run(rules.updateVehicleWarranties, {
+    warrantyDetails: [{ ...validDetails[0], odometerReading: -1 }],
+  }))?.field, 'warrantyDetails');
+});
+
 test('trip start odometer is optional but must be non-negative when provided', async () => {
   assert.equal(await run(rules.createTrip, { startOdometerKm: 0 }), null);
   assert.equal(await run(rules.createTrip, { startOdometerKm: '12500' }), null);
@@ -160,6 +183,7 @@ test('vehicles initialize seven tyre positions', () => {
   const vehicle = new Vehicle({ customer: '507f1f77bcf86cd799439011', vehicleNumber: 'KA01AB1234' });
   assert.equal(vehicle.tyres.length, 7);
   assert.deepEqual(vehicle.tyres.map((tyre) => tyre.position), [1, 2, 3, 4, 5, 6, 7]);
+  assert.deepEqual(vehicle.warrantyDetails, []);
 });
 
 test('tyre mileage defaults to the current odometer and supports a manual override', () => {

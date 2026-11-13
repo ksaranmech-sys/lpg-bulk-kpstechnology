@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import { Linking, Modal, Pressable, Text, View } from 'react-native';
 import { VEHICLE_EXPENSE_CATEGORIES, VEHICLE_TYRE_MAKERS, VEHICLE_TYRE_POSITION_OPTIONS, currentMonth, formatDate, formatMonthLabel, isTyreExpenseCategory, monthKey, toDateInputValue, wholeNumberInput } from '@kps/shared';
-import { api, errorMessage } from '../../api';
+import { api, assetToUploadFile, errorMessage } from '../../api';
 import { confirm } from '../../confirm';
-import { Button, Card, DateField, Field, Input, Loading, Muted, NumberInput, Row } from '../../ui';
+import { Button, Card, DateField, Field, Input, Loading, Muted, NumberInput, PhotoPicker, Row } from '../../ui';
 import { ButtonRow, EditBox, EntryRow, LocationPicker } from '../../trip/common';
 import { spacing } from '../../theme';
 import { expenseVehicleId, formatRs } from './VehicleExpensesCard';
 
-const EMPTY_FORM = { category: '', tyreMaker: '', tyreModel: '', tyrePosition: '', tyreNumber: '', tyreNumber2: '', amount: '', date: '', note: '' };
+const EMPTY_FORM = {
+  category: '', tyreMaker: '', tyreModel: '', tyrePosition: '', tyreNumber: '', tyreNumber2: '',
+  amount: '', date: '', note: '', photo: null, removePhoto: false,
+};
 
 function TyrePositionDropdown({ value, onChange }) {
   const [open, setOpen] = useState(false);
@@ -61,7 +64,7 @@ function TyrePositionDropdown({ value, onChange }) {
   );
 }
 
-function ExpenseFields({ form, setForm, previousTyreNumbers, excludeExpenseId = '' }) {
+function ExpenseFields({ form, setForm, previousTyreNumbers, excludeExpenseId = '', existingPhotoUrl = '' }) {
   return (
     <>
       <LocationPicker
@@ -120,6 +123,23 @@ function ExpenseFields({ form, setForm, previousTyreNumbers, excludeExpenseId = 
       <Field label="Note (optional)">
         <Input value={form.note} onChangeText={(note) => setForm({ ...form, note })} />
       </Field>
+      <PhotoPicker
+        label="Receipt photo (optional)"
+        asset={form.photo}
+        onChange={(photo) => setForm((current) => ({ ...current, photo, removePhoto: false }))}
+      />
+      {existingPhotoUrl && !form.photo ? (
+        <View style={{ marginBottom: spacing.md }}>
+          <Muted style={{ marginBottom: spacing.xs }}>
+            {form.removePhoto ? 'Current receipt photo will be removed when saved.' : 'Current receipt photo is attached.'}
+          </Muted>
+          <Button
+            title={form.removePhoto ? 'Keep current photo' : 'Remove current photo'}
+            variant="secondary"
+            onPress={() => setForm((current) => ({ ...current, removePhoto: !current.removePhoto }))}
+          />
+        </View>
+      ) : null}
     </>
   );
 }
@@ -197,7 +217,13 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
     setError('');
     setSaving(true);
     try {
-      const res = await api.createVehicleExpense({ ...form, vehicleId: vehicle._id, amount: Number(form.amount) });
+      const fields = { ...form };
+      delete fields.photo;
+      delete fields.removePhoto;
+      const res = await api.createVehicleExpense(
+        { ...fields, vehicleId: vehicle._id, amount: Number(form.amount) },
+        assetToUploadFile(form.photo)
+      );
       setExpenses((current) => [res.data.expense, ...current]);
       setForm(EMPTY_FORM);
       setShowAddForm(false);
@@ -220,6 +246,8 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
       amount: expense.amount == null ? '' : String(Math.round(Number(expense.amount))),
       date: toDateInputValue(expense.date) || '',
       note: expense.note || '',
+      photo: null,
+      removePhoto: false,
     });
     setError('');
   }
@@ -229,12 +257,23 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
     setEditForm(EMPTY_FORM);
   }
 
+  async function openReceipt(url) {
+    try {
+      await Linking.openURL(url);
+    } catch (err) {
+      setError(errorMessage(err, 'Failed to open receipt photo'));
+    }
+  }
+
   async function saveEdit() {
     if (!editId) return;
     setError('');
     setEditSaving(true);
     try {
-      const res = await api.updateVehicleExpense(editId, { ...editForm, amount: Number(editForm.amount) });
+      const { photo, removePhoto, ...fields } = editForm;
+      const payload = { ...fields, amount: Number(editForm.amount) };
+      if (removePhoto && !photo) payload.removePhoto = true;
+      const res = await api.updateVehicleExpense(editId, payload, assetToUploadFile(photo));
       setExpenses((current) => current.map((expense) => (expense._id === editId ? res.data.expense : expense)));
       cancelEdit();
     } catch (err) {
@@ -268,6 +307,7 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
               setForm={setEditForm}
               previousTyreNumbers={previousTyreNumbers}
               excludeExpenseId={expense._id}
+              existingPhotoUrl={expense.photo?.url}
             />
             <ButtonRow>
               <Button title="Save" onPress={saveEdit} loading={editSaving} disabled={!canSubmit(editForm)} style={{ flex: 1 }} />
@@ -280,6 +320,14 @@ export default function DriverVehicleExpenses({ customerId, vehicle, setError })
             title={`${expense.category} - ${formatRs(expense.amount)}`}
             subtitle={`${formatDate(expense.date)}${expense.tyreMaker || expense.tyreModel || expense.tyrePosition ? `\n${[[expense.tyreNumber, expense.tyreNumber2].filter(Boolean).join(', '), expense.tyreMaker, expense.tyreModel, expense.tyrePosition].filter(Boolean).join(' - ')}` : expense.tyreNumber ? `\nTyre Number: ${[expense.tyreNumber, expense.tyreNumber2].filter(Boolean).join(', ')}` : ''}${expense.note ? `\n${expense.note}` : ''}`}
           >
+            {expense.photo?.url ? (
+              <Button
+                title="View receipt"
+                variant="secondary"
+                onPress={() => openReceipt(expense.photo.url)}
+                style={{ minHeight: 36, paddingVertical: 6 }}
+              />
+            ) : null}
             <Button title="Edit" variant="secondary" onPress={() => startEdit(expense)} style={{ minHeight: 36, paddingVertical: 6 }} />
             <Button title="Delete" variant="danger" onPress={() => removeExpense(expense._id)} style={{ minHeight: 36, paddingVertical: 6 }} />
           </EntryRow>

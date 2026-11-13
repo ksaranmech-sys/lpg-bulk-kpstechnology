@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import * as api from '../../api/api';
 import VehicleTyreDetails from './VehicleTyreDetails';
+import VehicleWarrantyDetails from './VehicleWarrantyDetails';
 
 const STANDARD_COMPONENTS = [
   'Engine Oil',
@@ -244,6 +245,7 @@ export default function VehicleMaintenance({ vehicle, onVehicleUpdated }) {
       </form>
       {error && <p className="error-text" role="alert">{error}</p>}
       {message && <p role="status" style={{ color: '#2f855a' }}>{message}</p>}
+      <VehicleWarrantyDetails vehicle={vehicle} onVehicleUpdated={onVehicleUpdated} />
       <h4 style={{ margin: '20px 0 8px', color: 'var(--green-900)' }}>Tyre Details</h4>
       <div>
         <VehicleTyreDetails vehicle={vehicle} />
