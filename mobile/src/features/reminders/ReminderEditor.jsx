@@ -60,16 +60,25 @@ export default function ReminderEditor({ vehicle, onSaved, variant = 'status', t
         const soon = !expired && expiresWithin30Days(reminder.expiryDate);
         return (
           <View key={key} style={[styles.row, expired && styles.rowExpired, soon && styles.rowSoon]}>
-            <Text style={styles.rowTitle}>{reminder.label || key}</Text>
-            <DateField
-              value={reminderDates[key] || ''}
-              onChange={(value) => {
-                setReminderDates((current) => ({ ...current, [key]: value }));
-                setDirty(true);
-                setMessage('');
-              }}
-            />
-            <Text style={{ color: expired ? colors.danger : colors.muted, fontSize: 13 }}>{statusFor(reminder.expiryDate)}</Text>
+            <View style={styles.inputRow}>
+              <Text style={styles.rowTitle}>{reminder.label || key}</Text>
+              <View style={styles.dateField}>
+                <DateField
+                  value={reminderDates[key] || ''}
+                  onChange={(value) => {
+                    setReminderDates((current) => ({ ...current, [key]: value }));
+                    setDirty(true);
+                    setMessage('');
+                  }}
+                  fieldStyle={styles.compactField}
+                  inputStyle={styles.compactDateInput}
+                  textStyle={styles.compactDateText}
+                />
+              </View>
+            </View>
+            <Text style={{ color: expired ? colors.danger : colors.muted, fontSize: 13, marginTop: spacing.xs }}>
+              {statusFor(reminder.expiryDate)}
+            </Text>
           </View>
         );
       })}
@@ -84,7 +93,7 @@ export default function ReminderEditor({ vehicle, onSaved, variant = 'status', t
 
 const styles = StyleSheet.create({
   row: {
-    padding: spacing.md,
+    padding: spacing.sm,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
@@ -93,5 +102,10 @@ const styles = StyleSheet.create({
   },
   rowExpired: { backgroundColor: '#ffe5e5' },
   rowSoon: { backgroundColor: '#fff4bf' },
-  rowTitle: { fontWeight: '700', color: colors.ink, marginBottom: spacing.xs },
+  inputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  rowTitle: { flex: 1, fontWeight: '700', color: colors.ink },
+  dateField: { width: '48%' },
+  compactField: { marginBottom: 0 },
+  compactDateInput: { paddingHorizontal: spacing.sm, paddingVertical: spacing.sm },
+  compactDateText: { fontSize: 13 },
 });

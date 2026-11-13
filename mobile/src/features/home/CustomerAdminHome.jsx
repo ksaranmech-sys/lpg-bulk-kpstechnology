@@ -12,6 +12,8 @@ import SalaryDetailsCard from '../salary/SalaryDetailsCard';
 import MonthlyIncomeCard from './MonthlyIncomeCard';
 import VehicleRemindersCard from '../reminders/VehicleRemindersCard';
 import VehicleMaintenanceCard from '../maintenance/VehicleMaintenanceCard';
+import DieselVerificationCard from '../verification/DieselVerificationCard';
+import AdvanceVerificationCard from '../verification/AdvanceVerificationCard';
 
 // Customer admin home: same sections as the web dashboard, top to bottom.
 export default function CustomerAdminHome({ user }) {
@@ -82,6 +84,8 @@ export default function CustomerAdminHome({ user }) {
       <ErrorText>{error}</ErrorText>
       <MonthlyIncomeCard customerId={customerId} />
       <SalaryDetailsCard customerId={customerId} customerData={customerData} driverUsers={driverUsers} leaves={leaves} />
+      <DieselVerificationCard vehicles={listVehicles} loading={loading} />
+      <AdvanceVerificationCard vehicles={listVehicles} loading={loading} />
       <DriversList customerId={customerId} data={customerData || { vehicles, users: [] }} canAdd />
       <TripHistoryCard vehicles={listVehicles} setError={setError} />
       <LeavesCard

@@ -3,6 +3,9 @@ import { View } from 'react-native';
 import { Card, ErrorText, Field, Input, Muted, Select, Button } from '../../ui';
 import { api, errorMessage } from '../../api';
 import { spacing } from '../../theme';
+import VehicleTyreDetails from '../expenses/VehicleTyreDetails';
+
+const compactInputStyle = { paddingHorizontal: spacing.sm, paddingVertical: 6, fontSize: 14, minHeight: 36 };
 
 const STANDARD_COMPONENTS = [
   'Engine Oil',
@@ -120,7 +123,8 @@ export default function VehicleMaintenanceCard({ vehicles, onVehicleUpdated }) {
   }
 
   return (
-    <Card title="Vehicle Maintenance">
+    <>
+      <Card title="Vehicle Maintenance">
       <Select
         label="Select Vehicle"
         value={selectedVehicleId}
@@ -146,48 +150,67 @@ export default function VehicleMaintenanceCard({ vehicles, onVehicleUpdated }) {
                 {component.isStandard ? (
                   <Muted style={{ color: '#152936', fontWeight: '700', marginBottom: spacing.xs }}>{component.name}</Muted>
                 ) : (
-                  <Field label="Component Name">
+                  <Field label="Component Name" style={styles.fullField}>
                     <Input
                       value={component.name}
                       editable={editing}
                       maxLength={50}
                       onChangeText={(value) => updateComponent(index, 'name', value)}
+                      style={compactInputStyle}
                     />
                   </Field>
                 )}
-                <Field label="Starting Odometer (km)">
-                  <Input
-                    value={component.startingOdometerKm}
-                    editable={editing}
-                    keyboardType="number-pad"
-                    onChangeText={(value) => updateComponent(index, 'startingOdometerKm', value.replace(/\D/g, ''))}
-                  />
-                </Field>
-                <Field label="Till now KM">
-                  <Input value={usedKm(component, vehicle.lastKnownOdometer)} editable={false} placeholder="Calculated automatically" />
-                </Field>
-                <Field label="Expected KM">
-                  <Input
-                    value={component.expectedKm}
-                    editable={editing}
-                    keyboardType="number-pad"
-                    onChangeText={(value) => updateComponent(index, 'expectedKm', value.replace(/\D/g, ''))}
-                  />
-                </Field>
-                <Field label="Reminder KM">
-                  <Input
-                    value={component.reminderKm}
-                    editable={editing}
-                    keyboardType="number-pad"
-                    onChangeText={(value) => updateComponent(index, 'reminderKm', value.replace(/\D/g, ''))}
-                  />
-                </Field>
+                <View style={styles.fieldRow}>
+                  <Field label="Starting Odometer (km)" style={styles.rowField}>
+                    <Input
+                      value={component.startingOdometerKm}
+                      editable={editing}
+                      keyboardType="number-pad"
+                      onChangeText={(value) => updateComponent(index, 'startingOdometerKm', value.replace(/\D/g, ''))}
+                      style={compactInputStyle}
+                    />
+                  </Field>
+                  <Field label="Till now KM" style={styles.rowField}>
+                    <Input
+                      value={usedKm(component, vehicle.lastKnownOdometer)}
+                      editable={false}
+                      placeholder="Calculated automatically"
+                      style={compactInputStyle}
+                    />
+                  </Field>
+                </View>
+                <View style={styles.fieldRow}>
+                  <Field label="Expected KM" style={styles.rowField}>
+                    <Input
+                      value={component.expectedKm}
+                      editable={editing}
+                      keyboardType="number-pad"
+                      onChangeText={(value) => updateComponent(index, 'expectedKm', value.replace(/\D/g, ''))}
+                      style={compactInputStyle}
+                    />
+                  </Field>
+                  <Field label="Reminder KM" style={styles.rowField}>
+                    <Input
+                      value={component.reminderKm}
+                      editable={editing}
+                      keyboardType="number-pad"
+                      onChangeText={(value) => updateComponent(index, 'reminderKm', value.replace(/\D/g, ''))}
+                      style={compactInputStyle}
+                    />
+                  </Field>
+                </View>
               </View>
             ))}
           </View>
           {editing && (
-            <Field label="Manual Entry">
-              <Input value={newName} onChangeText={setNewName} placeholder="Enter component name" maxLength={50} />
+            <Field label="Manual Entry" style={styles.fullField}>
+              <Input
+                value={newName}
+                onChangeText={setNewName}
+                placeholder="Enter component name"
+                maxLength={50}
+                style={compactInputStyle}
+              />
             </Field>
           )}
           <ErrorText>{error}</ErrorText>
@@ -203,6 +226,14 @@ export default function VehicleMaintenanceCard({ vehicles, onVehicleUpdated }) {
           </View>
         </View>
       )}
-    </Card>
+      </Card>
+      {vehicle ? <VehicleTyreDetails vehicle={vehicle} onVehicleUpdated={onVehicleUpdated} /> : null}
+    </>
   );
 }
+
+const styles = {
+  fieldRow: { flexDirection: 'row', gap: spacing.sm },
+  rowField: { flex: 1, marginBottom: spacing.sm },
+  fullField: { marginBottom: spacing.sm },
+};

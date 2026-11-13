@@ -38,9 +38,9 @@ export function Card({ title, children, style, right }) {
   );
 }
 
-export function Field({ label, children, hint }) {
+export function Field({ label, children, hint, style }) {
   return (
-    <View style={styles.field}>
+    <View style={[styles.field, style]}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       {children}
       {hint ? <Text style={styles.hint}>{hint}</Text> : null}
@@ -57,13 +57,15 @@ export function NumberInput(props) {
 }
 
 // value/onChange use 'YYYY-MM-DD' strings, matching the web <input type="date"> and the API.
-export function DateField({ label, value, onChange, min, max, placeholder = 'Select date' }) {
+export function DateField({
+  label, value, onChange, min, max, placeholder = 'Select date', fieldStyle, inputStyle, textStyle,
+}) {
   const [open, setOpen] = useState(false);
   const date = value ? new Date(`${value}T00:00:00`) : new Date();
   return (
-    <Field label={label}>
-      <Pressable style={styles.input} onPress={() => setOpen(true)}>
-        <Text style={{ color: value ? colors.ink : '#94a3b8' }}>{value ? formatDate(value) : placeholder}</Text>
+    <Field label={label} style={fieldStyle}>
+      <Pressable style={[styles.input, inputStyle]} onPress={() => setOpen(true)}>
+        <Text style={[{ color: value ? colors.ink : '#94a3b8' }, textStyle]}>{value ? formatDate(value) : placeholder}</Text>
       </Pressable>
       {open && (
         <DateTimePicker

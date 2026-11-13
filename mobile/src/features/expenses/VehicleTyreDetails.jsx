@@ -5,6 +5,8 @@ import { api, errorMessage } from '../../api';
 import { Button, Card, ErrorText, Field, Input, Muted, NumberInput } from '../../ui';
 import { spacing } from '../../theme';
 
+const compactInputStyle = { paddingHorizontal: spacing.xs, paddingVertical: 6, fontSize: 13, minHeight: 36 };
+
 function tyreRows(tyres = []) {
   return Array.from({ length: 7 }, (_, index) => {
     const tyre = tyres.find((entry) => Number(entry.position) === index + 1) || {};
@@ -29,7 +31,7 @@ function mileageUntilNow(tyre, currentOdometer) {
   return Number.isFinite(mileage) && mileage >= 0 ? String(mileage) : '';
 }
 
-export default function VehicleTyreDetails({ vehicle }) {
+export default function VehicleTyreDetails({ vehicle, onVehicleUpdated }) {
   const [tyres, setTyres] = useState(() => tyreRows(vehicle?.tyres));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -50,12 +52,13 @@ export default function VehicleTyreDetails({ vehicle }) {
     setError('');
     setMessage('');
     try {
-      await api.updateVehicleTyres(vehicle._id, tyres.map((tyre) => ({
+      const response = await api.updateVehicleTyres(vehicle._id, tyres.map((tyre) => ({
         ...tyre,
         installedOdometerKm: tyre.installedOdometerKm === '' ? null : Number(tyre.installedOdometerKm),
         manualMileageKm: tyre.manualMileageKm === '' ? null : Number(tyre.manualMileageKm),
         expectedMileageKm: tyre.expectedMileageKm === '' ? null : Number(tyre.expectedMileageKm),
       })));
+      onVehicleUpdated?.(response.data.vehicle);
       setMessage('Tyre details saved.');
     } catch (err) {
       setError(errorMessage(err, 'Failed to save tyre details'));
@@ -76,45 +79,52 @@ export default function VehicleTyreDetails({ vehicle }) {
           <Muted style={{ fontWeight: '700', marginBottom: spacing.xs }}>{VEHICLE_TYRE_POSITIONS[tyre.position - 1]}</Muted>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             <View style={{ flex: 1 }}>
-              <Field label="Tyre Number 1">
+              <Field label="Tyre 1" style={styles.rowField}>
                 <Input
                   value={tyre.tyreNumber}
                   maxLength={50}
                   onChangeText={(value) => updateTyre(tyre.position, 'tyreNumber', value)}
+                  style={compactInputStyle}
                 />
               </Field>
             </View>
             <View style={{ flex: 1 }}>
-              <Field label="Tyre Number 2">
+              <Field label="Tyre 2" style={styles.rowField}>
                 <Input
                   value={tyre.tyreNumber2}
                   maxLength={50}
                   onChangeText={(value) => updateTyre(tyre.position, 'tyreNumber2', value)}
+                  style={compactInputStyle}
                 />
               </Field>
             </View>
           </View>
-          <Field label="Installed Odometer (km)">
-            <NumberInput
-              value={tyre.installedOdometerKm}
-              keyboardType="number-pad"
-              onChangeText={(value) => updateTyre(tyre.position, 'installedOdometerKm', value.replace(/\D/g, ''))}
-            />
-          </Field>
-          <Field label="Mileage upto now (km)">
-            <NumberInput
-              value={mileageUntilNow(tyre, vehicle.lastKnownOdometer)}
-              placeholder="Calculated automatically"
-              onChangeText={(value) => updateTyre(tyre.position, 'manualMileageKm', value.replace(/\D/g, ''))}
-            />
-          </Field>
-          <Field label="Expected Mileage (km)">
-            <NumberInput
-              value={tyre.expectedMileageKm}
-              keyboardType="number-pad"
-              onChangeText={(value) => updateTyre(tyre.position, 'expectedMileageKm', value.replace(/\D/g, ''))}
-            />
-          </Field>
+          <View style={{ flexDirection: 'row', gap: spacing.xs }}>
+            <Field label="Installed ODO (km)" style={styles.mileageField}>
+              <NumberInput
+                value={tyre.installedOdometerKm}
+                keyboardType="number-pad"
+                onChangeText={(value) => updateTyre(tyre.position, 'installedOdometerKm', value.replace(/\D/g, ''))}
+                style={compactInputStyle}
+              />
+            </Field>
+            <Field label="Mileage up to now (km)" style={styles.mileageField}>
+              <NumberInput
+                value={mileageUntilNow(tyre, vehicle.lastKnownOdometer)}
+                placeholder="Calculated"
+                onChangeText={(value) => updateTyre(tyre.position, 'manualMileageKm', value.replace(/\D/g, ''))}
+                style={compactInputStyle}
+              />
+            </Field>
+            <Field label="Expected Mileage (km)" style={styles.mileageField}>
+              <NumberInput
+                value={tyre.expectedMileageKm}
+                keyboardType="number-pad"
+                onChangeText={(value) => updateTyre(tyre.position, 'expectedMileageKm', value.replace(/\D/g, ''))}
+                style={compactInputStyle}
+              />
+            </Field>
+          </View>
         </View>
       ))}
       <ErrorText>{error}</ErrorText>
@@ -123,3 +133,8 @@ export default function VehicleTyreDetails({ vehicle }) {
     </Card>
   );
 }
+
+const styles = {
+  rowField: { marginBottom: spacing.sm },
+  mileageField: { flex: 1, marginBottom: spacing.sm },
+};
