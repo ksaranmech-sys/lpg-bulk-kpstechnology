@@ -20,11 +20,12 @@ function withTyreExpenseNumbers(tyres = [], vehicleId, expenses = []) {
     });
 
   return tyres.map((tyre) => {
-    const expense = latestByPosition.get(Number(tyre.position)) || {};
+    const tyreData = typeof tyre.toObject === 'function' ? tyre.toObject() : tyre;
+    const expense = latestByPosition.get(Number(tyreData.position)) || {};
     return {
-      ...tyre,
-      tyreNumber: String(tyre.tyreNumber || '').trim() || expense.tyreNumber || '',
-      tyreNumber2: String(tyre.tyreNumber2 || '').trim() || expense.tyreNumber2 || '',
+      ...tyreData,
+      tyreNumber: String(tyreData.tyreNumber || '').trim() || expense.tyreNumber || '',
+      tyreNumber2: String(tyreData.tyreNumber2 || '').trim() || expense.tyreNumber2 || '',
     };
   });
 }

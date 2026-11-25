@@ -219,6 +219,29 @@ test('vehicle tyre details fall back to the latest matching tyre expense numbers
   );
 });
 
+test('vehicle tyre details preserve values from mongoose subdocuments', () => {
+  const vehicle = new Vehicle({
+    customer: '507f1f77bcf86cd799439011',
+    vehicleNumber: 'KA01AB1234',
+    tyres: [{
+      position: 4,
+      tyreNumber: 'TYRE-001',
+      tyreNumber2: 'TYRE-002',
+      installedOdometerKm: 54013,
+      manualMileageKm: 1047,
+      expectedMileageKm: 70000,
+    }],
+  });
+
+  const [tyre] = withTyreExpenseNumbers(vehicle.tyres, vehicle._id);
+  assert.equal(tyre.position, 4);
+  assert.equal(tyre.tyreNumber, 'TYRE-001');
+  assert.equal(tyre.tyreNumber2, 'TYRE-002');
+  assert.equal(tyre.installedOdometerKm, 54013);
+  assert.equal(tyre.manualMileageKm, 1047);
+  assert.equal(tyre.expectedMileageKm, 70000);
+});
+
 test('forgot-password takes a recovery email and reset uses a 64-hex token', async () => {
   assert.equal(await run(rules.forgotPassword, { username: 'kpstransports', recoveryEmail: 'owner@kps.in' }), null);
   assert.equal((await run(rules.forgotPassword, { username: 'kpstransports', recoveryEmail: 'owner kps.in' }))?.field, 'recoveryEmail');
