@@ -115,7 +115,6 @@ test('orders customer admin dashboard sections as requested', async () => {
 
   const renderedSections = Array.from(container.querySelectorAll('[data-dashboard-section]'))
     .map((section) => section.dataset.dashboardSection);
-  expect(renderedSections.indexOf('vehicle-driver-list')).toBeLessThan(renderedSections.indexOf('leave-entries'));
   expect(renderedSections.indexOf('leave-entries')).toBeLessThan(renderedSections.indexOf('vehicle-expenses'));
 
   const sections = Array.from(container.querySelectorAll('[data-dashboard-section]'))
@@ -124,13 +123,15 @@ test('orders customer admin dashboard sections as requested', async () => {
   expect(sections).toEqual([
     'monthly-income',
     'salary-details',
-    'vehicle-driver-list',
     'trip-history',
+    'vehicle-driver-list',
     'leave-entries',
     'vehicle-expenses',
     'vehicle-reminders-maintenance',
     'verification',
   ]);
+  expect(sections.indexOf('trip-history')).toBeLessThan(sections.indexOf('vehicle-driver-list'));
+  expect(sections.indexOf('leave-entries')).toBe(sections.indexOf('vehicle-driver-list') + 1);
   expect(container.querySelector('[aria-label="Vehicle management"]')).toBeNull();
 
   await act(async () => root.unmount());

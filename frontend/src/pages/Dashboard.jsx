@@ -68,7 +68,7 @@ export default function Dashboard() {
         </>
       )}
       {user?.role === 'customer_admin' && (
-        <div style={{ order: 3 }}>
+        <div style={{ order: 2 }}>
           <div data-dashboard-section="trip-history">
             <OpenTripsCard
               loading={loading}
@@ -148,7 +148,7 @@ export default function Dashboard() {
         </div>
       )}
       {user?.role === 'customer_admin' && (
-        <div style={{ order: 2 }}>
+        <div style={{ order: 3 }}>
           <div data-dashboard-section="vehicle-driver-list">
             <DriverList
               user={user}
