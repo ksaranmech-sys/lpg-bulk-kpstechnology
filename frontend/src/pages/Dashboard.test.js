@@ -31,10 +31,19 @@ jest.mock('../features/dashboard/DriverList', () => () => <div>Vehicle and drive
 jest.mock('../features/dashboard/AdminLeaveSection', () => () => <div>Leave entries</div>);
 jest.mock('../features/dashboard/VehicleReminderEditor', () => () => <div>Reminder / Expiry Dates</div>);
 jest.mock('../features/dashboard/VehicleMaintenanceSection', () => () => <div>Vehicle Maintenance</div>);
+jest.mock('../features/dashboard/VehicleReminderMaintenanceSection', () => () => (
+  <div data-dashboard-section="vehicle-reminders-maintenance">Vehicle Reminders &amp; Maintenance</div>
+));
 jest.mock('../features/dashboard/DieselVerificationSection', () => () => <div>Diesel Verification</div>);
 jest.mock('../features/dashboard/AdvanceVerificationSection', () => () => <div>Advance Verification</div>);
+jest.mock('../features/dashboard/VerificationCombinedSection', () => () => (
+  <div data-dashboard-section="verification">Diesel, DEF &amp; Advance Verification</div>
+));
 jest.mock('../features/dashboard/VehicleExpensesSection', () => () => <div data-dashboard-section="vehicle-expenses">Vehicle Expenses</div>);
 jest.mock('../features/dashboard/VehicleExpenseManagementSection', () => () => <div data-dashboard-section="manage-vehicle-expenses">Manage Vehicle Expenses</div>);
+jest.mock('../features/dashboard/VehicleExpensesCombinedSection', () => () => (
+  <div data-dashboard-section="vehicle-expenses">Vehicle Expenses</div>
+));
 jest.mock('../features/dashboard/MaintenanceReminderPopup', () => ({ vehicles }) => (
   <div data-testid="maintenance-reminder-popup">{vehicles.length}</div>
 ));
@@ -119,11 +128,8 @@ test('orders customer admin dashboard sections as requested', async () => {
     'trip-history',
     'leave-entries',
     'vehicle-expenses',
-    'manage-vehicle-expenses',
-    'reminder-expiry',
-    'vehicle-maintenance',
-    'diesel-verification',
-    'advance-verification',
+    'vehicle-reminders-maintenance',
+    'verification',
   ]);
   expect(container.querySelector('[aria-label="Vehicle management"]')).toBeNull();
 

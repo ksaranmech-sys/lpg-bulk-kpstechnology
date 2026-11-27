@@ -35,9 +35,21 @@ async function loadComparisonUploads(vehicleId, vehicleNumber, driverMobileNumbe
   return [...uploadsById.values()];
 }
 
-export default function AdvanceVerificationSection({ vehicles, loading: vehiclesLoading }) {
-  const [selectedVehicleId, setSelectedVehicleId] = useState('');
-  const [month, setMonth] = useState(currentMonth);
+export default function AdvanceVerificationSection({
+  vehicles,
+  loading: vehiclesLoading,
+  selectedVehicleId: controlledVehicleId,
+  month: controlledMonth,
+  onSelectedVehicleId,
+  onMonth,
+  hideVehicleSelector = false,
+  hideMonthSelector = false,
+  hideHeading = false,
+}) {
+  const [internalVehicleId, setInternalVehicleId] = useState('');
+  const [internalMonth, setInternalMonth] = useState(currentMonth);
+  const selectedVehicleId = controlledVehicleId ?? internalVehicleId;
+  const month = controlledMonth ?? internalMonth;
   const [file, setFile] = useState(null);
   const [uploads, setUploads] = useState([]);
   const [comparisonUploads, setComparisonUploads] = useState([]);
@@ -63,12 +75,22 @@ export default function AdvanceVerificationSection({ vehicles, loading: vehicles
   selectedVehicleNumberRef.current = selectedVehicle?.vehicleNumber || '';
 
   useEffect(() => {
-    setSelectedVehicleId((currentId) => (
-      vehicles.some((vehicle) => String(vehicle._id) === String(currentId))
-        ? currentId
-        : String(vehicles[0]?._id || '')
-    ));
-  }, [vehicles]);
+    const validId = vehicles.some((vehicle) => String(vehicle._id) === String(selectedVehicleId))
+      ? selectedVehicleId
+      : String(vehicles[0]?._id || '');
+    if (onSelectedVehicleId) onSelectedVehicleId(validId);
+    else setInternalVehicleId(validId);
+  }, [vehicles, selectedVehicleId, onSelectedVehicleId]);
+
+  function setVehicleId(nextId) {
+    if (onSelectedVehicleId) onSelectedVehicleId(nextId);
+    else setInternalVehicleId(nextId);
+  }
+
+  function setReportMonth(nextMonth) {
+    if (onMonth) onMonth(nextMonth);
+    else setInternalMonth(nextMonth);
+  }
 
   useEffect(() => {
     if (!vehicleId || !month) {
@@ -220,50 +242,54 @@ export default function AdvanceVerificationSection({ vehicles, loading: vehicles
   }
 
   return (
-    <section className="card" aria-labelledby="advance-verification-title" style={{ order: 9999 }}>
-      <h3 id="advance-verification-title" className="section-title" style={{ marginTop: 0 }}>
-        Advance Verification
-      </h3>
+    <section className={hideHeading ? '' : 'card'} aria-labelledby={hideHeading ? undefined : 'advance-verification-title'} style={hideHeading ? undefined : { order: 9999 }}>
+      {!hideHeading && (
+        <h3 id="advance-verification-title" className="section-title" style={{ marginTop: 0 }}>
+          Advance Verification
+        </h3>
+      )}
       {vehiclesLoading ? <p>Loading vehicles...</p> : vehicles.length === 0 ? (
         <p style={{ margin: 0, color: '#666' }}>No vehicles available for advance verification.</p>
       ) : (
         <>
-          <div style={{ display: 'flex', alignItems: 'end', gap: 14, flexWrap: 'wrap' }}>
-            <div className="field" style={{ minWidth: 220 }}>
-              <label htmlFor="advance-verification-vehicle">Select Vehicle</label>
-              <select
-                id="advance-verification-vehicle"
-                value={vehicleId}
-                onChange={(event) => {
-                  setSelectedVehicleId(event.target.value);
-                  clearSelectedFile();
-                  setMessage('');
-                  setError('');
-                }}
-              >
-                {vehicles.map((vehicle) => (
-                  <option key={vehicle._id} value={String(vehicle._id)}>
-                    {vehicle.vehicleNumber}{vehicle.driverName ? ` | ${vehicle.driverName}` : ''}
-                  </option>
-                ))}
-              </select>
+          {!hideVehicleSelector && !hideMonthSelector && (
+            <div style={{ display: 'flex', alignItems: 'end', gap: 14, flexWrap: 'wrap' }}>
+              <div className="field" style={{ minWidth: 220 }}>
+                <label htmlFor="advance-verification-vehicle">Select Vehicle</label>
+                <select
+                  id="advance-verification-vehicle"
+                  value={vehicleId}
+                  onChange={(event) => {
+                    setVehicleId(event.target.value);
+                    clearSelectedFile();
+                    setMessage('');
+                    setError('');
+                  }}
+                >
+                  {vehicles.map((vehicle) => (
+                    <option key={vehicle._id} value={String(vehicle._id)}>
+                      {vehicle.vehicleNumber}{vehicle.driverName ? ` | ${vehicle.driverName}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="advance-verification-month">Report Month</label>
+                <input
+                  id="advance-verification-month"
+                  type="month"
+                  required
+                  value={month}
+                  onChange={(event) => {
+                    setReportMonth(event.target.value);
+                    clearSelectedFile();
+                    setMessage('');
+                    setError('');
+                  }}
+                />
+              </div>
             </div>
-            <div className="field">
-              <label htmlFor="advance-verification-month">Report Month</label>
-              <input
-                id="advance-verification-month"
-                type="month"
-                required
-                value={month}
-                onChange={(event) => {
-                  setMonth(event.target.value);
-                  clearSelectedFile();
-                  setMessage('');
-                  setError('');
-                }}
-              />
-            </div>
-          </div>
+          )}
 
           <form onSubmit={handleUpload} style={{ display: 'flex', alignItems: 'end', gap: 12, flexWrap: 'wrap', margin: '4px 0 20px' }}>
             <div className="field" style={{ minWidth: 260 }}>

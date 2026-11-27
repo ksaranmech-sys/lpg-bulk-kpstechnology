@@ -3,8 +3,16 @@ import { expiresWithin30Days, isExpired, reminderStatusText } from '@kps/shared'
 import * as api from '../../api/api';
 import { ReminderSummary } from '../../components/ReminderSummary';
 
-export default function VehicleReminderEditor({ vehicles, setVehicles }) {
-  const [selectedVehicleId, setSelectedVehicleId] = useState('');
+export default function VehicleReminderEditor({
+  vehicles,
+  setVehicles,
+  selectedVehicleId: controlledVehicleId,
+  onSelectedVehicleId,
+  hideVehicleSelector = false,
+  hideHeading = false,
+}) {
+  const [internalVehicleId, setInternalVehicleId] = useState('');
+  const selectedVehicleId = controlledVehicleId ?? internalVehicleId;
   const [reminderDates, setReminderDates] = useState({});
   const [reminderDirty, setReminderDirty] = useState(false);
   const [reminderSaving, setReminderSaving] = useState(false);
@@ -13,12 +21,12 @@ export default function VehicleReminderEditor({ vehicles, setVehicles }) {
   const reminderVehicle = vehicles.find((vehicle) => String(vehicle._id) === String(selectedVehicleId));
 
   useEffect(() => {
-    setSelectedVehicleId((currentId) => (
-      vehicles.some((vehicle) => String(vehicle._id) === String(currentId))
-        ? currentId
-        : vehicles[0]?._id || ''
-    ));
-  }, [vehicles]);
+    const validId = vehicles.some((vehicle) => String(vehicle._id) === String(selectedVehicleId))
+      ? selectedVehicleId
+      : vehicles[0]?._id || '';
+    if (onSelectedVehicleId) onSelectedVehicleId(validId);
+    else setInternalVehicleId(validId);
+  }, [vehicles, selectedVehicleId, onSelectedVehicleId]);
 
   useEffect(() => {
     if (!reminderVehicle) {
@@ -61,26 +69,29 @@ export default function VehicleReminderEditor({ vehicles, setVehicles }) {
   if (vehicles.length === 0) return null;
 
   return (
-    <div className="card" style={{ marginTop: 24, order: 9999 }}>
-      <h3 className="section-title" style={{ marginTop: 0 }}>Reminder / Expiry Dates</h3>
-      <div className="field" style={{ maxWidth: 420 }}>
-        <label htmlFor="document-reminder-vehicle">Select Vehicle</label>
-        <select
-          id="document-reminder-vehicle"
-          value={selectedVehicleId}
-          onChange={(event) => {
-            setSelectedVehicleId(event.target.value);
-            setReminderDirty(false);
-            setReminderMessage('');
-          }}
-        >
-          {vehicles.map((vehicle) => (
-            <option key={vehicle._id} value={vehicle._id}>
-              {vehicle.vehicleNumber}{vehicle.driverName ? ` | ${vehicle.driverName}` : ''}
-            </option>
-          ))}
-        </select>
-      </div>
+    <div className={!hideHeading ? 'card' : undefined} style={!hideHeading ? { marginTop: 24, order: 9999 } : undefined}>
+      {!hideHeading && <h3 className="section-title" style={{ marginTop: 0 }}>Reminder / Expiry Dates</h3>}
+      {!hideVehicleSelector && (
+        <div className="field" style={{ maxWidth: 420 }}>
+          <label htmlFor="document-reminder-vehicle">Select Vehicle</label>
+          <select
+            id="document-reminder-vehicle"
+            value={selectedVehicleId}
+            onChange={(event) => {
+              if (onSelectedVehicleId) onSelectedVehicleId(event.target.value);
+              else setInternalVehicleId(event.target.value);
+              setReminderDirty(false);
+              setReminderMessage('');
+            }}
+          >
+            {vehicles.map((vehicle) => (
+              <option key={vehicle._id} value={vehicle._id}>
+                {vehicle.vehicleNumber}{vehicle.driverName ? ` | ${vehicle.driverName}` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       {reminderVehicle && (
         <>
           <ReminderSummary reminders={reminderVehicle.documentReminders} />

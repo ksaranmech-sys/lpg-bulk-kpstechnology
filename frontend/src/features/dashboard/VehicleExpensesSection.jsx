@@ -8,8 +8,19 @@ function formatRs(value) {
 }
 
 // One row per expense month for the selected vehicle.
-export default function VehicleExpensesSection({ vehicles, driverUsers = [], expenses, loading, error }) {
-  const [selectedVehicleId, setSelectedVehicleId] = useState('');
+export default function VehicleExpensesSection({
+  vehicles,
+  driverUsers = [],
+  expenses,
+  loading,
+  error,
+  selectedVehicleId: controlledVehicleId,
+  onSelectedVehicleId,
+  hideVehicleSelector = false,
+  hideHeading = false,
+}) {
+  const [internalVehicleId, setInternalVehicleId] = useState('');
+  const selectedVehicleId = controlledVehicleId ?? internalVehicleId;
   const vehicleId = selectedVehicleId && vehicles.some((vehicle) => String(vehicle._id) === selectedVehicleId)
     ? selectedVehicleId
     : String(vehicles[0]?._id || '');
@@ -45,18 +56,27 @@ export default function VehicleExpensesSection({ vehicles, driverUsers = [], exp
   const currentYearTotal = years.find((entry) => entry.year === currentYear)?.total || 0;
 
   return (
-    <div className="card customer-admin-vehicle-expenses" style={{ marginTop: 24 }}>
+    <div className={`${hideHeading ? '' : 'card'} customer-admin-vehicle-expenses`} style={hideHeading ? undefined : { marginTop: 24 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-        <h3 className="section-title" style={{ marginTop: 0 }}>Vehicle Expenses</h3>
+        {!hideHeading && <h3 className="section-title" style={{ marginTop: 0 }}>Vehicle Expenses</h3>}
         <div style={{ display: 'flex', alignItems: 'end', gap: 14, flexWrap: 'wrap' }}>
-          <div className="field" style={{ marginBottom: 0 }}>
-            <label htmlFor="vehicle-expense-vehicle">Vehicle Number</label>
-            <select id="vehicle-expense-vehicle" value={vehicleId} onChange={(e) => setSelectedVehicleId(e.target.value)} style={{ minWidth: 180 }}>
-              {vehicles.map((entry) => (
-                <option key={entry._id} value={String(entry._id)}>{entry.vehicleNumber}</option>
-              ))}
-            </select>
-          </div>
+          {!hideVehicleSelector && (
+            <div className="field" style={{ marginBottom: 0 }}>
+              <label htmlFor="vehicle-expense-vehicle">Vehicle Number</label>
+              <select
+                id="vehicle-expense-vehicle"
+                value={vehicleId}
+                onChange={(event) => onSelectedVehicleId
+                  ? onSelectedVehicleId(event.target.value)
+                  : setInternalVehicleId(event.target.value)}
+                style={{ minWidth: 180 }}
+              >
+                {vehicles.map((entry) => (
+                  <option key={entry._id} value={String(entry._id)}>{entry.vehicleNumber}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <span style={{ fontWeight: 700, fontSize: 16, paddingBottom: 10 }}>Total {currentYear}: {formatRs(currentYearTotal)}</span>
         </div>
       </div>

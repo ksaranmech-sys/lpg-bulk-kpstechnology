@@ -13,20 +13,17 @@ import OpenTripsCard from '../features/dashboard/OpenTripsCard';
 import VehicleFilter from '../features/dashboard/VehicleFilter';
 import VehicleList from '../features/dashboard/VehicleList';
 import UserAccountCard from '../features/dashboard/UserAccountCard';
-import VehicleReminderEditor from '../features/dashboard/VehicleReminderEditor';
+import VehicleReminderMaintenanceSection from '../features/dashboard/VehicleReminderMaintenanceSection';
 import DriverLeaveSection from '../features/dashboard/DriverLeaveSection';
 import ClosedTripHistory from '../features/dashboard/ClosedTripHistory';
 import SalarySection from '../features/dashboard/SalarySection';
 import AdminLeaveSection from '../features/dashboard/AdminLeaveSection';
 import DriverList from '../features/dashboard/DriverList';
 import MobileAppCard from '../features/dashboard/MobileAppCard';
-import VehicleExpensesSection from '../features/dashboard/VehicleExpensesSection';
-import VehicleExpenseManagementSection from '../features/dashboard/VehicleExpenseManagementSection';
+import VehicleExpensesCombinedSection from '../features/dashboard/VehicleExpensesCombinedSection';
 import MonthlyIncomeSection from '../features/dashboard/MonthlyIncomeSection';
-import VehicleMaintenanceSection from '../features/dashboard/VehicleMaintenanceSection';
 import MaintenanceReminderPopup from '../features/dashboard/MaintenanceReminderPopup';
-import DieselVerificationSection from '../features/dashboard/DieselVerificationSection';
-import AdvanceVerificationSection from '../features/dashboard/AdvanceVerificationSection';
+import VerificationCombinedSection from '../features/dashboard/VerificationCombinedSection';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -59,13 +56,6 @@ export default function Dashboard() {
       <ReminderPopup user={user} vehicles={vehicles} />
       {['super_admin', 'customer_admin', 'vehicle_user'].includes(user?.role) && (
         <MaintenanceReminderPopup vehicles={vehicles} />
-      )}
-      {['super_admin', 'customer_admin'].includes(user?.role) && (
-        <div style={{ order: user?.role === 'customer_admin' ? 6 : 0 }}>
-          <div data-dashboard-section="reminder-expiry">
-            <VehicleReminderEditor vehicles={vehicles} setVehicles={setVehicles} />
-          </div>
-        </div>
       )}
       {user?.role === 'super_admin' && (
         <>
@@ -187,48 +177,32 @@ export default function Dashboard() {
       )}
       {['super_admin', 'customer_admin'].includes(user?.role) && (
         <div style={{ order: user?.role === 'customer_admin' ? 5 : 0 }}>
-          <VehicleExpensesSection
+          <VehicleExpensesCombinedSection
             vehicles={vehicles}
             driverUsers={driverUsers}
             expenses={vehicleExpenses}
             loading={vehicleExpensesLoading}
             error={vehicleExpenseError}
-          />
-        </div>
-      )}
-      {canManageDashboardVehicles && (
-        <div style={{ order: user?.role === 'customer_admin' ? 5 : 0 }}>
-          <VehicleExpenseManagementSection
-            vehicles={vehicles}
             customerId={vehicleManagementCustomerId}
+            canManage={canManageDashboardVehicles}
           />
         </div>
       )}
       {['super_admin', 'customer_admin'].includes(user?.role) && (
         <div style={{ order: user?.role === 'customer_admin' ? 7 : 9999 }}>
-          <div data-dashboard-section="vehicle-maintenance">
-            <VehicleMaintenanceSection
-              vehicles={vehicles}
-              loading={loading}
-              onVehicleUpdated={(updatedVehicle) => setVehicles((current) => current.map((vehicle) => (
-                vehicle._id === updatedVehicle._id ? updatedVehicle : vehicle
-              )))}
-            />
-          </div>
+          <VehicleReminderMaintenanceSection
+            vehicles={vehicles}
+            loading={loading}
+            setVehicles={setVehicles}
+            onVehicleUpdated={(updatedVehicle) => setVehicles((current) => current.map((vehicle) => (
+              vehicle._id === updatedVehicle._id ? updatedVehicle : vehicle
+            )))}
+          />
         </div>
       )}
       {['super_admin', 'customer_admin'].includes(user?.role) && (
         <div style={{ order: user?.role === 'customer_admin' ? 8 : 9998 }}>
-          <div data-dashboard-section="diesel-verification">
-            <DieselVerificationSection vehicles={vehicles} loading={loading} />
-          </div>
-        </div>
-      )}
-      {['super_admin', 'customer_admin'].includes(user?.role) && (
-        <div style={{ order: user?.role === 'customer_admin' ? 9 : 9999 }}>
-          <div data-dashboard-section="advance-verification">
-            <AdvanceVerificationSection vehicles={vehicles} loading={loading} />
-          </div>
+          <VerificationCombinedSection vehicles={vehicles} loading={loading} />
         </div>
       )}
     </Layout>
