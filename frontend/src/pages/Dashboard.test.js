@@ -29,6 +29,9 @@ jest.mock('../features/dashboard/MonthlyIncomeSection', () => () => <div>Monthly
 jest.mock('../features/dashboard/SalarySection', () => () => <div>Salary Details</div>);
 jest.mock('../features/dashboard/DriverList', () => () => <div>Vehicle and driver list</div>);
 jest.mock('../features/dashboard/AdminLeaveSection', () => () => <div>Leave entries</div>);
+jest.mock('../features/dashboard/VehicleDriverLeaveSection', () => () => (
+  <div data-dashboard-section="vehicle-driver-leave">Vehicle and driver list Leave entries</div>
+));
 jest.mock('../features/dashboard/VehicleReminderEditor', () => () => <div>Reminder / Expiry Dates</div>);
 jest.mock('../features/dashboard/VehicleMaintenanceSection', () => () => <div>Vehicle Maintenance</div>);
 jest.mock('../features/dashboard/VehicleReminderMaintenanceSection', () => () => (
@@ -115,7 +118,7 @@ test('orders customer admin dashboard sections as requested', async () => {
 
   const renderedSections = Array.from(container.querySelectorAll('[data-dashboard-section]'))
     .map((section) => section.dataset.dashboardSection);
-  expect(renderedSections.indexOf('leave-entries')).toBeLessThan(renderedSections.indexOf('vehicle-expenses'));
+  expect(renderedSections.indexOf('vehicle-driver-leave')).toBeLessThan(renderedSections.indexOf('vehicle-expenses'));
 
   const sections = Array.from(container.querySelectorAll('[data-dashboard-section]'))
     .sort((a, b) => Number(a.parentElement.style.order) - Number(b.parentElement.style.order))
@@ -124,14 +127,12 @@ test('orders customer admin dashboard sections as requested', async () => {
     'monthly-income',
     'salary-details',
     'trip-history',
-    'vehicle-driver-list',
-    'leave-entries',
+    'vehicle-driver-leave',
     'vehicle-expenses',
     'vehicle-reminders-maintenance',
     'verification',
   ]);
-  expect(sections.indexOf('trip-history')).toBeLessThan(sections.indexOf('vehicle-driver-list'));
-  expect(sections.indexOf('leave-entries')).toBe(sections.indexOf('vehicle-driver-list') + 1);
+  expect(sections.indexOf('trip-history')).toBeLessThan(sections.indexOf('vehicle-driver-leave'));
   expect(container.querySelector('[aria-label="Vehicle management"]')).toBeNull();
 
   await act(async () => root.unmount());

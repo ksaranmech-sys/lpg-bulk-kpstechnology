@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLeaveEntries } from './useLeaveEntries';
 
-export default function AdminLeaveSection({ leaves, setLeaves, leavesLoading, leaveError, setLeaveError, driverUsers }) {
+export default function AdminLeaveSection({ leaves, setLeaves, leavesLoading, leaveError, setLeaveError, driverUsers, embedded = false }) {
   const {
     leaveForm, setLeaveForm, leaveSaving, leaveEditId, leaveEditForm, setLeaveEditForm, leaveEditSaving,
     showArchivedLeaves, setShowArchivedLeaves, selectedLeaves, setSelectedLeaves, showAddLeaveForm, setShowAddLeaveForm,
@@ -9,7 +9,12 @@ export default function AdminLeaveSection({ leaves, setLeaves, leavesLoading, le
   } = useLeaveEntries({ leaves, setLeaves, setLeaveError });
 
   return (
-    <div className="card customer-admin-leave-section" style={{ marginTop: 24 }}>
+    <div
+      className={embedded ? '' : 'card customer-admin-leave-section'}
+      style={embedded
+        ? { marginTop: 20, paddingTop: 20, borderTop: '1px solid var(--border)' }
+        : { marginTop: 24 }}
+    >
       <h3 className="section-title" style={{ marginTop: 0 }}>Leave Entries</h3>
       {leaveError && <p className="error-text">{leaveError}</p>}
       {leavesLoading ? <p>Loading leave entries...</p> : visibleLeaves.length === 0 ? (

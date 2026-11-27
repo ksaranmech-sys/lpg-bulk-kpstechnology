@@ -17,8 +17,7 @@ import VehicleReminderMaintenanceSection from '../features/dashboard/VehicleRemi
 import DriverLeaveSection from '../features/dashboard/DriverLeaveSection';
 import ClosedTripHistory from '../features/dashboard/ClosedTripHistory';
 import SalarySection from '../features/dashboard/SalarySection';
-import AdminLeaveSection from '../features/dashboard/AdminLeaveSection';
-import DriverList from '../features/dashboard/DriverList';
+import VehicleDriverLeaveSection from '../features/dashboard/VehicleDriverLeaveSection';
 import MobileAppCard from '../features/dashboard/MobileAppCard';
 import VehicleExpensesCombinedSection from '../features/dashboard/VehicleExpensesCombinedSection';
 import MonthlyIncomeSection from '../features/dashboard/MonthlyIncomeSection';
@@ -149,30 +148,19 @@ export default function Dashboard() {
       )}
       {user?.role === 'customer_admin' && (
         <div style={{ order: 3 }}>
-          <div data-dashboard-section="vehicle-driver-list">
-            <DriverList
-              user={user}
-              vehicles={vehicles}
-              setVehicles={setVehicles}
-              customerData={customerData}
-              setCustomerData={setCustomerData}
-              driverUsers={allDriverUsers}
-            />
-          </div>
-        </div>
-      )}
-      {user?.role === 'customer_admin' && (
-        <div style={{ order: 4 }}>
-          <div data-dashboard-section="leave-entries">
-            <AdminLeaveSection
-              leaves={leaves}
-              setLeaves={setLeaves}
-              leavesLoading={leavesLoading}
-              leaveError={leaveError}
-              setLeaveError={setLeaveError}
-              driverUsers={driverUsers}
-            />
-          </div>
+          <VehicleDriverLeaveSection
+            user={user}
+            vehicles={vehicles}
+            setVehicles={setVehicles}
+            customerData={customerData}
+            setCustomerData={setCustomerData}
+            driverUsers={allDriverUsers}
+            leaves={leaves}
+            setLeaves={setLeaves}
+            leavesLoading={leavesLoading}
+            leaveError={leaveError}
+            setLeaveError={setLeaveError}
+          />
         </div>
       )}
       {['super_admin', 'customer_admin'].includes(user?.role) && (

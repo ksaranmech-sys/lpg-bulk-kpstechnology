@@ -5,7 +5,7 @@ import * as api from '../../api/api';
 import AddDriverForm from './AddDriverForm';
 import DriverEditForm from './DriverEditForm';
 
-export default function DriverList({ user, vehicles, setVehicles, customerData, setCustomerData, driverUsers }) {
+export default function DriverList({ user, vehicles, setVehicles, customerData, setCustomerData, driverUsers, embedded = false }) {
   const [driverForm, setDriverForm] = useState(EMPTY_DRIVER_FORM);
   const [driverError, setDriverError] = useState('');
   const [driverSaving, setDriverSaving] = useState(false);
@@ -263,7 +263,7 @@ export default function DriverList({ user, vehicles, setVehicles, customerData, 
   );
 
   return (
-    <div className="card customer-admin-driver-list" style={{ marginTop: 24 }}>
+    <div className={embedded ? '' : 'card customer-admin-driver-list'} style={embedded ? undefined : { marginTop: 24 }}>
       <h3 className="section-title" style={{ marginTop: 0 }}>Vehicle & Driver List</h3>
       <div style={{ display: 'grid', gap: 10, marginBottom: 20 }}>
         {customerVehicles.length === 0 && unassignedDrivers.length === 0 ? (
